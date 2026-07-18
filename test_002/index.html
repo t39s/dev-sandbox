@@ -11,6 +11,7 @@
     .comparison { max-width: 1180px; margin: 0 auto; }
     .comparison > h1 { margin: 0 0 8px; font-size: 32px; }
     .comparison > p { margin: 0 0 28px; line-height: 1.6; }
+    .group-title { margin: 36px 0 14px; font-size: 24px; }
     .options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
     .option { border: 1px solid #d8d8d8; border-radius: 14px; overflow: hidden; background: #fff; }
     .option-header { padding: 16px 18px; border-bottom: 1px solid #d8d8d8; background: #fff; }
@@ -24,6 +25,9 @@
     .option-1 .page-preview { background: #fff1f1; }
     .option-2 .page-preview { background: #ffe4e6; }
     .option-3 .page-preview { background: #ffd6d9; }
+    .option-4 .page-preview { background: #fad4d4; }
+    .option-5 .page-preview { background: #f5baba; }
+    .option-6 .page-preview { background: #efa0a0; }
     @media (max-width: 900px) { .options { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -31,6 +35,8 @@
   <div class="comparison">
     <h1>Варианты фона главной страницы</h1>
     <p>Разметка, текст, размеры и внутренний белый блок одинаковы. Отличается только фон страницы.</p>
+
+    <h2 class="group-title">Первая группа — розовые оттенки</h2>
     <div class="options">
       <section class="option option-1">
         <header class="option-header"><h2>Вариант 1</h2><code>#FFF1F1</code></header>
@@ -43,6 +49,22 @@
       <section class="option option-3">
         <header class="option-header"><h2>Вариант 3</h2><code>#FFD6D9</code></header>
         <div class="page-preview"><main><h1>Список файлов</h1><nav aria-label="Список файлов — вариант 3"><a href="#">page1.html</a><a href="#">page2.html</a><a href="#">page3.html</a></nav></main></div>
+      </section>
+    </div>
+
+    <h2 class="group-title">Вторая группа — светло-красные оттенки</h2>
+    <div class="options">
+      <section class="option option-4">
+        <header class="option-header"><h2>Вариант 4</h2><code>#FAD4D4</code></header>
+        <div class="page-preview"><main><h1>Список файлов</h1><nav aria-label="Список файлов — вариант 4"><a href="#">page1.html</a><a href="#">page2.html</a><a href="#">page3.html</a></nav></main></div>
+      </section>
+      <section class="option option-5">
+        <header class="option-header"><h2>Вариант 5</h2><code>#F5BABA</code></header>
+        <div class="page-preview"><main><h1>Список файлов</h1><nav aria-label="Список файлов — вариант 5"><a href="#">page1.html</a><a href="#">page2.html</a><a href="#">page3.html</a></nav></main></div>
+      </section>
+      <section class="option option-6">
+        <header class="option-header"><h2>Вариант 6</h2><code>#EFA0A0</code></header>
+        <div class="page-preview"><main><h1>Список файлов</h1><nav aria-label="Список файлов — вариант 6"><a href="#">page1.html</a><a href="#">page2.html</a><a href="#">page3.html</a></nav></main></div>
       </section>
     </div>
   </div>
