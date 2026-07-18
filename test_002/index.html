@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Варианты фона главной страницы</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #222; background: #f7f7f7; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 40px 20px; }
+    .comparison { max-width: 1180px; margin: 0 auto; }
+    .comparison > h1 { margin: 0 0 8px; font-size: 32px; }
+    .comparison > p { margin: 0 0 28px; line-height: 1.6; }
+    .options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+    .option { border: 1px solid #d8d8d8; border-radius: 14px; overflow: hidden; background: #fff; }
+    .option-header { padding: 16px 18px; border-bottom: 1px solid #d8d8d8; background: #fff; }
+    .option-header h2 { margin: 0 0 4px; font-size: 20px; }
+    .option-header code { font-size: 15px; }
+    .page-preview { min-height: 360px; padding: 40px 20px; }
+    .page-preview main { max-width: 720px; margin: 0 auto; padding: 32px; background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; }
+    .page-preview h1 { margin-top: 0; font-size: 32px; }
+    .page-preview nav a { display: block; margin: 12px 0; color: #0645ad; text-decoration: none; }
+    .page-preview nav a:hover { text-decoration: underline; }
+    .option-1 .page-preview { background: #fff1f1; }
+    .option-2 .page-preview { background: #ffe4e6; }
+    .option-3 .page-preview { background: #ffd6d9; }
+    @media (max-width: 900px) { .options { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="comparison">
+    <h1>Варианты фона главной страницы</h1>
+    <p>Разметка, текст, размеры и внутренний белый блок одинаковы. Отличается только фон страницы.</p>
+    <div class="options">
+      <section class="option option-1">
+        <header class="option-header"><h2>Вариант 1</h2><code>#FFF1F1</code></header>
+        <div class="page-preview"><main><h1>Список файлов</h1><nav aria-label="Список файлов — вариант 1"><a href="#">page1.html</a><a href="#">page2.html</a><a href="#">page3.html</a></nav></main></div>
+      </section>
+      <section class="option option-2">
+        <header class="option-header"><h2>Вариант 2</h2><code>#FFE4E6</code></header>
+        <div class="page-preview"><main><h1>Список файлов</h1><nav aria-label="Список файлов — вариант 2"><a href="#">page1.html</a><a href="#">page2.html</a><a href="#">page3.html</a></nav></main></div>
+      </section>
+      <section class="option option-3">
+        <header class="option-header"><h2>Вариант 3</h2><code>#FFD6D9</code></header>
+        <div class="page-preview"><main><h1>Список файлов</h1><nav aria-label="Список файлов — вариант 3"><a href="#">page1.html</a><a href="#">page2.html</a><a href="#">page3.html</a></nav></main></div>
+      </section>
+    </div>
+  </div>
+</body>
+</html>
