@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f5f5f5">
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#111111">
-  <title>Случайная задержка</title>
+  <title>Случайный таймер</title>
 
   <style>
     :root {
@@ -284,88 +284,265 @@
         }
       }
     }
+  
+    .app {
+      min-height: 100dvh;
+      width: min(100%, 420px);
+      margin: 0 auto;
+      padding:
+        max(24px, env(safe-area-inset-top))
+        20px
+        max(16px, env(safe-area-inset-bottom));
+      box-sizing: border-box;
+      display: grid;
+      grid-template-rows: 1fr auto auto;
+      gap: 20px;
+    }
+
+    .home-screen {
+      display: grid;
+      align-content: center;
+      gap: 16px;
+    }
+
+    .app-title {
+      margin: 0 0 16px;
+      font-size: clamp(28px, 8vw, 40px);
+      line-height: 1.1;
+      text-align: center;
+    }
+
+    .primary-control,
+    .settings-toggle,
+    .settings-content > button,
+    .delay-input-group,
+    .control-group {
+      width: 100%;
+    }
+
+    .primary-control {
+      min-height: 144px;
+      font-size: clamp(28px, 8vw, 36px);
+      font-weight: 700;
+      border-radius: 20px;
+    }
+
+    .primary-control.is-stopping {
+      border-style: dashed;
+    }
+
+    .primary-control.is-active {
+      background: #b42318;
+      color: #ffffff;
+      border-color: #b42318;
+    }
+
+    .settings-toggle {
+      min-height: 48px;
+      background: color-mix(
+        in srgb,
+        var(--foreground) 75%,
+        var(--background)
+      );
+      color: #ffffff;
+      border-color: color-mix(
+        in srgb,
+        var(--foreground) 35%,
+        transparent
+      );
+    }
+
+    .primary-control.is-stopping {
+      color: #b42318;
+      border-color: #b42318;
+      background: #000000;
+    }
+
+    .settings-panel {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      min-height: 100dvh;
+      overflow-y: auto;
+      background: var(--background);
+      color: var(--foreground);
+      padding:
+        max(16px, env(safe-area-inset-top))
+        20px
+        max(20px, env(safe-area-inset-bottom));
+      box-sizing: border-box;
+    }
+
+    .settings-header {
+      width: min(100%, 420px);
+      margin: 0 auto 20px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .settings-header h2 {
+      margin: 0;
+      font-size: 24px;
+    }
+
+    .settings-close {
+      min-height: 44px;
+      width: auto;
+      padding-inline: 18px;
+      background: #b42318;
+      color: #ffffff;
+      border-color: #b42318;
+    }
+
+    .settings-content {
+      width: min(100%, 420px);
+      margin: 0 auto;
+      display: grid;
+      gap: 14px;
+      padding-bottom: 24px;
+    }
+
+    .version-label {
+      font-size: 12px;
+      line-height: 1.2;
+      text-align: center;
+      opacity: 0.55;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
   </style>
 </head>
 
 <body>
   <main>
-    <section class="app" aria-label="Генератор случайной задержки">
-      <output class="result" id="result" aria-live="polite"></output>
-      <div class="delay-input-group">
-        <input
-          class="delay-input"
-          id="delayInput"
-          type="text"
-          inputmode="text"
-          autocomplete="off"
-          autocapitalize="off"
-          spellcheck="false"
-          aria-describedby="delayMessage"
-          value="2s, 5s, 10s, 20s"
+    <section class="app" aria-label="Случайный таймер">
+      <section class="home-screen" aria-label="Главный экран">
+        <h1 class="app-title">Случайный таймер</h1>
+
+        <button
+          class="primary-control"
+          id="primaryControl"
+          type="button"
         >
-        <p class="input-message" id="delayMessage" aria-live="polite"></p>
-      </div>
+          Включить
+        </button>
 
-      <button id="generateButton" type="button">Случайная задержка</button>
-      <button
-        class="signal-button"
-        id="signalButton"
-        type="button"
-        aria-pressed="false"
+        <button
+          class="settings-toggle"
+          id="settingsToggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="settingsPanel"
+        >
+          Настройки…
+        </button>
+      </section>
+
+      <section
+        class="settings-panel"
+        id="settingsPanel"
+        aria-label="Настройки и отладка"
+        hidden
       >
-        Включить сигнал
-      </button>
-
-      <button
-        class="test-button"
-        id="testButton"
-        type="button"
-        aria-describedby="testStatus"
-      >
-        Тест (5 секунд)
-      </button>
-
-      <button
-        class="test-button"
-        id="randomTestButton"
-        type="button"
-        aria-describedby="testStatus"
-      >
-        Тест (случайно)
-      </button>
-
-      <span id="testStatus" aria-live="polite" hidden></span>
-
-      <div class="control-group">
-        <label for="signalSelect">Сигнал</label>
-        <select id="signalSelect">
-          <option value="steady">Ровный тон</option>
-          <option value="low">Низкий гул</option>
-          <option value="dual">Двойной тон</option>
-          <option value="siren">Сирена</option>
-          <option value="pulse">Пульс</option>
-        </select>
-      </div>
-
-      <div class="control-group">
-        <div class="control-label-row">
-          <span>Громкость сигнала</span>
-          <output class="volume-value" id="volumeValue" for="volumeControl">30%</output>
+        <div class="settings-header">
+          <h2>Настройки</h2>
+          <button
+            class="settings-close"
+            id="settingsClose"
+            type="button"
+          >
+            Назад
+          </button>
         </div>
-        <input
-          id="volumeControl"
-          type="range"
-          min="0"
-          max="100"
-          value="30"
-          step="1"
-          aria-label="Громкость сигнала"
-        >
-      </div>
+
+        <div class="settings-content">
+          <output class="result" id="result" aria-live="polite"></output>
+
+          <div class="delay-input-group">
+            <input
+              class="delay-input"
+              id="delayInput"
+              type="text"
+              inputmode="text"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
+              aria-describedby="delayMessage"
+              value="2s, 5s, 10s, 20s"
+            >
+            <p class="input-message" id="delayMessage" aria-live="polite"></p>
+          </div>
+
+          <button id="generateButton" type="button">Случайная задержка</button>
+
+          <button
+            class="signal-button"
+            id="signalButton"
+            type="button"
+            aria-pressed="false"
+          >
+            Включить сигнал
+          </button>
+
+          <button
+            class="test-button"
+            id="testButton"
+            type="button"
+            aria-describedby="testStatus"
+          >
+            Тест (5 секунд)
+          </button>
+
+          <button
+            class="test-button"
+            id="randomTestButton"
+            type="button"
+            aria-describedby="testStatus"
+          >
+            Тест (случайно)
+          </button>
+
+          <span id="testStatus" aria-live="polite" hidden></span>
+
+          <div class="control-group">
+            <label for="signalSelect">Сигнал</label>
+            <select id="signalSelect">
+              <option value="steady">Ровный тон</option>
+              <option value="low">Низкий гул</option>
+              <option value="dual">Двойной тон</option>
+              <option value="siren">Сирена</option>
+              <option value="pulse">Пульс</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <div class="volume-row">
+              <label for="volumeControl">Громкость</label>
+              <output id="volumeValue" for="volumeControl">30%</output>
+            </div>
+            <input
+              id="volumeControl"
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value="30"
+            >
+          </div>
+        </div>
+      </section>
+
+      <footer class="version-label">Версия 0.5.1b</footer>
     </section>
   </main>
 
   <script>
+    const primaryControl = document.getElementById("primaryControl");
+    const settingsToggle = document.getElementById("settingsToggle");
+    const settingsClose = document.getElementById("settingsClose");
+    const settingsPanel = document.getElementById("settingsPanel");
     const result = document.getElementById("result");
     const button = document.getElementById("generateButton");
     const delayInput = document.getElementById("delayInput");
@@ -414,6 +591,30 @@
       element.classList.add(className);
     }
 
+    function updatePrimaryControl() {
+      primaryControl.classList.remove("is-stopping", "is-active");
+
+      if (signalEnabled) {
+        primaryControl.textContent = "Выключить";
+        primaryControl.classList.add("is-active");
+        primaryControl.setAttribute("aria-label", "Выключить сигнал");
+        return;
+      }
+
+      if (testPending) {
+        primaryControl.textContent = "Остановить";
+        primaryControl.classList.add("is-stopping");
+        primaryControl.setAttribute("aria-label", "Остановить отсчёт");
+        return;
+      }
+
+      primaryControl.textContent = "Включить";
+      primaryControl.setAttribute(
+        "aria-label",
+        "Включить случайный таймер"
+      );
+    }
+
     function getDefaultTestLabel(buttonElement) {
       return buttonElement === randomTestButton
         ? "Тест (случайно)"
@@ -436,6 +637,8 @@
           buttonElement.textContent = getDefaultTestLabel(buttonElement);
         }
       });
+
+      updatePrimaryControl();
     }
 
     function cancelTest() {
@@ -455,7 +658,7 @@
       setTestButtonState();
     }
 
-    async function startTest(delaySeconds, buttonElement) {
+    async function startTest(delaySeconds, buttonElement = null) {
       if (testPending) {
         cancelTest();
       }
@@ -469,7 +672,10 @@
       activeTestButton = buttonElement;
       let remaining = delaySeconds;
 
-      buttonElement.textContent = `Отменить тест: ${remaining} с`;
+      if (buttonElement) {
+        buttonElement.textContent = `Отменить тест: ${remaining} с`;
+      }
+
       testStatus.textContent =
         `Сигнал включится через ${remaining} секунд`;
       setTestButtonState();
@@ -477,9 +683,12 @@
       countdownTimer = setInterval(() => {
         remaining -= 1;
 
-        if (remaining > 0 && activeTestButton) {
-          activeTestButton.textContent =
-            `Отменить тест: ${remaining} с`;
+        if (remaining > 0) {
+          if (activeTestButton) {
+            activeTestButton.textContent =
+              `Отменить тест: ${remaining} с`;
+          }
+
           testStatus.textContent =
             `Сигнал включится через ${remaining} секунд`;
         }
@@ -762,6 +971,58 @@
       setTestButtonState();
     }
 
+    function openSettings() {
+      settingsPanel.hidden = false;
+      settingsToggle.setAttribute("aria-expanded", "true");
+      settingsPanel.scrollTop = 0;
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeSettings() {
+      settingsPanel.hidden = true;
+      settingsToggle.setAttribute("aria-expanded", "false");
+      document.body.style.overflow = "";
+    }
+
+    settingsToggle.addEventListener("click", openSettings);
+    settingsClose.addEventListener("click", closeSettings);
+
+    primaryControl.addEventListener("click", async () => {
+      restartAnimation(primaryControl, "is-pressed");
+
+      if (signalEnabled) {
+        stopSignal();
+      } else if (testPending) {
+        cancelTest();
+      } else {
+        const parsed = parseDelayList(delayInput.value);
+
+        if (!parsed.ok) {
+          delayInput.setAttribute("aria-invalid", "true");
+          delayMessage.textContent = parsed.invalidToken
+            ? `Некорректное значение: ${parsed.invalidToken}`
+            : "Проверьте формат задержек";
+
+          openSettings();
+          return;
+        }
+
+        const selected =
+          parsed.values[Math.floor(Math.random() * parsed.values.length)];
+
+        result.textContent = selected.source;
+        delayInput.setAttribute("aria-invalid", "false");
+        delayMessage.textContent = "";
+
+        restartAnimation(result, "is-updated");
+        await startTest(selected.totalSeconds);
+      }
+
+      if ("vibrate" in navigator) {
+        navigator.vibrate(20);
+      }
+    });
+
     signalButton.addEventListener("click", async () => {
       restartAnimation(signalButton, "is-pressed");
 
@@ -867,7 +1128,12 @@
       randomTestButton.classList.remove("is-pressed");
     });
 
+    primaryControl.addEventListener("animationend", () => {
+      primaryControl.classList.remove("is-pressed");
+    });
+
     setTestButtonState();
+    updatePrimaryControl();
   </script>
 </body>
 </html>
