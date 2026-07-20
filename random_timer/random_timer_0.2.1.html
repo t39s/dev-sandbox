@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f5f5f5">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#111111">
+  <title>Случайное число</title>
+
+  <style>
+    :root {
+      color-scheme: light dark;
+      --background: #f5f5f5;
+      --foreground: #111111;
+      --button-background: #111111;
+      --button-foreground: #ffffff;
+      --button-active: #303030;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --background: #111111;
+        --foreground: #f5f5f5;
+        --button-background: #f5f5f5;
+        --button-foreground: #111111;
+        --button-active: #d5d5d5;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      min-height: 100%;
+      margin: 0;
+    }
+
+    body {
+      min-height: 100dvh;
+      overflow: hidden;
+      background: var(--background);
+      color: var(--foreground);
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    main {
+      width: 100%;
+      min-height: 100dvh;
+      padding:
+        max(24px, env(safe-area-inset-top))
+        max(24px, env(safe-area-inset-right))
+        max(24px, env(safe-area-inset-bottom))
+        max(24px, env(safe-area-inset-left));
+      display: grid;
+      place-items: center;
+    }
+
+    .app {
+      width: min(100%, 420px);
+      display: grid;
+      grid-template-rows: 96px auto auto auto;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .result {
+      min-height: 96px;
+      display: grid;
+      place-items: center;
+      font-size: clamp(64px, 22vw, 96px);
+      font-weight: 700;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      user-select: none;
+      will-change: transform, opacity;
+    }
+
+    .result.is-updated {
+      animation: result-feedback 160ms ease-out;
+    }
+
+    button {
+      width: 100%;
+      min-height: 72px;
+      border: 0;
+      border-radius: 18px;
+      padding: 18px 24px;
+      background: var(--button-background);
+      color: var(--button-foreground);
+      font: inherit;
+      font-size: 20px;
+      font-weight: 650;
+      cursor: pointer;
+      touch-action: manipulation;
+      user-select: none;
+      will-change: transform;
+    }
+
+    button.is-pressed {
+      animation: button-feedback 140ms ease-out;
+    }
+
+    .signal-button {
+      background: transparent;
+      color: var(--foreground);
+      border: 2px solid currentColor;
+    }
+
+    .signal-button.is-active {
+      background: #b42318;
+      color: #ffffff;
+      border-color: #b42318;
+    }
+
+    .signal-select-group {
+      width: 100%;
+      display: grid;
+      gap: 8px;
+    }
+
+    .signal-select-group label {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--foreground);
+      opacity: 0.72;
+    }
+
+    select {
+      width: 100%;
+      min-height: 56px;
+      border: 1px solid currentColor;
+      border-radius: 14px;
+      padding: 0 16px;
+      background: var(--background);
+      color: var(--foreground);
+      font: inherit;
+      font-size: 17px;
+    }
+
+    select:focus-visible,
+    button:focus-visible {
+      outline: 3px solid currentColor;
+      outline-offset: 4px;
+    }
+
+    @keyframes result-feedback {
+      0% {
+        transform: scale(0.86);
+        opacity: 0.35;
+      }
+
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    @keyframes button-feedback {
+      0% {
+        transform: scale(1);
+      }
+
+      45% {
+        transform: scale(0.96);
+        background: var(--button-active);
+      }
+
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .result.is-updated {
+        animation: result-feedback-reduced 100ms linear;
+      }
+
+      button.is-pressed {
+        animation: button-feedback-reduced 100ms linear;
+      }
+
+      @keyframes result-feedback-reduced {
+        0% {
+          opacity: 0.4;
+        }
+
+        100% {
+          opacity: 1;
+        }
+      }
+
+      @keyframes button-feedback-reduced {
+        0%,
+        100% {
+          opacity: 1;
+        }
+
+        50% {
+          opacity: 0.72;
+        }
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <section class="app" aria-label="Генератор случайного числа">
+      <output class="result" id="result" aria-live="polite"></output>
+      <button id="generateButton" type="button">Случайное число</button>
+      <button
+        class="signal-button"
+        id="signalButton"
+        type="button"
+        aria-pressed="false"
+      >
+        Включить сигнал
+      </button>
+
+      <div class="signal-select-group">
+        <label for="signalSelect">Сигнал</label>
+        <select id="signalSelect">
+          <option value="steady">Ровный тон</option>
+          <option value="low">Низкий гул</option>
+          <option value="buzzer">Высокий зуммер</option>
+          <option value="siren">Сирена</option>
+          <option value="pulse">Пульс</option>
+        </select>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const numbers = [2, 5, 10, 20];
+    const result = document.getElementById("result");
+    const button = document.getElementById("generateButton");
+    const signalButton = document.getElementById("signalButton");
+    const signalSelect = document.getElementById("signalSelect");
+
+    let audioContext = null;
+    let oscillator = null;
+    let gainNode = null;
+    let modulationOscillator = null;
+    let modulationGain = null;
+    let pulseTimer = null;
+    let signalEnabled = false;
+
+    function restartAnimation(element, className) {
+      element.classList.remove(className);
+      void element.offsetWidth;
+      element.classList.add(className);
+    }
+
+    button.addEventListener("click", () => {
+      const randomIndex = Math.floor(Math.random() * numbers.length);
+
+      result.textContent = numbers[randomIndex];
+
+      restartAnimation(result, "is-updated");
+      restartAnimation(button, "is-pressed");
+
+      if ("vibrate" in navigator) {
+        navigator.vibrate(20);
+      }
+    });
+
+    function clearSignalNodes() {
+      if (pulseTimer) {
+        clearInterval(pulseTimer);
+        pulseTimer = null;
+      }
+
+      if (modulationOscillator) {
+        try {
+          modulationOscillator.stop();
+        } catch {}
+        modulationOscillator = null;
+      }
+
+      modulationGain = null;
+
+      if (oscillator) {
+        try {
+          oscillator.stop();
+        } catch {}
+        oscillator = null;
+      }
+
+      gainNode = null;
+    }
+
+    function createBaseSignal(type, frequency, volume = 0.12) {
+      oscillator = audioContext.createOscillator();
+      gainNode = audioContext.createGain();
+
+      oscillator.type = type;
+      oscillator.frequency.value = frequency;
+
+      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+      gainNode.gain.linearRampToValueAtTime(
+        volume,
+        audioContext.currentTime + 0.05
+      );
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      oscillator.start();
+    }
+
+    function buildSelectedSignal() {
+      clearSignalNodes();
+
+      switch (signalSelect.value) {
+        case "low":
+          createBaseSignal("triangle", 220, 0.11);
+          break;
+
+        case "buzzer":
+          createBaseSignal("square", 1200, 0.055);
+          break;
+
+        case "siren":
+          createBaseSignal("sine", 700, 0.1);
+          modulationOscillator = audioContext.createOscillator();
+          modulationGain = audioContext.createGain();
+
+          modulationOscillator.type = "sine";
+          modulationOscillator.frequency.value = 0.8;
+          modulationGain.gain.value = 350;
+
+          modulationOscillator.connect(modulationGain);
+          modulationGain.connect(oscillator.frequency);
+          modulationOscillator.start();
+          break;
+
+        case "pulse":
+          createBaseSignal("sine", 880, 0);
+          pulseTimer = setInterval(() => {
+            const now = audioContext.currentTime;
+            gainNode.gain.cancelScheduledValues(now);
+            gainNode.gain.setValueAtTime(0, now);
+            gainNode.gain.linearRampToValueAtTime(0.13, now + 0.02);
+            gainNode.gain.linearRampToValueAtTime(0, now + 0.22);
+          }, 700);
+
+          {
+            const now = audioContext.currentTime;
+            gainNode.gain.setValueAtTime(0, now);
+            gainNode.gain.linearRampToValueAtTime(0.13, now + 0.02);
+            gainNode.gain.linearRampToValueAtTime(0, now + 0.22);
+          }
+          break;
+
+        case "steady":
+        default:
+          createBaseSignal("sine", 880, 0.12);
+      }
+    }
+
+    async function startSignal() {
+      audioContext ??= new AudioContext();
+
+      if (audioContext.state === "suspended") {
+        await audioContext.resume();
+      }
+
+      buildSelectedSignal();
+
+      signalEnabled = true;
+      signalButton.textContent = "Выключить сигнал";
+      signalButton.classList.add("is-active");
+      signalButton.setAttribute("aria-pressed", "true");
+    }
+
+    function stopSignal() {
+      if (audioContext && gainNode) {
+        const now = audioContext.currentTime;
+
+        gainNode.gain.cancelScheduledValues(now);
+        gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+        gainNode.gain.linearRampToValueAtTime(0, now + 0.05);
+
+        setTimeout(clearSignalNodes, 70);
+      } else {
+        clearSignalNodes();
+      }
+
+      signalEnabled = false;
+      signalButton.textContent = "Включить сигнал";
+      signalButton.classList.remove("is-active");
+      signalButton.setAttribute("aria-pressed", "false");
+    }
+
+    signalButton.addEventListener("click", async () => {
+      restartAnimation(signalButton, "is-pressed");
+
+      if (signalEnabled) {
+        stopSignal();
+      } else {
+        await startSignal();
+      }
+
+      if ("vibrate" in navigator) {
+        navigator.vibrate(20);
+      }
+    });
+
+    signalSelect.addEventListener("change", () => {
+      if (signalEnabled) {
+        buildSelectedSignal();
+      }
+    });
+
+    result.addEventListener("animationend", () => {
+      result.classList.remove("is-updated");
+    });
+
+    button.addEventListener("animationend", () => {
+      button.classList.remove("is-pressed");
+    });
+
+    signalButton.addEventListener("animationend", () => {
+      signalButton.classList.remove("is-pressed");
+    });
+  </script>
+</body>
+</html>
