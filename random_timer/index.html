@@ -80,6 +80,11 @@
       line-height: 1;
       font-variant-numeric: tabular-nums;
       user-select: none;
+      will-change: transform, opacity;
+    }
+
+    .result.is-updated {
+      animation: result-feedback 160ms ease-out;
     }
 
     button {
@@ -95,17 +100,75 @@
       font-weight: 650;
       cursor: pointer;
       touch-action: manipulation;
-      transition: transform 80ms ease, background-color 80ms ease;
+      user-select: none;
+      will-change: transform;
     }
 
-    button:active {
-      transform: scale(0.98);
-      background: var(--button-active);
+    button.is-pressed {
+      animation: button-feedback 140ms ease-out;
     }
 
     button:focus-visible {
       outline: 3px solid currentColor;
       outline-offset: 4px;
+    }
+
+    @keyframes result-feedback {
+      0% {
+        transform: scale(0.86);
+        opacity: 0.35;
+      }
+
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    @keyframes button-feedback {
+      0% {
+        transform: scale(1);
+      }
+
+      45% {
+        transform: scale(0.96);
+        background: var(--button-active);
+      }
+
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .result.is-updated {
+        animation: result-feedback-reduced 100ms linear;
+      }
+
+      button.is-pressed {
+        animation: button-feedback-reduced 100ms linear;
+      }
+
+      @keyframes result-feedback-reduced {
+        0% {
+          opacity: 0.4;
+        }
+
+        100% {
+          opacity: 1;
+        }
+      }
+
+      @keyframes button-feedback-reduced {
+        0%,
+        100% {
+          opacity: 1;
+        }
+
+        50% {
+          opacity: 0.72;
+        }
+      }
     }
   </style>
 </head>
@@ -123,9 +186,31 @@
     const result = document.getElementById("result");
     const button = document.getElementById("generateButton");
 
+    function restartAnimation(element, className) {
+      element.classList.remove(className);
+      void element.offsetWidth;
+      element.classList.add(className);
+    }
+
     button.addEventListener("click", () => {
       const randomIndex = Math.floor(Math.random() * numbers.length);
+
       result.textContent = numbers[randomIndex];
+
+      restartAnimation(result, "is-updated");
+      restartAnimation(button, "is-pressed");
+
+      if ("vibrate" in navigator) {
+        navigator.vibrate(20);
+      }
+    });
+
+    result.addEventListener("animationend", () => {
+      result.classList.remove("is-updated");
+    });
+
+    button.addEventListener("animationend", () => {
+      button.classList.remove("is-pressed");
     });
   </script>
 </body>
