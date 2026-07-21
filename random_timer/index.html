@@ -285,46 +285,42 @@
       }
     }
   
-    .app {
+    main {
       min-height: 100dvh;
-      width: min(100%, 420px);
-      margin: 0 auto;
-      padding:
-        max(24px, env(safe-area-inset-top))
-        20px
-        max(16px, env(safe-area-inset-bottom));
-      box-sizing: border-box;
-      display: grid;
-      grid-template-rows: 1fr auto auto;
-      gap: 20px;
+      padding: 0;
+      display: block;
+    }
+
+    .app {
+      position: relative;
+      width: 100%;
+      min-height: 100dvh;
     }
 
     .home-screen {
-      display: grid;
-      align-content: center;
-      gap: 16px;
-    }
-
-    .app-title {
-      margin: 0 0 16px;
-      font-size: clamp(28px, 8vw, 40px);
-      line-height: 1.1;
-      text-align: center;
-    }
-
-    .primary-control,
-    .settings-toggle,
-    .settings-content > button,
-    .delay-input-group,
-    .control-group {
-      width: 100%;
+      position: fixed;
+      inset: 0;
+      min-height: 100dvh;
+      font-size: clamp(32px, 10vmin, 88px);
+      --gear-size: 0.72em;
+      --gear-hit-size: 1.44em;
+      --version-font-size: 0.333em;
     }
 
     .primary-control {
-      min-height: 144px;
-      font-size: clamp(28px, 8vw, 36px);
+      width: 100%;
+      height: 100%;
+      min-height: 100dvh;
+      margin: 0;
+      padding:
+        max(24px, env(safe-area-inset-top))
+        max(24px, env(safe-area-inset-right))
+        max(24px, env(safe-area-inset-bottom))
+        max(24px, env(safe-area-inset-left));
+      border-radius: 0;
+      font-size: 1em;
       font-weight: 700;
-      border-radius: 20px;
+      line-height: 1;
     }
 
     .primary-control.is-stopping {
@@ -337,25 +333,69 @@
       border-color: #b42318;
     }
 
-    .settings-toggle {
-      min-height: 48px;
-      background: color-mix(
-        in srgb,
-        var(--foreground) 75%,
-        var(--background)
-      );
-      color: #ffffff;
-      border-color: color-mix(
-        in srgb,
-        var(--foreground) 35%,
-        transparent
-      );
-    }
-
     .primary-control.is-stopping {
       color: #b42318;
       border-color: #b42318;
       background: #000000;
+    }
+
+    .settings-toggle {
+      position: fixed;
+      right: max(16px, env(safe-area-inset-right));
+      bottom: max(16px, env(safe-area-inset-bottom));
+      z-index: 2;
+      width: var(--gear-hit-size);
+      height: var(--gear-hit-size);
+      min-width: var(--gear-hit-size);
+      min-height: var(--gear-hit-size);
+      padding: 0;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: var(--button-foreground);
+      font: inherit;
+      line-height: 1;
+    }
+
+    .settings-icon {
+      display: block;
+      width: var(--gear-size);
+      height: var(--gear-size);
+      fill: currentColor;
+    }
+
+    .home-version {
+      position: fixed;
+      left: max(16px, env(safe-area-inset-left));
+      bottom: max(16px, env(safe-area-inset-bottom));
+      z-index: 2;
+      margin: 0;
+      font-size: var(--version-font-size);
+      line-height: 1.2;
+      color: var(--button-foreground);
+      opacity: 0.55;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .settings-toggle .settings-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (orientation: landscape) {
+      .home-screen {
+        font-size: clamp(28px, 10vmin, 72px);
+      }
     }
 
     .settings-panel {
@@ -419,8 +459,6 @@
   <main>
     <section class="app" aria-label="Случайный таймер">
       <section class="home-screen" aria-label="Главный экран">
-        <h1 class="app-title">Случайный таймер</h1>
-
         <button
           class="primary-control"
           id="primaryControl"
@@ -433,11 +471,36 @@
           class="settings-toggle"
           id="settingsToggle"
           type="button"
+          aria-label="Открыть настройки"
           aria-expanded="false"
           aria-controls="settingsPanel"
         >
-          Настройки…
+          <svg
+            class="settings-icon"
+            viewBox="0 0 64 64"
+            aria-hidden="true"
+          >
+            <mask id="gear-mask">
+              <rect width="64" height="64" fill="white"></rect>
+              <circle cx="32" cy="32" r="13.2" fill="black"></circle>
+            </mask>
+            <g fill="currentColor" mask="url(#gear-mask)">
+              <rect x="26" y="2" width="12" height="16" rx="4"></rect>
+              <rect x="26" y="2" width="12" height="16" rx="4" transform="rotate(45 32 32)"></rect>
+              <rect x="26" y="2" width="12" height="16" rx="4" transform="rotate(90 32 32)"></rect>
+              <rect x="26" y="2" width="12" height="16" rx="4" transform="rotate(135 32 32)"></rect>
+              <rect x="26" y="2" width="12" height="16" rx="4" transform="rotate(180 32 32)"></rect>
+              <rect x="26" y="2" width="12" height="16" rx="4" transform="rotate(225 32 32)"></rect>
+              <rect x="26" y="2" width="12" height="16" rx="4" transform="rotate(270 32 32)"></rect>
+              <rect x="26" y="2" width="12" height="16" rx="4" transform="rotate(315 32 32)"></rect>
+
+              <circle cx="32" cy="32" r="22"></circle>
+            </g>
+          </svg>
+          <span class="settings-label">Настройки</span>
         </button>
+
+        <p class="home-version">Версия 0.5.2a</p>
       </section>
 
       <section
@@ -531,10 +594,9 @@
               value="30"
             >
           </div>
+          <footer class="version-label">Версия 0.5.2a</footer>
         </div>
       </section>
-
-      <footer class="version-label">Версия 0.5.1b</footer>
     </section>
   </main>
 
