@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f5f5f5">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#111111">
+  <title>Случайное число</title>
+
+  <style>
+    :root {
+      color-scheme: light dark;
+      --background: #f5f5f5;
+      --foreground: #111111;
+      --button-background: #111111;
+      --button-foreground: #ffffff;
+      --button-active: #303030;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --background: #111111;
+        --foreground: #f5f5f5;
+        --button-background: #f5f5f5;
+        --button-foreground: #111111;
+        --button-active: #d5d5d5;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      min-height: 100%;
+      margin: 0;
+    }
+
+    body {
+      min-height: 100dvh;
+      overflow: hidden;
+      background: var(--background);
+      color: var(--foreground);
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    main {
+      width: 100%;
+      min-height: 100dvh;
+      padding:
+        max(24px, env(safe-area-inset-top))
+        max(24px, env(safe-area-inset-right))
+        max(24px, env(safe-area-inset-bottom))
+        max(24px, env(safe-area-inset-left));
+      display: grid;
+      place-items: center;
+    }
+
+    .app {
+      width: min(100%, 420px);
+      display: grid;
+      grid-template-rows: 96px auto auto auto auto auto;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .result {
+      min-height: 96px;
+      display: grid;
+      place-items: center;
+      font-size: clamp(64px, 22vw, 96px);
+      font-weight: 700;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      user-select: none;
+      will-change: transform, opacity;
+    }
+
+    .result.is-updated {
+      animation: result-feedback 160ms ease-out;
+    }
+
+    button {
+      width: 100%;
+      min-height: 72px;
+      border: 0;
+      border-radius: 18px;
+      padding: 18px 24px;
+      background: var(--button-background);
+      color: var(--button-foreground);
+      font: inherit;
+      font-size: 20px;
+      font-weight: 650;
+      cursor: pointer;
+      touch-action: manipulation;
+      user-select: none;
+      will-change: transform;
+    }
+
+    button.is-pressed {
+      animation: button-feedback 140ms ease-out;
+    }
+
+    .signal-button {
+      background: transparent;
+      color: var(--foreground);
+      border: 2px solid currentColor;
+    }
+
+    .signal-button.is-active {
+      background: #b42318;
+      color: #ffffff;
+      border-color: #b42318;
+    }
+
+    .test-button {
+      background: transparent;
+      color: var(--foreground);
+      border: 1px solid currentColor;
+      opacity: 0.88;
+    }
+
+    .test-button.is-counting {
+      border-style: dashed;
+    }
+
+    .test-button:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+
+    .control-group {
+      width: 100%;
+      display: grid;
+      gap: 8px;
+    }
+
+    .control-label-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: baseline;
+    }
+
+    .control-group label,
+    .control-label-row {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--foreground);
+    }
+
+    .control-group label,
+    .control-label-row span:first-child {
+      opacity: 0.72;
+    }
+
+    .volume-value {
+      font-variant-numeric: tabular-nums;
+    }
+
+    select {
+      width: 100%;
+      min-height: 56px;
+      border: 1px solid currentColor;
+      border-radius: 14px;
+      padding: 0 16px;
+      background: var(--background);
+      color: var(--foreground);
+      font: inherit;
+      font-size: 17px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--foreground);
+    }
+
+    select:focus-visible,
+    input[type="range"]:focus-visible,
+    button:focus-visible {
+      outline: 3px solid currentColor;
+      outline-offset: 4px;
+    }
+
+    @keyframes result-feedback {
+      0% {
+        transform: scale(0.86);
+        opacity: 0.35;
+      }
+
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    @keyframes button-feedback {
+      0% {
+        transform: scale(1);
+      }
+
+      45% {
+        transform: scale(0.96);
+        background: var(--button-active);
+      }
+
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .result.is-updated {
+        animation: result-feedback-reduced 100ms linear;
+      }
+
+      button.is-pressed {
+        animation: button-feedback-reduced 100ms linear;
+      }
+
+      @keyframes result-feedback-reduced {
+        0% {
+          opacity: 0.4;
+        }
+
+        100% {
+          opacity: 1;
+        }
+      }
+
+      @keyframes button-feedback-reduced {
+        0%,
+        100% {
+          opacity: 1;
+        }
+
+        50% {
+          opacity: 0.72;
+        }
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <section class="app" aria-label="Генератор случайного числа">
+      <output class="result" id="result" aria-live="polite"></output>
+      <button id="generateButton" type="button">Случайное число</button>
+      <button
+        class="signal-button"
+        id="signalButton"
+        type="button"
+        aria-pressed="false"
+      >
+        Включить сигнал
+      </button>
+
+      <button
+        class="test-button"
+        id="testButton"
+        type="button"
+        aria-describedby="testStatus"
+      >
+        Тест (5 секунд)
+      </button>
+
+      <span id="testStatus" aria-live="polite" hidden></span>
+
+      <div class="control-group">
+        <label for="signalSelect">Сигнал</label>
+        <select id="signalSelect">
+          <option value="steady">Ровный тон</option>
+          <option value="low">Низкий гул</option>
+          <option value="dual">Двойной тон</option>
+          <option value="siren">Сирена</option>
+          <option value="pulse">Пульс</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <div class="control-label-row">
+          <span>Громкость сигнала</span>
+          <output class="volume-value" id="volumeValue" for="volumeControl">30%</output>
+        </div>
+        <input
+          id="volumeControl"
+          type="range"
+          min="0"
+          max="100"
+          value="30"
+          step="1"
+          aria-label="Громкость сигнала"
+        >
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const numbers = [2, 5, 10, 20];
+    const result = document.getElementById("result");
+    const button = document.getElementById("generateButton");
+    const signalButton = document.getElementById("signalButton");
+    const testButton = document.getElementById("testButton");
+    const testStatus = document.getElementById("testStatus");
+    const signalSelect = document.getElementById("signalSelect");
+    const volumeControl = document.getElementById("volumeControl");
+    const volumeValue = document.getElementById("volumeValue");
+
+    const savedSignal = localStorage.getItem("random_timer.signal");
+    const savedVolume = localStorage.getItem("random_timer.volume");
+
+    if (savedSignal && [...signalSelect.options].some(option => option.value === savedSignal)) {
+      signalSelect.value = savedSignal;
+    }
+
+    if (savedVolume !== null && !Number.isNaN(Number(savedVolume))) {
+      const restoredVolume = Math.min(100, Math.max(0, Number(savedVolume)));
+      volumeControl.value = String(restoredVolume);
+    }
+
+    volumeValue.textContent = `${volumeControl.value}%`;
+
+    let selectedVolume = Number(volumeControl.value) / 100;
+    let signalLevel = 1;
+
+    let audioContext = null;
+    let oscillator = null;
+    let gainNode = null;
+    let modulationOscillator = null;
+    let modulationGain = null;
+    let pulseTimer = null;
+    let dualToneTimer = null;
+    let testTimeout = null;
+    let countdownTimer = null;
+    let testPending = false;
+    let signalState = "off";
+    let audioGeneration = 0;
+
+    function restartAnimation(element, className) {
+      element.classList.remove(className);
+      void element.offsetWidth;
+      element.classList.add(className);
+    }
+
+    function isSignalActive() {
+      return signalState === "on" || signalState === "starting";
+    }
+
+    function setTestButtonState() {
+      const signalActive = isSignalActive();
+
+      testButton.disabled = signalActive;
+      testButton.classList.toggle("is-counting", testPending);
+
+      if (signalActive) {
+        testButton.textContent = "Тест недоступен";
+      } else if (!testPending) {
+        testButton.textContent = "Тест (5 секунд)";
+      }
+    }
+
+    function cancelTest() {
+      if (testTimeout) {
+        clearTimeout(testTimeout);
+        testTimeout = null;
+      }
+
+      if (countdownTimer) {
+        clearInterval(countdownTimer);
+        countdownTimer = null;
+      }
+
+      testPending = false;
+      testStatus.textContent = "Тест отменён";
+      setTestButtonState();
+    }
+
+    button.addEventListener("click", () => {
+      const randomIndex = Math.floor(Math.random() * numbers.length);
+
+      result.textContent = numbers[randomIndex];
+
+      restartAnimation(result, "is-updated");
+      restartAnimation(button, "is-pressed");
+
+      if ("vibrate" in navigator) {
+        navigator.vibrate(20);
+      }
+    });
+
+    function clearSignalNodes() {
+      if (pulseTimer) {
+        clearInterval(pulseTimer);
+        pulseTimer = null;
+      }
+
+      if (dualToneTimer) {
+        clearInterval(dualToneTimer);
+        dualToneTimer = null;
+      }
+
+      if (modulationOscillator) {
+        try {
+          modulationOscillator.stop();
+        } catch {}
+        modulationOscillator = null;
+      }
+
+      modulationGain = null;
+
+      if (oscillator) {
+        try {
+          oscillator.stop();
+        } catch {}
+        oscillator = null;
+      }
+
+      gainNode = null;
+    }
+
+    function effectiveVolume() {
+      return selectedVolume * signalLevel;
+    }
+
+    function applyVolume(target = effectiveVolume()) {
+      if (!gainNode || !audioContext) {
+        return;
+      }
+
+      const now = audioContext.currentTime;
+      gainNode.gain.cancelScheduledValues(now);
+      gainNode.gain.setTargetAtTime(target, now, 0.015);
+    }
+
+    function createBaseSignal(type, frequency, level = 1) {
+      signalLevel = level;
+      oscillator = audioContext.createOscillator();
+      gainNode = audioContext.createGain();
+
+      oscillator.type = type;
+      oscillator.frequency.value = frequency;
+
+      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+      gainNode.gain.linearRampToValueAtTime(
+        effectiveVolume(),
+        audioContext.currentTime + 0.05
+      );
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      oscillator.start();
+    }
+
+    function buildSelectedSignal() {
+      clearSignalNodes();
+
+      switch (signalSelect.value) {
+        case "low":
+          createBaseSignal("triangle", 220, 0.75);
+          break;
+
+        case "dual":
+          createBaseSignal("sine", 660, 0.7);
+          dualToneTimer = setInterval(() => {
+            if (!oscillator || !audioContext) {
+              return;
+            }
+
+            const nextFrequency = oscillator.frequency.value < 800 ? 990 : 660;
+            oscillator.frequency.setTargetAtTime(
+              nextFrequency,
+              audioContext.currentTime,
+              0.015
+            );
+          }, 280);
+          break;
+
+        case "siren":
+          createBaseSignal("sine", 700, 0.65);
+          modulationOscillator = audioContext.createOscillator();
+          modulationGain = audioContext.createGain();
+
+          modulationOscillator.type = "sine";
+          modulationOscillator.frequency.value = 0.8;
+          modulationGain.gain.value = 350;
+
+          modulationOscillator.connect(modulationGain);
+          modulationGain.connect(oscillator.frequency);
+          modulationOscillator.start();
+          break;
+
+        case "pulse":
+          createBaseSignal("sine", 880, 0);
+          signalLevel = 0.8;
+          pulseTimer = setInterval(() => {
+            const now = audioContext.currentTime;
+            gainNode.gain.cancelScheduledValues(now);
+            gainNode.gain.setValueAtTime(0, now);
+            gainNode.gain.linearRampToValueAtTime(effectiveVolume(), now + 0.02);
+            gainNode.gain.linearRampToValueAtTime(0, now + 0.22);
+          }, 700);
+
+          {
+            const now = audioContext.currentTime;
+            gainNode.gain.setValueAtTime(0, now);
+            gainNode.gain.linearRampToValueAtTime(effectiveVolume(), now + 0.02);
+            gainNode.gain.linearRampToValueAtTime(0, now + 0.22);
+          }
+          break;
+
+        case "steady":
+        default:
+          createBaseSignal("sine", 880, 0.8);
+      }
+    }
+
+    function ensureAudioContext() {
+      audioContext ??= new AudioContext();
+
+      if (audioContext.state === "suspended") {
+        audioContext.resume().catch(() => {});
+      }
+
+      return audioContext;
+    }
+
+    function updateSignalUi(active) {
+      signalButton.textContent = active
+        ? "Выключить сигнал"
+        : "Включить сигнал";
+      signalButton.classList.toggle("is-active", active);
+      signalButton.setAttribute("aria-pressed", String(active));
+      setTestButtonState();
+    }
+
+    function startSignal() {
+      if (signalState === "on" || signalState === "starting") {
+        return;
+      }
+
+      signalState = "starting";
+      audioGeneration += 1;
+      const generation = audioGeneration;
+
+      updateSignalUi(true);
+      ensureAudioContext();
+
+      try {
+        buildSelectedSignal();
+
+        if (generation !== audioGeneration || signalState !== "starting") {
+          clearSignalNodes();
+          return;
+        }
+
+        signalState = "on";
+        setTestButtonState();
+      } catch (error) {
+        clearSignalNodes();
+        signalState = "off";
+        updateSignalUi(false);
+        console.error("Не удалось запустить сигнал:", error);
+      }
+    }
+
+    function stopSignal() {
+      if (signalState === "off" || signalState === "stopping") {
+        return;
+      }
+
+      signalState = "stopping";
+      audioGeneration += 1;
+      updateSignalUi(false);
+
+      const currentOscillator = oscillator;
+      const currentGainNode = gainNode;
+      const currentModulationOscillator = modulationOscillator;
+      const currentPulseTimer = pulseTimer;
+      const currentDualToneTimer = dualToneTimer;
+
+      oscillator = null;
+      gainNode = null;
+      modulationOscillator = null;
+      modulationGain = null;
+      pulseTimer = null;
+      dualToneTimer = null;
+
+      if (currentPulseTimer) {
+        clearInterval(currentPulseTimer);
+      }
+
+      if (currentDualToneTimer) {
+        clearInterval(currentDualToneTimer);
+      }
+
+      const finalize = () => {
+        try {
+          currentModulationOscillator?.stop();
+        } catch {}
+
+        try {
+          currentOscillator?.stop();
+        } catch {}
+      };
+
+      if (audioContext && currentGainNode) {
+        const now = audioContext.currentTime;
+
+        currentGainNode.gain.cancelScheduledValues(now);
+        currentGainNode.gain.setValueAtTime(
+          currentGainNode.gain.value,
+          now
+        );
+        currentGainNode.gain.linearRampToValueAtTime(0, now + 0.04);
+
+        setTimeout(finalize, 50);
+      } else {
+        finalize();
+      }
+
+      signalState = "off";
+      setTestButtonState();
+    }
+
+    signalButton.addEventListener("click", () => {
+      restartAnimation(signalButton, "is-pressed");
+
+      if (testPending) {
+        cancelTest();
+      }
+
+      if (isSignalActive()) {
+        stopSignal();
+      } else {
+        startSignal();
+      }
+
+      if ("vibrate" in navigator) {
+        navigator.vibrate(20);
+      }
+    });
+
+    testButton.addEventListener("click", () => {
+      restartAnimation(testButton, "is-pressed");
+
+      if (testPending) {
+        cancelTest();
+        return;
+      }
+
+      ensureAudioContext();
+
+      testPending = true;
+      const deadline = performance.now() + 5000;
+
+      function updateCountdown() {
+        const remainingMs = Math.max(0, deadline - performance.now());
+        const remainingSeconds = Math.max(1, Math.ceil(remainingMs / 1000));
+
+        testButton.textContent =
+          `Отменить тест: ${remainingSeconds} с`;
+        testStatus.textContent =
+          `Сигнал включится через ${remainingSeconds} секунд`;
+      }
+
+      updateCountdown();
+      setTestButtonState();
+
+      countdownTimer = setInterval(updateCountdown, 200);
+
+      testTimeout = setTimeout(() => {
+        if (countdownTimer) {
+          clearInterval(countdownTimer);
+          countdownTimer = null;
+        }
+
+        testTimeout = null;
+        testPending = false;
+        testStatus.textContent = "Сигнал включён";
+        startSignal();
+      }, 5000);
+
+      if ("vibrate" in navigator) {
+        navigator.vibrate(20);
+      }
+    });
+
+    signalSelect.addEventListener("change", () => {
+      localStorage.setItem("random_timer.signal", signalSelect.value);
+
+      if (isSignalActive()) {
+        buildSelectedSignal();
+      }
+    });
+
+    volumeControl.addEventListener("input", () => {
+      selectedVolume = Number(volumeControl.value) / 100;
+      volumeValue.textContent = `${volumeControl.value}%`;
+      localStorage.setItem("random_timer.volume", volumeControl.value);
+
+      if (isSignalActive() && signalSelect.value !== "pulse") {
+        applyVolume();
+      }
+    });
+
+    result.addEventListener("animationend", () => {
+      result.classList.remove("is-updated");
+    });
+
+    button.addEventListener("animationend", () => {
+      button.classList.remove("is-pressed");
+    });
+
+    signalButton.addEventListener("animationend", () => {
+      signalButton.classList.remove("is-pressed");
+    });
+
+    testButton.addEventListener("animationend", () => {
+      testButton.classList.remove("is-pressed");
+    });
+
+    setTestButtonState();
+  </script>
+</body>
+</html>
