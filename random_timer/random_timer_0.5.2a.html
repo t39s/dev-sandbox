@@ -301,6 +301,10 @@
       position: fixed;
       inset: 0;
       min-height: 100dvh;
+      font-size: clamp(32px, 10vmin, 88px);
+      --gear-size: 0.72em;
+      --gear-hit-size: 1.44em;
+      --version-font-size: 0.333em;
     }
 
     .primary-control {
@@ -314,7 +318,7 @@
         max(24px, env(safe-area-inset-bottom))
         max(24px, env(safe-area-inset-left));
       border-radius: 0;
-      font-size: clamp(32px, 10vmin, 88px);
+      font-size: 1em;
       font-weight: 700;
       line-height: 1;
     }
@@ -340,24 +344,25 @@
       right: max(16px, env(safe-area-inset-right));
       bottom: max(16px, env(safe-area-inset-bottom));
       z-index: 2;
-      width: 56px;
-      height: 56px;
-      min-width: 56px;
-      min-height: 56px;
-      padding: 12px;
+      width: var(--gear-hit-size);
+      height: var(--gear-hit-size);
+      min-width: var(--gear-hit-size);
+      min-height: var(--gear-hit-size);
+      padding: 0;
       display: grid;
       place-items: center;
       border: 0;
       border-radius: 50%;
       background: transparent;
       color: var(--button-foreground);
+      font: inherit;
       line-height: 1;
     }
 
     .settings-icon {
       display: block;
-      width: 32px;
-      height: 32px;
+      width: var(--gear-size);
+      height: var(--gear-size);
       fill: currentColor;
     }
 
@@ -367,7 +372,7 @@
       bottom: max(16px, env(safe-area-inset-bottom));
       z-index: 2;
       margin: 0;
-      font-size: 12px;
+      font-size: var(--version-font-size);
       line-height: 1.2;
       color: var(--button-foreground);
       opacity: 0.55;
@@ -388,8 +393,7 @@
     }
 
     @media (orientation: landscape) {
-      .primary-control,
-      .settings-toggle {
+      .home-screen {
         font-size: clamp(28px, 10vmin, 72px);
       }
     }
