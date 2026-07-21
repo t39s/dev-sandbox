@@ -3,28 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f5f5f5">
-  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#111111">
+  <meta name="theme-color" content="#111111">
   <title>Случайный таймер</title>
 
   <style>
     :root {
-      color-scheme: light dark;
-      --background: #f5f5f5;
-      --foreground: #111111;
-      --button-background: #111111;
+      color-scheme: dark;
+      --background: #111111;
+      --foreground: #ffffff;
+      --button-background: #303030;
       --button-foreground: #ffffff;
-      --button-active: #303030;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --background: #111111;
-        --foreground: #f5f5f5;
-        --button-background: #f5f5f5;
-        --button-foreground: #111111;
-        --button-active: #d5d5d5;
-      }
+      --button-active: #b42318;
     }
 
     * {
@@ -42,7 +31,7 @@
       min-height: 100dvh;
       overflow: hidden;
       background: var(--background);
-      color: var(--foreground);
+      color: #ffffff;
       font-family:
         -apple-system,
         BlinkMacSystemFont,
@@ -94,7 +83,7 @@
       border-radius: 18px;
       padding: 18px 24px;
       background: var(--button-background);
-      color: var(--button-foreground);
+      color: #ffffff;
       font: inherit;
       font-size: 20px;
       font-weight: 650;
@@ -114,6 +103,14 @@
       gap: 6px;
     }
 
+    .delay-prompt {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.35;
+      color: #ffffff;
+    }
+
     .delay-input {
       width: 100%;
       min-height: 48px;
@@ -122,7 +119,7 @@
       border: 1px solid color-mix(in srgb, var(--foreground) 35%, transparent);
       border-radius: 12px;
       background: transparent;
-      color: var(--foreground);
+      color: #ffffff;
       font: inherit;
       font-size: 20px;
       font-weight: 650;
@@ -132,6 +129,11 @@
     .delay-input:focus-visible {
       outline: 2px solid currentColor;
       outline-offset: 2px;
+    }
+
+    .delay-input::placeholder {
+      color: #ffffff;
+      opacity: 0.65;
     }
 
     .delay-input[aria-invalid="true"] {
@@ -148,7 +150,7 @@
 
     .signal-button {
       background: transparent;
-      color: var(--foreground);
+      color: #ffffff;
       border: 2px solid currentColor;
     }
 
@@ -160,7 +162,7 @@
 
     .test-button {
       background: transparent;
-      color: var(--foreground);
+      color: #ffffff;
       border: 1px solid currentColor;
       opacity: 0.88;
     }
@@ -191,7 +193,7 @@
     .control-label-row {
       font-size: 14px;
       font-weight: 600;
-      color: var(--foreground);
+      color: #ffffff;
     }
 
     .control-group label,
@@ -210,7 +212,7 @@
       border-radius: 14px;
       padding: 0 16px;
       background: var(--background);
-      color: var(--foreground);
+      color: #ffffff;
       font: inherit;
       font-size: 17px;
     }
@@ -246,7 +248,6 @@
 
       45% {
         transform: scale(0.96);
-        background: var(--button-active);
       }
 
       100% {
@@ -318,13 +319,11 @@
         max(24px, env(safe-area-inset-bottom))
         max(24px, env(safe-area-inset-left));
       border-radius: 0;
+      background: #000000;
+      color: #ffffff;
       font-size: 1em;
       font-weight: 700;
       line-height: 1;
-    }
-
-    .primary-control.is-stopping {
-      border-style: dashed;
     }
 
     .primary-control.is-active {
@@ -334,9 +333,9 @@
     }
 
     .primary-control.is-stopping {
-      color: #b42318;
-      border-color: #b42318;
-      background: #000000;
+      background: #123F2D;
+      color: #ffffff;
+      border-color: #123F2D;
     }
 
     .settings-toggle {
@@ -354,7 +353,7 @@
       border: 0;
       border-radius: 50%;
       background: transparent;
-      color: var(--button-foreground);
+      color: #ffffff;
       font: inherit;
       line-height: 1;
     }
@@ -374,7 +373,7 @@
       margin: 0;
       font-size: var(--version-font-size);
       line-height: 1.2;
-      color: var(--button-foreground);
+      color: #ffffff;
       opacity: 0.55;
       pointer-events: none;
       user-select: none;
@@ -405,26 +404,51 @@
       min-height: 100dvh;
       overflow-y: auto;
       background: var(--background);
-      color: var(--foreground);
-      padding:
-        max(16px, env(safe-area-inset-top))
-        20px
-        max(20px, env(safe-area-inset-bottom));
+      color: #ffffff;
+      padding: 0;
       box-sizing: border-box;
     }
 
     .settings-header {
-      width: min(100%, 420px);
-      margin: 0 auto 20px;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      width: 100%;
+      margin: 0;
+      padding:
+        max(16px, env(safe-area-inset-top))
+        max(20px, calc((100% - 420px) / 2))
+        16px;
+      box-sizing: border-box;
       display: grid;
       grid-template-columns: 1fr auto;
       align-items: center;
       gap: 12px;
+      background: var(--background);
+      border-bottom: 1px solid rgb(255 255 255 / 15%);
+    }
+
+    .settings-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4em;
+      min-width: 0;
+      color: #ffffff;
+      font-size: 24px;
     }
 
     .settings-header h2 {
       margin: 0;
-      font-size: 24px;
+      font-size: 1em;
+      line-height: 1.2;
+    }
+
+    .settings-title-icon {
+      display: block;
+      flex: 0 0 auto;
+      width: 0.72em;
+      height: 0.72em;
+      fill: currentColor;
     }
 
     .settings-close {
@@ -437,11 +461,72 @@
     }
 
     .settings-content {
-      width: min(100%, 420px);
+      width: min(calc(100% - 40px), 420px);
       margin: 0 auto;
+      padding-bottom: 24px;
+    }
+
+    .settings-section {
       display: grid;
       gap: 14px;
-      padding-bottom: 24px;
+      padding: 28px 0;
+      border-bottom: 1px solid rgb(255 255 255 / 15%);
+    }
+
+    .settings-section-title {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.25;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .settings-version-section {
+      padding: 28px 0 max(8px, env(safe-area-inset-bottom));
+      border-bottom: 0;
+    }
+
+    .test-details {
+      width: 100%;
+      border-top: 1px solid color-mix(in srgb, #ffffff 28%, transparent);
+      padding-top: 12px;
+    }
+
+    .test-details summary {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: #ffffff;
+      font-size: 16px;
+      font-weight: 650;
+      cursor: pointer;
+      touch-action: manipulation;
+      user-select: none;
+      list-style: none;
+    }
+
+    .test-details summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .test-details summary::after {
+      content: "▾";
+      font-size: 2em;
+      line-height: 1;
+      transform: rotate(-90deg);
+      transition: transform 140ms ease-out;
+    }
+
+    .test-details[open] summary::after {
+      transform: rotate(0deg);
+    }
+
+    .test-details-content {
+      display: grid;
+      gap: 14px;
+      padding-top: 14px;
     }
 
     .version-label {
@@ -456,6 +541,27 @@
 </head>
 
 <body>
+  <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute;overflow:hidden">
+    <defs>
+      <symbol id="gear-icon" viewBox="0 0 64 64">
+        <mask id="gear-icon-mask">
+          <rect width="64" height="64" fill="white"></rect>
+          <circle cx="32" cy="32" r="13.2" fill="black"></circle>
+        </mask>
+        <g fill="currentColor" mask="url(#gear-icon-mask)">
+          <rect id="gear-tooth" x="26" y="2" width="12" height="16" rx="4"></rect>
+          <use href="#gear-tooth" transform="rotate(45 32 32)"></use>
+          <use href="#gear-tooth" transform="rotate(90 32 32)"></use>
+          <use href="#gear-tooth" transform="rotate(135 32 32)"></use>
+          <use href="#gear-tooth" transform="rotate(180 32 32)"></use>
+          <use href="#gear-tooth" transform="rotate(225 32 32)"></use>
+          <use href="#gear-tooth" transform="rotate(270 32 32)"></use>
+          <use href="#gear-tooth" transform="rotate(315 32 32)"></use>
+          <circle cx="32" cy="32" r="22"></circle>
+        </g>
+      </symbol>
+    </defs>
+  </svg>
   <main>
     <section class="app" aria-label="Случайный таймер">
       <section class="home-screen" aria-label="Главный экран">
@@ -480,27 +586,12 @@
             viewBox="0 0 64 64"
             aria-hidden="true"
           >
-            <mask id="gear-mask">
-              <rect width="64" height="64" fill="white"></rect>
-              <circle cx="32" cy="32" r="13.2" fill="black"></circle>
-            </mask>
-            <g fill="currentColor" mask="url(#gear-mask)">
-              <rect x="26" y="2" width="12" height="16" rx="4"></rect>
-              <rect x="26" y="2" width="12" height="16" rx="4" transform="rotate(45 32 32)"></rect>
-              <rect x="26" y="2" width="12" height="16" rx="4" transform="rotate(90 32 32)"></rect>
-              <rect x="26" y="2" width="12" height="16" rx="4" transform="rotate(135 32 32)"></rect>
-              <rect x="26" y="2" width="12" height="16" rx="4" transform="rotate(180 32 32)"></rect>
-              <rect x="26" y="2" width="12" height="16" rx="4" transform="rotate(225 32 32)"></rect>
-              <rect x="26" y="2" width="12" height="16" rx="4" transform="rotate(270 32 32)"></rect>
-              <rect x="26" y="2" width="12" height="16" rx="4" transform="rotate(315 32 32)"></rect>
-
-              <circle cx="32" cy="32" r="22"></circle>
-            </g>
+            <use href="#gear-icon"></use>
           </svg>
           <span class="settings-label">Настройки</span>
         </button>
 
-        <p class="home-version">Версия 0.5.2a</p>
+        <p class="home-version">Версия 0.5.4g</p>
       </section>
 
       <section
@@ -510,7 +601,16 @@
         hidden
       >
         <div class="settings-header">
-          <h2>Настройки</h2>
+          <div class="settings-title">
+            <svg
+              class="settings-title-icon"
+              viewBox="0 0 64 64"
+              aria-hidden="true"
+            >
+              <use href="#gear-icon"></use>
+            </svg>
+            <h2>Настройки</h2>
+          </div>
           <button
             class="settings-close"
             id="settingsClose"
@@ -521,80 +621,97 @@
         </div>
 
         <div class="settings-content">
-          <output class="result" id="result" aria-live="polite"></output>
+          <section class="settings-section" aria-labelledby="pauseSectionTitle">
+            <h3 class="settings-section-title" id="pauseSectionTitle">Пауза перед сигналом</h3>
 
-          <div class="delay-input-group">
-            <input
-              class="delay-input"
-              id="delayInput"
-              type="text"
-              inputmode="text"
-              autocomplete="off"
-              autocapitalize="off"
-              spellcheck="false"
-              aria-describedby="delayMessage"
-              value="2s, 5s, 10s, 20s"
-            >
-            <p class="input-message" id="delayMessage" aria-live="polite"></p>
-          </div>
+            <output class="result" id="result" aria-live="polite"></output>
 
-          <button id="generateButton" type="button">Случайная задержка</button>
-
-          <button
-            class="signal-button"
-            id="signalButton"
-            type="button"
-            aria-pressed="false"
-          >
-            Включить сигнал
-          </button>
-
-          <button
-            class="test-button"
-            id="testButton"
-            type="button"
-            aria-describedby="testStatus"
-          >
-            Тест (5 секунд)
-          </button>
-
-          <button
-            class="test-button"
-            id="randomTestButton"
-            type="button"
-            aria-describedby="testStatus"
-          >
-            Тест (случайно)
-          </button>
-
-          <span id="testStatus" aria-live="polite" hidden></span>
-
-          <div class="control-group">
-            <label for="signalSelect">Сигнал</label>
-            <select id="signalSelect">
-              <option value="steady">Ровный тон</option>
-              <option value="low">Низкий гул</option>
-              <option value="dual">Двойной тон</option>
-              <option value="siren">Сирена</option>
-              <option value="pulse">Пульс</option>
-            </select>
-          </div>
-
-          <div class="control-group">
-            <div class="volume-row">
-              <label for="volumeControl">Громкость</label>
-              <output id="volumeValue" for="volumeControl">30%</output>
+            <div class="delay-input-group">
+              <p class="delay-prompt">Введите размер паузы перед сигналом (например, 2m30s — 2 минуты 30 секунд; разделитель — «,»):</p>
+              <input
+                class="delay-input"
+                id="delayInput"
+                type="text"
+                inputmode="text"
+                autocomplete="off"
+                autocapitalize="off"
+                spellcheck="false"
+                aria-describedby="delayMessage"
+                value="2s, 5s, 10s, 2m30s"
+              >
+              <p class="input-message" id="delayMessage" aria-live="polite"></p>
             </div>
-            <input
-              id="volumeControl"
-              type="range"
-              min="0"
-              max="100"
-              step="1"
-              value="30"
+
+            <button id="generateButton" type="button">Выбрать случайно</button>
+          </section>
+
+          <section class="settings-section" aria-labelledby="signalSectionTitle">
+            <h3 class="settings-section-title" id="signalSectionTitle">Сигнал</h3>
+
+            <button
+              class="signal-button"
+              id="signalButton"
+              type="button"
+              aria-pressed="false"
             >
-          </div>
-          <footer class="version-label">Версия 0.5.2a</footer>
+              Включить сигнал
+            </button>
+
+            <div class="control-group">
+              <label for="signalSelect">Сигнал</label>
+              <select id="signalSelect">
+                <option value="steady">Ровный тон</option>
+                <option value="low">Низкий гул</option>
+                <option value="dual">Двойной тон</option>
+                <option value="siren">Сирена</option>
+                <option value="pulse">Пульс</option>
+              </select>
+            </div>
+
+            <div class="control-group">
+              <div class="volume-row">
+                <label for="volumeControl">Громкость</label>
+                <output id="volumeValue" for="volumeControl">30%</output>
+              </div>
+              <input
+                id="volumeControl"
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value="30"
+              >
+            </div>
+
+            <details class="test-details">
+              <summary>Тестирование</summary>
+              <div class="test-details-content">
+                <button
+                  class="test-button"
+                  id="testButton"
+                  type="button"
+                  aria-describedby="testStatus"
+                >
+                  Тест (5 секунд)
+                </button>
+
+                <button
+                  class="test-button"
+                  id="randomTestButton"
+                  type="button"
+                  aria-describedby="testStatus"
+                >
+                  Тест (случайно)
+                </button>
+
+                <span id="testStatus" aria-live="polite" hidden></span>
+              </div>
+            </details>
+          </section>
+
+          <footer class="settings-section settings-version-section version-label">
+            Версия 0.5.4g
+          </footer>
         </div>
       </section>
     </section>
@@ -771,7 +888,7 @@
     }
 
     const DELAYS_STORAGE_KEY = "random_timer.delays";
-    const DEFAULT_DELAYS = "2s, 5s, 10s, 20s";
+    const DEFAULT_DELAYS = "2s, 5s, 10s, 2m30s";
 
     function parseDelayToken(token) {
       const normalized = token.trim().toLowerCase();
