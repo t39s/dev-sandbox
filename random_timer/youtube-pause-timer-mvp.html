@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>YouTube — таймер паузы</title>
+  <title>YouTube — таймер паузы 0.1.1</title>
   <style>
     :root {
       color-scheme: dark;
@@ -181,7 +181,8 @@
     <form id="form" class="card" novalidate>
       <div>
         <h1>YouTube с таймером паузы</h1>
-        <p class="hint">Видео остановится после заданного времени фактического воспроизведения.</p>
+        <p class="hint">Версия 0.1.1</p>
+        <p class="hint">Выбранный эпизод будет повторяться по кругу до истечения времени фактического воспроизведения.</p>
       </div>
 
       <label>
@@ -190,7 +191,17 @@
       </label>
 
       <label>
-        Пауза, секунд
+        Начало эпизода, секунд
+        <input id="episodeStart" type="number" inputmode="decimal" min="0" step="0.1" value="0" required>
+      </label>
+
+      <label>
+        Конец эпизода, секунд
+        <input id="episodeEnd" type="number" inputmode="decimal" min="0.1" step="0.1" value="10" required>
+      </label>
+
+      <label>
+        Пауза таймера, секунд
         <input id="pauseSeconds" type="number" inputmode="numeric" min="1" step="1" value="60" required>
       </label>
 
@@ -234,6 +245,8 @@
       let intervalId = null;
       let expired = false;
       let apiReady = false;
+      let episodeStart = 0;
+      let episodeEnd = 10;
 
       function extractVideoId(raw) {
         const value = raw.trim();
@@ -280,11 +293,26 @@
         }
       }
 
+      function enforceEpisodeLoop() {
+        if (!player || expired) return;
+        try {
+          const currentTime = player.getCurrentTime();
+          // Небольшой допуск компенсирует дискретность проверки состояния плеера.
+          if (Number.isFinite(currentTime) && currentTime >= episodeEnd - 0.08) {
+            player.seekTo(episodeStart, true);
+          }
+        } catch (_) {}
+      }
+
       function syncRemaining() {
         if (!deadline) return;
         remainingMs = Math.max(0, deadline - Date.now());
         renderTimer();
-        if (remainingMs <= 0) expireTimer();
+        if (remainingMs <= 0) {
+          expireTimer();
+          return;
+        }
+        enforceEpisodeLoop();
       }
 
       function startTicking() {
@@ -328,7 +356,10 @@
         }
 
         if (player && typeof player.loadVideoById === 'function') {
-          player.loadVideoById(videoId);
+          player.loadVideoById({
+            videoId,
+            startSeconds: episodeStart
+          });
           return;
         }
 
@@ -348,11 +379,23 @@
             onReady(event) {
               // В Safari автозапуск со звуком может быть заблокирован.
               // Пользователь в таком случае запускает видео штатной кнопкой YouTube.
-              try { event.target.playVideo(); } catch (_) {}
+              try {
+                event.target.seekTo(episodeStart, true);
+                event.target.playVideo();
+              } catch (_) {}
             },
             onStateChange(event) {
-              if (event.data === YT.PlayerState.PLAYING) startTicking();
-              else pauseTicking();
+              if (event.data === YT.PlayerState.PLAYING) {
+                startTicking();
+              } else if (event.data === YT.PlayerState.ENDED && !expired) {
+                pauseTicking();
+                try {
+                  event.target.seekTo(episodeStart, true);
+                  event.target.playVideo();
+                } catch (_) {}
+              } else {
+                pauseTicking();
+              }
             },
             onAutoplayBlocked() {
               pauseTicking();
@@ -376,17 +419,29 @@
 
         const videoId = extractVideoId(document.getElementById('videoUrl').value);
         const seconds = Number(document.getElementById('pauseSeconds').value);
+        const start = Number(document.getElementById('episodeStart').value);
+        const end = Number(document.getElementById('episodeEnd').value);
 
         if (!videoId) {
           error.textContent = 'Введите корректную ссылку YouTube или идентификатор видео.';
           return;
         }
-        if (!Number.isFinite(seconds) || seconds < 1) {
+        if (!Number.isFinite(start) || start < 0) {
+          error.textContent = 'Начало эпизода должно быть числом не меньше 0.';
+          return;
+        }
+        if (!Number.isFinite(end) || end <= start) {
+          error.textContent = 'Конец эпизода должен быть больше его начала.';
+          return;
+        }
+        if (!Number.isFinite(seconds) || seconds < 1 || !Number.isInteger(seconds)) {
           error.textContent = 'Пауза должна быть целым числом не меньше 1 секунды.';
           return;
         }
 
-        durationMs = Math.round(seconds) * 1000;
+        episodeStart = start;
+        episodeEnd = end;
+        durationMs = seconds * 1000;
         resetTimer();
         setup.hidden = true;
         screen.classList.add('active');
@@ -411,7 +466,10 @@
 
       continueBtn.addEventListener('click', () => {
         resetTimer();
-        try { player?.playVideo(); } catch (_) {}
+        try {
+          player?.seekTo(episodeStart, true);
+          player?.playVideo();
+        } catch (_) {}
       });
 
       document.addEventListener('visibilitychange', () => {
