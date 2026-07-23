@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>YouTube — таймер паузы 0.1.5</title>
+  <title>YouTube — таймер паузы 0.1.6</title>
   <style>
     :root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
     * { box-sizing: border-box; }
@@ -38,9 +38,8 @@
 
     .player-screen { position: fixed; inset: 0; display: none; background: #000; overflow: hidden; }
     .player-screen.active { display: block; }
-    .player-layer { position: absolute; inset: 0; overflow: hidden; background: #000; opacity: 0; visibility: hidden; z-index: 1; }
-    .player-layer.active { opacity: 1; visibility: visible; z-index: 2; }
-    .player-layer iframe { position: absolute; top: 50%; left: 50%; width: max(100vw, calc(100vh * 16 / 9)); height: max(100vh, calc(100vw * 9 / 16)); border: 0; transform: translate(-50%, -50%); pointer-events: none; }
+    #player { position: absolute; inset: 0; overflow: hidden; background: #000; }
+    #player iframe { position: absolute; top: 50%; left: 50%; width: max(100vw, calc(100vh * 16 / 9)); height: max(100vh, calc(100vw * 9 / 16)); border: 0; transform: translate(-50%, -50%); pointer-events: none; }
     .interaction-shield { position: absolute; z-index: 4; inset: 0; background: transparent; touch-action: manipulation; }
     .timer { position: absolute; z-index: 5; top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); min-width: 82px; padding: 8px 10px; border-radius: 999px; background: rgba(0,0,0,.68); border: 1px solid rgba(255,255,255,.28); color: #fff; text-align: center; font-variant-numeric: tabular-nums; font-weight: 750; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); cursor: pointer; -webkit-tap-highlight-color: transparent; }
     .start-overlay { position: absolute; z-index: 8; inset: 0; display: none; place-items: center; background: rgba(0,0,0,.18); }
@@ -59,8 +58,8 @@
     <form id="form" class="card" novalidate>
       <div>
         <h1>YouTube с таймером паузы</h1>
-        <p class="hint">Версия 0.1.5</p>
-        <p class="hint">Фрагменты воспроизводятся сверху вниз как один смонтированный эпизод. Следующий фрагмент заранее подготавливается во втором плеере; после последнего фрагмента цикл начинается заново.</p>
+        <p class="hint">Версия 0.1.6</p>
+        <p class="hint">Фрагменты воспроизводятся сверху вниз через нативную очередь одного YouTube-плеера. После последнего фрагмента цикл начинается заново и повторяется до истечения времени фактического воспроизведения.</p>
       </div>
 
       <div class="episode-table-wrap">
@@ -96,8 +95,7 @@
   </main>
 
   <section id="playerScreen" class="player-screen" aria-label="Видеоплеер">
-    <div id="player0" class="player-layer active"></div>
-    <div id="player1" class="player-layer"></div>
+    <div id="player"></div>
     <div class="interaction-shield" aria-hidden="true"></div>
     <button id="timer" class="timer" type="button" aria-label="Оставшееся время. Нажмите, чтобы вернуться к настройкам">01:00</button>
     <div id="startOverlay" class="start-overlay"><button id="startPlayback" type="button">Запустить видео</button></div>
@@ -119,13 +117,10 @@
       const continueBtn = document.getElementById('continue');
       const startOverlay = document.getElementById('startOverlay');
       const startPlaybackBtn = document.getElementById('startPlayback');
-      const layers = [document.getElementById('player0'), document.getElementById('player1')];
 
-      const players = [null, null];
-      const ready = [false, false];
+      let player = null;
       let apiReady = false;
       let pendingStart = false;
-      let sessionStarted = false;
       let durationMs = 60000;
       let remainingMs = durationMs;
       let deadline = 0;
@@ -133,9 +128,9 @@
       let expired = false;
       let clips = [];
       let clipIndex = 0;
-      let activePlayerIndex = 0;
-      let switching = false;
-      let preparedClipIndex = [null, null];
+      let switchingClip = false;
+      let positionedClipIndex = null;
+      let sequenceLoaded = false;
 
       function configurePlayback(target) {
         if (!target) return;
@@ -169,89 +164,53 @@
       function renderTimer() { timerEl.textContent = formatTime(remainingMs); }
       function stopTicking() { if (intervalId !== null) { clearInterval(intervalId); intervalId = null; } }
       function currentClip() { return clips[clipIndex] || null; }
-      function nextClipIndex() { return clips.length ? (clipIndex + 1) % clips.length : 0; }
-      function activePlayer() { return players[activePlayerIndex]; }
-      function standbyPlayerIndex() { return activePlayerIndex === 0 ? 1 : 0; }
 
-      function showPlayer(index) {
-        layers.forEach((layer, i) => layer.classList.toggle('active', i === index));
+      function positionCurrentClip(force = false) {
+        const clip = currentClip();
+        if (!player || !clip || expired) return;
+        if (!force && positionedClipIndex === clipIndex) return;
+        positionedClipIndex = clipIndex;
+        configurePlayback(player);
+        try { player.seekTo(clip.start, true); } catch (_) {}
       }
 
-      function cueClip(playerIndex, targetClipIndex) {
-        const player = players[playerIndex];
-        const clip = clips[targetClipIndex];
-        if (!player || !ready[playerIndex] || !clip) return;
+      function loadSequence() {
+        if (!player || clips.length === 0 || expired) return;
+        switchingClip = true;
+        positionedClipIndex = null;
+        clipIndex = 0;
+        sequenceLoaded = true;
         configurePlayback(player);
         try {
-          player.cueVideoById({
-            videoId: clip.videoId,
-            startSeconds: clip.start,
-            endSeconds: clip.end
+          player.loadPlaylist({
+            playlist: clips.map((clip) => clip.videoId),
+            listType: 'playlist',
+            index: 0,
+            startSeconds: clips[0].start,
+            suggestedQuality: 'hd720'
           });
-          preparedClipIndex[playerIndex] = targetClipIndex;
+          player.setLoop(true);
         } catch (_) {
-          preparedClipIndex[playerIndex] = null;
+          switchingClip = false;
+          startOverlay.classList.add('visible');
         }
       }
 
-      function prepareNextClip() {
-        cueClip(standbyPlayerIndex(), nextClipIndex());
-      }
-
-      function playClipOn(playerIndex, targetClipIndex) {
-        const player = players[playerIndex];
-        const clip = clips[targetClipIndex];
-        if (!player || !clip) return;
-        configurePlayback(player);
-        try {
-          if (preparedClipIndex[playerIndex] === targetClipIndex) {
-            player.seekTo(clip.start, true);
-            player.playVideo();
-          } else {
-            player.loadVideoById({ videoId: clip.videoId, startSeconds: clip.start, endSeconds: clip.end });
-          }
-        } catch (_) {}
-      }
-
-      function startSequence() {
-        if (!players.every(Boolean) || !ready.every(Boolean) || clips.length === 0) return;
-        sessionStarted = true;
-        switching = false;
-        activePlayerIndex = 0;
-        clipIndex = 0;
-        preparedClipIndex = [null, null];
-        showPlayer(activePlayerIndex);
-        preparedClipIndex[activePlayerIndex] = null;
-        prepareNextClip();
-        playClipOn(activePlayerIndex, clipIndex);
-      }
-
-      function switchToNextClip() {
-        if (switching || expired || clips.length === 0) return;
-        switching = true;
-        const oldIndex = activePlayerIndex;
-        const newIndex = standbyPlayerIndex();
-        const newClipIndex = nextClipIndex();
-
-        try { players[oldIndex]?.pauseVideo(); } catch (_) {}
-        clipIndex = newClipIndex;
-        activePlayerIndex = newIndex;
-        showPlayer(activePlayerIndex);
-        playClipOn(activePlayerIndex, clipIndex);
-
-        window.setTimeout(() => {
-          const followingIndex = nextClipIndex();
-          cueClip(oldIndex, followingIndex);
-        }, 0);
+      function advanceClip() {
+        if (switchingClip || expired || clips.length === 0) return;
+        switchingClip = true;
+        clipIndex = (clipIndex + 1) % clips.length;
+        positionedClipIndex = null;
+        pauseTicking();
+        try { player.nextVideo(); } catch (_) { switchingClip = false; }
       }
 
       function enforceSequence() {
-        const player = activePlayer();
         const clip = currentClip();
-        if (!player || !clip || expired || switching) return;
+        if (!player || !clip || expired || switchingClip) return;
         try {
           const currentTime = player.getCurrentTime();
-          if (Number.isFinite(currentTime) && currentTime >= clip.end - 0.12) switchToNextClip();
+          if (Number.isFinite(currentTime) && currentTime >= clip.end - 0.10) advanceClip();
         } catch (_) {}
       }
 
@@ -266,7 +225,7 @@
       function startTicking() {
         if (expired || remainingMs <= 0 || intervalId !== null) return;
         deadline = Date.now() + remainingMs;
-        intervalId = window.setInterval(syncRemaining, 80);
+        intervalId = window.setInterval(syncRemaining, 100);
         syncRemaining();
       }
 
@@ -278,77 +237,61 @@
 
       function expireTimer() {
         if (expired) return;
-        expired = true;
-        remainingMs = 0;
-        renderTimer();
-        stopTicking();
-        deadline = 0;
-        players.forEach((player) => { try { player?.pauseVideo(); } catch (_) {} });
+        expired = true; remainingMs = 0; renderTimer(); stopTicking(); deadline = 0;
+        try { player?.pauseVideo(); } catch (_) {}
         expiredEl.classList.add('visible');
       }
 
       function resetTimer() {
-        stopTicking();
-        expired = false;
-        remainingMs = durationMs;
-        deadline = 0;
-        expiredEl.classList.remove('visible');
-        renderTimer();
+        stopTicking(); expired = false; remainingMs = durationMs; deadline = 0;
+        expiredEl.classList.remove('visible'); renderTimer();
       }
 
-      function playerVars() {
-        return {
-          autoplay: 0, controls: 0, disablekb: 1, playsinline: 1, rel: 0,
-          fs: 0, modestbranding: 1, iv_load_policy: 3, cc_load_policy: 0,
-          origin: location.origin === 'null' ? undefined : location.origin
-        };
-      }
-
-      function createPlayersIfNeeded() {
+      function createPlayerIfNeeded() {
         if (!apiReady) { pendingStart = true; return; }
-        if (players.every(Boolean)) { startSequence(); return; }
+        if (player) { loadSequence(); return; }
 
-        [0, 1].forEach((index) => {
-          if (players[index]) return;
-          players[index] = new YT.Player(`player${index}`, {
-            width: '100%', height: '100%', playerVars: playerVars(),
-            events: {
-              onReady(event) {
-                ready[index] = true;
+        player = new YT.Player('player', {
+          width: '100%', height: '100%',
+          playerVars: {
+            autoplay: 0, controls: 0, disablekb: 1, playsinline: 1, rel: 0,
+            fs: 0, modestbranding: 1, iv_load_policy: 3, cc_load_policy: 0,
+            origin: location.origin === 'null' ? undefined : location.origin
+          },
+          events: {
+            onReady(event) {
+              configurePlayback(event.target);
+              loadSequence();
+            },
+            onStateChange(event) {
+              if (!sequenceLoaded) return;
+              if (event.data === YT.PlayerState.PLAYING) {
+                positionCurrentClip();
+                switchingClip = false;
+                startOverlay.classList.remove('visible');
                 configurePlayback(event.target);
-                if (ready.every(Boolean) && clips.length) startSequence();
-              },
-              onStateChange(event) {
-                if (index !== activePlayerIndex || !sessionStarted) return;
-                if (event.data === YT.PlayerState.PLAYING) {
-                  switching = false;
-                  startOverlay.classList.remove('visible');
-                  configurePlayback(event.target);
-                  startTicking();
-                  prepareNextClip();
-                } else if (event.data === YT.PlayerState.ENDED && !expired) {
-                  pauseTicking();
-                  switching = false;
-                  switchToNextClip();
-                } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.BUFFERING) {
-                  pauseTicking();
-                }
-              },
-              onApiChange(event) { configurePlayback(event.target); },
-              onAutoplayBlocked() {
-                if (index !== activePlayerIndex) return;
+                startTicking();
+              } else if (event.data === YT.PlayerState.CUED) {
+                positionCurrentClip(true);
+              } else if (event.data === YT.PlayerState.ENDED && !expired) {
+                switchingClip = false;
+                advanceClip();
+              } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.BUFFERING) {
                 pauseTicking();
-                switching = false;
-                startOverlay.classList.add('visible');
-              },
-              onError() {
-                if (index !== activePlayerIndex) return;
-                pauseTicking();
-                switching = false;
-                error.textContent = `YouTube не смог загрузить видео ${clipIndex + 1}. Проверьте ссылку и разрешение на встраивание.`;
               }
+            },
+            onApiChange(event) { configurePlayback(event.target); },
+            onAutoplayBlocked() {
+              pauseTicking();
+              switchingClip = false;
+              startOverlay.classList.add('visible');
+            },
+            onError() {
+              pauseTicking();
+              switchingClip = false;
+              error.textContent = `YouTube не смог загрузить видео ${clipIndex + 1}. Проверьте ссылку и разрешение на встраивание.`;
             }
-          });
+          }
         });
       }
 
@@ -377,76 +320,41 @@
       }
 
       form.addEventListener('submit', (event) => {
-        event.preventDefault();
-        error.textContent = '';
+        event.preventDefault(); error.textContent = '';
         const seconds = Number(document.getElementById('pauseSeconds').value);
         if (!Number.isFinite(seconds) || seconds < 1 || !Number.isInteger(seconds)) {
-          error.textContent = 'Пауза должна быть целым числом не меньше 1 секунды.';
-          return;
+          error.textContent = 'Пауза должна быть целым числом не меньше 1 секунды.'; return;
         }
-        try { clips = readClips(); } catch (validationError) {
-          error.textContent = validationError.message;
-          return;
-        }
+        try { clips = readClips(); } catch (validationError) { error.textContent = validationError.message; return; }
 
-        durationMs = seconds * 1000;
-        resetTimer();
-        sessionStarted = false;
-        switching = false;
-        startOverlay.classList.remove('visible');
-        setup.hidden = true;
-        screen.classList.add('active');
-        createPlayersIfNeeded();
-        tryPageFullscreen();
+        clipIndex = 0; switchingClip = false; positionedClipIndex = null; sequenceLoaded = false; durationMs = seconds * 1000; resetTimer();
+        startOverlay.classList.remove('visible'); setup.hidden = true; screen.classList.add('active');
+        createPlayerIfNeeded(); tryPageFullscreen();
       });
 
       async function returnToSetup() {
         pauseTicking();
-        sessionStarted = false;
-        players.forEach((player) => { try { player?.pauseVideo(); } catch (_) {} });
-        startOverlay.classList.remove('visible');
-        screen.classList.remove('active');
-        setup.hidden = false;
-        expiredEl.classList.remove('visible');
+        try { player?.pauseVideo(); } catch (_) {}
+        startOverlay.classList.remove('visible'); screen.classList.remove('active'); setup.hidden = false; expiredEl.classList.remove('visible');
         if (document.fullscreenElement || document.webkitFullscreenElement) {
-          try {
-            const exit = document.exitFullscreen || document.webkitExitFullscreen;
-            await exit?.call(document);
-          } catch (_) {}
+          try { const exit = document.exitFullscreen || document.webkitExitFullscreen; await exit?.call(document); } catch (_) {}
         }
       }
 
       timerEl.addEventListener('click', returnToSetup);
       startPlaybackBtn.addEventListener('click', () => {
         startOverlay.classList.remove('visible');
-        const clip = currentClip();
-        try {
-          activePlayer()?.seekTo(clip.start, true);
-          activePlayer()?.playVideo();
-        } catch (_) {}
+        try { positionCurrentClip(true); player?.playVideo(); } catch (_) {}
       });
       continueBtn.addEventListener('click', () => {
-        resetTimer();
-        sessionStarted = false;
-        startSequence();
+        resetTimer(); clipIndex = 0; switchingClip = false; positionedClipIndex = null; loadSequence();
       });
 
-      document.addEventListener('visibilitychange', () => {
-        if (!document.hidden && intervalId !== null) syncRemaining();
-      });
-
-      window.onYouTubeIframeAPIReady = () => {
-        apiReady = true;
-        if (pendingStart) {
-          pendingStart = false;
-          createPlayersIfNeeded();
-        }
-      };
+      document.addEventListener('visibilitychange', () => { if (!document.hidden && intervalId !== null) syncRemaining(); });
+      window.onYouTubeIframeAPIReady = () => { apiReady = true; if (pendingStart) { pendingStart = false; createPlayerIfNeeded(); } };
 
       const apiScript = document.createElement('script');
-      apiScript.src = 'https://www.youtube.com/iframe_api';
-      apiScript.async = true;
-      document.head.appendChild(apiScript);
+      apiScript.src = 'https://www.youtube.com/iframe_api'; apiScript.async = true; document.head.appendChild(apiScript);
       renderTimer();
     })();
   </script>
