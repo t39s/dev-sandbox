@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>YouTube — таймер паузы 0.1.2</title>
+  <title>YouTube — таймер паузы 0.1.3</title>
   <style>
     :root {
       color-scheme: dark;
@@ -97,13 +97,30 @@
 
     .player-screen.active { display: block; }
 
-    #player,
-    #player iframe {
+    #player {
       position: absolute;
       inset: 0;
-      width: 100%;
-      height: 100%;
+      overflow: hidden;
+      background: #000;
+    }
+
+    #player iframe {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: max(100vw, calc(100vh * 16 / 9));
+      height: max(100vh, calc(100vw * 9 / 16));
       border: 0;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+
+    .interaction-shield {
+      position: absolute;
+      z-index: 4;
+      inset: 0;
+      background: transparent;
+      touch-action: manipulation;
     }
 
     .timer {
@@ -121,10 +138,35 @@
       font-weight: 750;
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
-      pointer-events: none;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .start-overlay {
+      position: absolute;
+      z-index: 8;
+      inset: 0;
+      display: none;
+      place-items: center;
+      background: rgba(0,0,0,.18);
+    }
+
+    .start-overlay.visible { display: grid; }
+
+    .start-overlay button {
+      min-width: 150px;
+      min-height: 54px;
+      border: 1px solid rgba(255,255,255,.32);
+      border-radius: 999px;
+      background: rgba(0,0,0,.72);
+      color: #fff;
+      font-weight: 750;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
     }
 
     .back {
+      display: none;
       position: absolute;
       z-index: 6;
       top: max(10px, env(safe-area-inset-top));
@@ -181,8 +223,8 @@
     <form id="form" class="card" novalidate>
       <div>
         <h1>YouTube с таймером паузы</h1>
-        <p class="hint">Версия 0.1.2</p>
-        <p class="hint">Выбранный эпизод будет повторяться по кругу до истечения времени фактического воспроизведения.</p>
+        <p class="hint">Версия 0.1.3</p>
+        <p class="hint">Выбранный эпизод будет повторяться по кругу до истечения времени фактического воспроизведения. В режиме просмотра нажмите таймер, чтобы вернуться.</p>
       </div>
 
       <label>
@@ -212,8 +254,12 @@
 
   <section id="playerScreen" class="player-screen" aria-label="Видеоплеер">
     <div id="player"></div>
+    <div id="interactionShield" class="interaction-shield" aria-hidden="true"></div>
     <button id="back" class="back" type="button" aria-label="Вернуться к настройкам">×</button>
-    <div id="timer" class="timer" aria-live="off">01:00</div>
+    <button id="timer" class="timer" type="button" aria-label="Оставшееся время. Нажмите, чтобы вернуться к настройкам">01:00</button>
+    <div id="startOverlay" class="start-overlay">
+      <button id="startPlayback" type="button">Запустить видео</button>
+    </div>
 
     <div id="expired" class="expired" role="dialog" aria-modal="true" aria-labelledby="expiredTitle">
       <div class="expired-panel">
@@ -236,6 +282,8 @@
       const expiredEl = document.getElementById('expired');
       const backBtn = document.getElementById('back');
       const continueBtn = document.getElementById('continue');
+      const startOverlay = document.getElementById('startOverlay');
+      const startPlaybackBtn = document.getElementById('startPlayback');
 
       let player = null;
       let pendingVideoId = '';
@@ -390,10 +438,13 @@
           videoId,
           playerVars: {
             autoplay: 1,
-            controls: 1,
+            controls: 0,
+            disablekb: 1,
             playsinline: 1,
             rel: 0,
             fs: 0,
+            modestbranding: 1,
+            iv_load_policy: 3,
             cc_load_policy: 0,
             origin: location.origin === 'null' ? undefined : location.origin
           },
@@ -409,6 +460,7 @@
             },
             onStateChange(event) {
               if (event.data === YT.PlayerState.PLAYING) {
+                startOverlay.classList.remove('visible');
                 configurePlayback(event.target);
                 startTicking();
               } else if (event.data === YT.PlayerState.ENDED && !expired) {
@@ -426,6 +478,7 @@
             },
             onAutoplayBlocked() {
               pauseTicking();
+              startOverlay.classList.add('visible');
             },
             onError() {
               error.textContent = 'YouTube не смог загрузить это видео. Проверьте ссылку и разрешение на встраивание.';
@@ -470,15 +523,17 @@
         episodeEnd = end;
         durationMs = seconds * 1000;
         resetTimer();
+        startOverlay.classList.remove('visible');
         setup.hidden = true;
         screen.classList.add('active');
         createOrLoadPlayer(videoId);
         tryPageFullscreen();
       });
 
-      backBtn.addEventListener('click', async () => {
+      async function returnToSetup() {
         pauseTicking();
         try { player?.pauseVideo(); } catch (_) {}
+        startOverlay.classList.remove('visible');
         screen.classList.remove('active');
         setup.hidden = false;
         expiredEl.classList.remove('visible');
@@ -489,6 +544,17 @@
             await exit?.call(document);
           } catch (_) {}
         }
+      }
+
+      backBtn.addEventListener('click', returnToSetup);
+      timerEl.addEventListener('click', returnToSetup);
+
+      startPlaybackBtn.addEventListener('click', () => {
+        startOverlay.classList.remove('visible');
+        try {
+          player?.seekTo(episodeStart, true);
+          player?.playVideo();
+        } catch (_) {}
       });
 
       continueBtn.addEventListener('click', () => {
