@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>YouTube — таймер паузы 0.1.1</title>
+  <title>YouTube — таймер паузы 0.1.2</title>
   <style>
     :root {
       color-scheme: dark;
@@ -181,7 +181,7 @@
     <form id="form" class="card" novalidate>
       <div>
         <h1>YouTube с таймером паузы</h1>
-        <p class="hint">Версия 0.1.1</p>
+        <p class="hint">Версия 0.1.2</p>
         <p class="hint">Выбранный эпизод будет повторяться по кругу до истечения времени фактического воспроизведения.</p>
       </div>
 
@@ -247,6 +247,26 @@
       let apiReady = false;
       let episodeStart = 0;
       let episodeEnd = 10;
+
+      function configurePlayback(target) {
+        if (!target) return;
+
+        // Не загружать субтитры по умолчанию. Если модуль captions уже
+        // активирован настройками пользователя, пробуем выгрузить его.
+        try {
+          if (typeof target.unloadModule === 'function') {
+            target.unloadModule('captions');
+          }
+        } catch (_) {}
+
+        // YouTube больше не гарантирует программный выбор качества:
+        // вызов оставлен как best effort для совместимых реализаций.
+        try {
+          if (typeof target.setPlaybackQuality === 'function') {
+            target.setPlaybackQuality('hd720');
+          }
+        } catch (_) {}
+      }
 
       function extractVideoId(raw) {
         const value = raw.trim();
@@ -356,6 +376,7 @@
         }
 
         if (player && typeof player.loadVideoById === 'function') {
+          configurePlayback(player);
           player.loadVideoById({
             videoId,
             startSeconds: episodeStart
@@ -373,10 +394,12 @@
             playsinline: 1,
             rel: 0,
             fs: 0,
+            cc_load_policy: 0,
             origin: location.origin === 'null' ? undefined : location.origin
           },
           events: {
             onReady(event) {
+              configurePlayback(event.target);
               // В Safari автозапуск со звуком может быть заблокирован.
               // Пользователь в таком случае запускает видео штатной кнопкой YouTube.
               try {
@@ -386,6 +409,7 @@
             },
             onStateChange(event) {
               if (event.data === YT.PlayerState.PLAYING) {
+                configurePlayback(event.target);
                 startTicking();
               } else if (event.data === YT.PlayerState.ENDED && !expired) {
                 pauseTicking();
@@ -396,6 +420,9 @@
               } else {
                 pauseTicking();
               }
+            },
+            onApiChange(event) {
+              configurePlayback(event.target);
             },
             onAutoplayBlocked() {
               pauseTicking();
