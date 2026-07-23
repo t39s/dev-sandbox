@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>YouTube — таймер паузы 0.1.6</title>
+  <title>YouTube — таймер паузы 0.1.7</title>
   <style>
     :root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
     * { box-sizing: border-box; }
@@ -42,6 +42,8 @@
     #player iframe { position: absolute; top: 50%; left: 50%; width: max(100vw, calc(100vh * 16 / 9)); height: max(100vh, calc(100vw * 9 / 16)); border: 0; transform: translate(-50%, -50%); pointer-events: none; }
     .interaction-shield { position: absolute; z-index: 4; inset: 0; background: transparent; touch-action: manipulation; }
     .timer { position: absolute; z-index: 5; top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); min-width: 82px; padding: 8px 10px; border-radius: 999px; background: rgba(0,0,0,.68); border: 1px solid rgba(255,255,255,.28); color: #fff; text-align: center; font-variant-numeric: tabular-nums; font-weight: 750; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    .debug-status { position: absolute; z-index: 6; left: max(10px, env(safe-area-inset-left)); bottom: max(10px, env(safe-area-inset-bottom)); display: none; max-width: calc(100vw - 20px); padding: 6px 8px; border-radius: 8px; background: rgba(0,0,0,.72); color: #b8ffb8; font: 12px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; }
+    .debug-status.visible { display: block; }
     .start-overlay { position: absolute; z-index: 8; inset: 0; display: none; place-items: center; background: rgba(0,0,0,.18); }
     .start-overlay.visible { display: grid; }
     .start-overlay button { min-width: 150px; min-height: 54px; border: 1px solid rgba(255,255,255,.32); border-radius: 999px; background: rgba(0,0,0,.72); color: #fff; font-weight: 750; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
@@ -58,8 +60,8 @@
     <form id="form" class="card" novalidate>
       <div>
         <h1>YouTube с таймером паузы</h1>
-        <p class="hint">Версия 0.1.6</p>
-        <p class="hint">Фрагменты воспроизводятся сверху вниз через нативную очередь одного YouTube-плеера. После последнего фрагмента цикл начинается заново и повторяется до истечения времени фактического воспроизведения.</p>
+        <p class="hint">Версия 0.1.7</p>
+        <p class="hint">Фрагменты воспроизводятся сверху вниз как один смонтированный эпизод. После последнего фрагмента цикл начинается заново и повторяется до истечения времени фактического воспроизведения.</p>
       </div>
 
       <div class="episode-table-wrap">
@@ -98,6 +100,7 @@
     <div id="player"></div>
     <div class="interaction-shield" aria-hidden="true"></div>
     <button id="timer" class="timer" type="button" aria-label="Оставшееся время. Нажмите, чтобы вернуться к настройкам">01:00</button>
+    <div id="debugStatus" class="debug-status" aria-hidden="true"></div>
     <div id="startOverlay" class="start-overlay"><button id="startPlayback" type="button">Запустить видео</button></div>
     <div id="expired" class="expired" role="dialog" aria-modal="true" aria-labelledby="expiredTitle">
       <div class="expired-panel"><h2 id="expiredTitle">Время истекло</h2><p>Видео поставлено на паузу.</p><button id="continue" type="button">Продолжить ещё раз</button></div>
@@ -117,6 +120,8 @@
       const continueBtn = document.getElementById('continue');
       const startOverlay = document.getElementById('startOverlay');
       const startPlaybackBtn = document.getElementById('startPlayback');
+      const debugStatus = document.getElementById('debugStatus');
+      const debugEnabled = new URLSearchParams(location.search).get('debug') === '1';
 
       let player = null;
       let apiReady = false;
@@ -129,8 +134,9 @@
       let clips = [];
       let clipIndex = 0;
       let switchingClip = false;
-      let positionedClipIndex = null;
-      let sequenceLoaded = false;
+      let expectedVideoId = null;
+      let transitionSerial = 0;
+      let lastPlayerState = -1;
 
       function configurePlayback(target) {
         if (!target) return;
@@ -163,46 +169,92 @@
 
       function renderTimer() { timerEl.textContent = formatTime(remainingMs); }
       function stopTicking() { if (intervalId !== null) { clearInterval(intervalId); intervalId = null; } }
+
       function currentClip() { return clips[clipIndex] || null; }
 
-      function positionCurrentClip(force = false) {
-        const clip = currentClip();
-        if (!player || !clip || expired) return;
-        if (!force && positionedClipIndex === clipIndex) return;
-        positionedClipIndex = clipIndex;
-        configurePlayback(player);
-        try { player.seekTo(clip.start, true); } catch (_) {}
+      function playerStateName(state) {
+        const names = { '-1': 'UNSTARTED', 0: 'ENDED', 1: 'PLAYING', 2: 'PAUSED', 3: 'BUFFERING', 5: 'CUED' };
+        return names[state] || String(state);
       }
 
-      function loadSequence() {
-        if (!player || clips.length === 0 || expired) return;
+      function actualVideoId() {
+        try { return player?.getVideoData?.().video_id || ''; } catch (_) { return ''; }
+      }
+
+      function updateDebug(extra = '') {
+        if (!debugEnabled) return;
+        debugStatus.classList.add('visible');
+        const clip = currentClip();
+        const current = (() => { try { return player?.getCurrentTime?.().toFixed(2) || '0.00'; } catch (_) { return '?'; } })();
+        debugStatus.textContent = `clip ${clipIndex + 1}/${clips.length || 0} · ${playerStateName(lastPlayerState)} · t=${current} · actual=${actualVideoId() || '-'} · expected=${expectedVideoId || '-'}${extra ? ' · ' + extra : ''}`;
+      }
+
+      function completeTransitionIfReady() {
+        if (!switchingClip) return;
+        const clip = currentClip();
+        if (!clip) return;
+        const actual = actualVideoId();
+        if (actual && actual !== clip.videoId) {
+          updateDebug('ожидание videoId');
+          return;
+        }
+        switchingClip = false;
+        expectedVideoId = null;
+        updateDebug('переход завершён');
+      }
+
+      function loadCurrentClip(autoplay = true) {
+        const clip = currentClip();
+        if (!player || !clip || expired) return;
         switchingClip = true;
-        positionedClipIndex = null;
-        clipIndex = 0;
-        sequenceLoaded = true;
+        expectedVideoId = clip.videoId;
+        transitionSerial += 1;
         configurePlayback(player);
+        updateDebug('loadVideoById');
         try {
-          player.loadPlaylist({
-            playlist: clips.map((clip) => clip.videoId),
-            listType: 'playlist',
-            index: 0,
-            startSeconds: clips[0].start,
-            suggestedQuality: 'hd720'
-          });
-          player.setLoop(true);
+          player.loadVideoById({ videoId: clip.videoId, startSeconds: clip.start });
+          if (!autoplay) player.pauseVideo();
         } catch (_) {
           switchingClip = false;
-          startOverlay.classList.add('visible');
+          expectedVideoId = null;
+          updateDebug('ошибка загрузки');
         }
       }
 
       function advanceClip() {
         if (switchingClip || expired || clips.length === 0) return;
+        const previousClip = currentClip();
+        const nextIndex = (clipIndex + 1) % clips.length;
+        const nextClip = clips[nextIndex];
+        clipIndex = nextIndex;
         switchingClip = true;
-        clipIndex = (clipIndex + 1) % clips.length;
-        positionedClipIndex = null;
+        expectedVideoId = nextClip.videoId;
+        transitionSerial += 1;
         pauseTicking();
-        try { player.nextVideo(); } catch (_) { switchingClip = false; }
+
+        try {
+          if (previousClip && previousClip.videoId === nextClip.videoId) {
+            updateDebug('seekTo того же видео');
+            player.seekTo(nextClip.start, true);
+            player.playVideo();
+            window.setTimeout(() => {
+              if (!switchingClip || currentClip() !== nextClip) return;
+              const actual = actualVideoId();
+              if (!actual || actual === nextClip.videoId) {
+                completeTransitionIfReady();
+                try { if (player.getPlayerState() === YT.PlayerState.PLAYING) startTicking(); } catch (_) {}
+              }
+            }, 120);
+          } else {
+            updateDebug('load другого видео');
+            player.loadVideoById({ videoId: nextClip.videoId, startSeconds: nextClip.start });
+          }
+        } catch (_) {
+          switchingClip = false;
+          expectedVideoId = null;
+          updateDebug('ошибка перехода');
+          startOverlay.classList.add('visible');
+        }
       }
 
       function enforceSequence() {
@@ -210,7 +262,7 @@
         if (!player || !clip || expired || switchingClip) return;
         try {
           const currentTime = player.getCurrentTime();
-          if (Number.isFinite(currentTime) && currentTime >= clip.end - 0.10) advanceClip();
+          if (Number.isFinite(currentTime) && currentTime >= clip.end - 0.08) advanceClip();
         } catch (_) {}
       }
 
@@ -225,7 +277,7 @@
       function startTicking() {
         if (expired || remainingMs <= 0 || intervalId !== null) return;
         deadline = Date.now() + remainingMs;
-        intervalId = window.setInterval(syncRemaining, 100);
+        intervalId = window.setInterval(syncRemaining, 120);
         syncRemaining();
       }
 
@@ -249,48 +301,47 @@
 
       function createPlayerIfNeeded() {
         if (!apiReady) { pendingStart = true; return; }
-        if (player) { loadSequence(); return; }
+        if (player) { loadCurrentClip(true); return; }
 
+        const clip = currentClip();
         player = new YT.Player('player', {
-          width: '100%', height: '100%',
+          width: '100%', height: '100%', videoId: clip.videoId,
           playerVars: {
-            autoplay: 0, controls: 0, disablekb: 1, playsinline: 1, rel: 0,
+            autoplay: 1, controls: 0, disablekb: 1, playsinline: 1, rel: 0,
             fs: 0, modestbranding: 1, iv_load_policy: 3, cc_load_policy: 0,
+            start: Math.floor(clip.start),
             origin: location.origin === 'null' ? undefined : location.origin
           },
           events: {
             onReady(event) {
               configurePlayback(event.target);
-              loadSequence();
+              try { event.target.seekTo(currentClip().start, true); event.target.playVideo(); } catch (_) {}
             },
             onStateChange(event) {
-              if (!sequenceLoaded) return;
+              lastPlayerState = event.data;
+              updateDebug();
               if (event.data === YT.PlayerState.PLAYING) {
-                positionCurrentClip();
-                switchingClip = false;
+                const clip = currentClip();
+                const actual = actualVideoId();
+                if (clip && actual && actual !== clip.videoId) {
+                  pauseTicking();
+                  updateDebug('PLAYING не того videoId');
+                  return;
+                }
+                completeTransitionIfReady();
                 startOverlay.classList.remove('visible');
                 configurePlayback(event.target);
                 startTicking();
-              } else if (event.data === YT.PlayerState.CUED) {
-                positionCurrentClip(true);
               } else if (event.data === YT.PlayerState.ENDED && !expired) {
-                switchingClip = false;
-                advanceClip();
-              } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.BUFFERING) {
+                pauseTicking();
+                if (!switchingClip) advanceClip();
+              } else {
                 pauseTicking();
               }
             },
             onApiChange(event) { configurePlayback(event.target); },
-            onAutoplayBlocked() {
-              pauseTicking();
-              switchingClip = false;
-              startOverlay.classList.add('visible');
-            },
-            onError() {
-              pauseTicking();
-              switchingClip = false;
-              error.textContent = `YouTube не смог загрузить видео ${clipIndex + 1}. Проверьте ссылку и разрешение на встраивание.`;
-            }
+            onAutoplayBlocked() { pauseTicking(); switchingClip = false; expectedVideoId = null; updateDebug('autoplay blocked'); startOverlay.classList.add('visible'); },
+            onError() { pauseTicking(); switchingClip = false; expectedVideoId = null; updateDebug('YouTube error'); error.textContent = `YouTube не смог загрузить видео ${clipIndex + 1}. Проверьте ссылку и разрешение на встраивание.`; }
           }
         });
       }
@@ -327,7 +378,7 @@
         }
         try { clips = readClips(); } catch (validationError) { error.textContent = validationError.message; return; }
 
-        clipIndex = 0; switchingClip = false; positionedClipIndex = null; sequenceLoaded = false; durationMs = seconds * 1000; resetTimer();
+        clipIndex = 0; switchingClip = false; expectedVideoId = null; transitionSerial = 0; durationMs = seconds * 1000; resetTimer();
         startOverlay.classList.remove('visible'); setup.hidden = true; screen.classList.add('active');
         createPlayerIfNeeded(); tryPageFullscreen();
       });
@@ -344,10 +395,10 @@
       timerEl.addEventListener('click', returnToSetup);
       startPlaybackBtn.addEventListener('click', () => {
         startOverlay.classList.remove('visible');
-        try { positionCurrentClip(true); player?.playVideo(); } catch (_) {}
+        try { player?.seekTo(currentClip().start, true); player?.playVideo(); } catch (_) {}
       });
       continueBtn.addEventListener('click', () => {
-        resetTimer(); clipIndex = 0; switchingClip = false; positionedClipIndex = null; loadSequence();
+        resetTimer(); clipIndex = 0; switchingClip = false; expectedVideoId = null; loadCurrentClip(true);
       });
 
       document.addEventListener('visibilitychange', () => { if (!document.hidden && intervalId !== null) syncRemaining(); });
@@ -355,7 +406,9 @@
 
       const apiScript = document.createElement('script');
       apiScript.src = 'https://www.youtube.com/iframe_api'; apiScript.async = true; document.head.appendChild(apiScript);
+      if (debugEnabled) debugStatus.classList.add('visible');
       renderTimer();
+      updateDebug('готово');
     })();
   </script>
 </body>
