@@ -1,0 +1,1852 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111111">
+  <title>Случайный таймер</title>
+
+  <style>
+    :root {
+      color-scheme: dark;
+      --background: #111111;
+      --foreground: #ffffff;
+      --button-background: #303030;
+      --idle-background: var(--idle-background);
+      --waiting-background: var(--waiting-background);
+      --active-background: var(--active-background);
+      --divider: rgb(255 255 255 / 15%);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      min-height: 100%;
+      margin: 0;
+    }
+
+    body {
+      min-height: 100dvh;
+      overflow: hidden;
+      background: var(--background);
+      color: var(--foreground);
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .result {
+      min-height: 96px;
+      display: grid;
+      place-items: center;
+      font-size: clamp(64px, 22vw, 96px);
+      font-weight: 700;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      user-select: none;
+      will-change: transform, opacity;
+    }
+
+    .result.is-updated {
+      animation: result-feedback 160ms ease-out;
+    }
+
+    button {
+      width: 100%;
+      min-height: 72px;
+      border: 0;
+      border-radius: 18px;
+      padding: 18px 24px;
+      background: var(--button-background);
+      color: var(--foreground);
+      font: inherit;
+      font-size: 20px;
+      font-weight: 650;
+      cursor: pointer;
+      touch-action: manipulation;
+      user-select: none;
+      will-change: transform;
+    }
+
+    button.is-pressed {
+      animation: button-feedback 140ms ease-out;
+    }
+
+    .delay-input-group {
+      width: 100%;
+      display: grid;
+      gap: 6px;
+    }
+
+    .delay-prompt {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.35;
+      color: var(--foreground);
+    }
+
+    .delay-input {
+      width: 100%;
+      min-height: 48px;
+      box-sizing: border-box;
+      padding: 0 14px;
+      border: 1px solid color-mix(in srgb, var(--foreground) 35%, transparent);
+      border-radius: 12px;
+      background: transparent;
+      color: var(--foreground);
+      font: inherit;
+      font-size: 20px;
+      font-weight: 650;
+      text-align: center;
+    }
+
+    .delay-input:focus-visible {
+      outline: 2px solid currentColor;
+      outline-offset: 2px;
+    }
+
+    .delay-input::placeholder {
+      color: var(--foreground);
+      opacity: 0.65;
+    }
+
+    .delay-input[aria-invalid="true"] {
+      border-color: var(--active-background);
+    }
+
+    .input-message {
+      min-height: 1.2em;
+      margin: 0;
+      font-size: 0.85rem;
+      text-align: center;
+      opacity: 0.75;
+    }
+
+    .signal-button {
+      background: transparent;
+      color: var(--foreground);
+      border: 2px solid currentColor;
+    }
+
+    .signal-button.is-active {
+      background: var(--active-background);
+      color: var(--foreground);
+      border-color: var(--active-background);
+    }
+
+    .test-button {
+      background: transparent;
+      color: var(--foreground);
+      border: 1px solid currentColor;
+      opacity: 0.88;
+    }
+
+    .test-button.is-counting {
+      border-style: dashed;
+    }
+
+    .test-button:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+
+    .control-group {
+      width: 100%;
+      display: grid;
+      gap: 8px;
+    }
+
+    .control-label-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: baseline;
+    }
+
+    .control-group label,
+    .control-label-row {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--foreground);
+    }
+
+    .control-group label,
+    .control-label-row span:first-child {
+      opacity: 0.72;
+    }
+
+    .volume-value {
+      font-variant-numeric: tabular-nums;
+    }
+
+    select {
+      width: 100%;
+      min-height: 56px;
+      border: 1px solid currentColor;
+      border-radius: 14px;
+      padding: 0 16px;
+      background: var(--background);
+      color: var(--foreground);
+      font: inherit;
+      font-size: 17px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--foreground);
+    }
+
+    select:focus-visible,
+    input[type="range"]:focus-visible,
+    button:focus-visible {
+      outline: 3px solid currentColor;
+      outline-offset: 4px;
+    }
+
+    @keyframes result-feedback {
+      0% {
+        transform: scale(0.86);
+        opacity: 0.35;
+      }
+
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    @keyframes button-feedback {
+      0% {
+        transform: scale(1);
+      }
+
+      45% {
+        transform: scale(0.96);
+      }
+
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .result.is-updated {
+        animation: result-feedback-reduced 100ms linear;
+      }
+
+      button.is-pressed {
+        animation: button-feedback-reduced 100ms linear;
+      }
+
+      @keyframes result-feedback-reduced {
+        0% {
+          opacity: 0.4;
+        }
+
+        100% {
+          opacity: 1;
+        }
+      }
+
+      @keyframes button-feedback-reduced {
+        0%,
+        100% {
+          opacity: 1;
+        }
+
+        50% {
+          opacity: 0.72;
+        }
+      }
+    }
+  
+    main {
+      width: 100%;
+      min-height: 100dvh;
+      padding: 0;
+      display: block;
+    }
+
+    .app {
+      position: relative;
+      width: 100%;
+      min-height: 100dvh;
+    }
+
+    .home-screen {
+      position: fixed;
+      inset: 0;
+      min-height: 100dvh;
+      font-size: clamp(32px, 10vmin, 88px);
+      --gear-size: 0.72em;
+      --gear-hit-size: 1.44em;
+      --version-font-size: 0.333em;
+    }
+
+    .primary-control {
+      width: 100%;
+      height: 100%;
+      min-height: 100dvh;
+      margin: 0;
+      padding:
+        max(24px, env(safe-area-inset-top))
+        max(24px, env(safe-area-inset-right))
+        max(24px, env(safe-area-inset-bottom))
+        max(24px, env(safe-area-inset-left));
+      border-radius: 0;
+      background: var(--idle-background);
+      color: var(--foreground);
+      font-size: 1em;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .primary-control.is-active {
+      background: var(--active-background);
+      color: var(--foreground);
+      border-color: var(--active-background);
+    }
+
+    .primary-control.is-stopping {
+      background: var(--waiting-background);
+      color: var(--foreground);
+      border-color: var(--waiting-background);
+    }
+
+    .settings-toggle {
+      position: fixed;
+      right: max(16px, env(safe-area-inset-right));
+      bottom: max(16px, env(safe-area-inset-bottom));
+      z-index: 2;
+      width: var(--gear-hit-size);
+      height: var(--gear-hit-size);
+      min-width: var(--gear-hit-size);
+      min-height: var(--gear-hit-size);
+      padding: 0;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: var(--foreground);
+      font: inherit;
+      line-height: 1;
+    }
+
+    .settings-icon {
+      display: block;
+      width: var(--gear-size);
+      height: var(--gear-size);
+      fill: currentColor;
+    }
+
+    .home-version {
+      position: fixed;
+      left: max(16px, env(safe-area-inset-left));
+      bottom: max(16px, env(safe-area-inset-bottom));
+      z-index: 2;
+      margin: 0;
+      font-size: var(--version-font-size);
+      line-height: 1.2;
+      color: var(--foreground);
+      opacity: 0.55;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .settings-toggle .settings-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (orientation: landscape) {
+      .home-screen {
+        font-size: clamp(28px, 10vmin, 72px);
+      }
+    }
+
+    .settings-panel {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      min-height: 100dvh;
+      overflow-y: auto;
+      background: var(--background);
+      color: var(--foreground);
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    .settings-header {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      width: 100%;
+      margin: 0;
+      padding:
+        max(16px, env(safe-area-inset-top))
+        max(20px, calc((100% - 420px) / 2))
+        16px;
+      box-sizing: border-box;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 12px;
+      background: var(--background);
+      border-bottom: 1px solid var(--divider);
+    }
+
+    .settings-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4em;
+      min-width: 0;
+      color: var(--foreground);
+      font-size: 24px;
+    }
+
+    .settings-header h2 {
+      margin: 0;
+      font-size: 1em;
+      line-height: 1.2;
+    }
+
+    .settings-title-icon {
+      display: block;
+      flex: 0 0 auto;
+      width: 0.72em;
+      height: 0.72em;
+      fill: currentColor;
+    }
+
+    .settings-close {
+      min-height: 44px;
+      width: auto;
+      padding-inline: 18px;
+      background: var(--active-background);
+      color: var(--foreground);
+      border-color: var(--active-background);
+    }
+
+    .settings-content {
+      width: min(calc(100% - 40px), 420px);
+      margin: 0 auto;
+      padding-bottom: 24px;
+    }
+
+    .settings-section {
+      display: grid;
+      gap: 14px;
+      padding: 28px 0;
+      border-bottom: 1px solid var(--divider);
+    }
+
+    .settings-section-title {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.25;
+      font-weight: 700;
+      color: var(--foreground);
+    }
+
+    .settings-version-section {
+      padding: 28px 0 max(8px, env(safe-area-inset-bottom));
+      border-bottom: 0;
+    }
+
+    .test-details {
+      width: 100%;
+      border-top: 1px solid color-mix(in srgb, var(--foreground) 28%, transparent);
+      padding-top: 12px;
+    }
+
+    .test-details summary {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--foreground);
+      font-size: 16px;
+      font-weight: 650;
+      cursor: pointer;
+      touch-action: manipulation;
+      user-select: none;
+      list-style: none;
+    }
+
+    .test-details summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .test-details summary::after {
+      content: "▾";
+      font-size: 2em;
+      line-height: 1;
+      transform: rotate(-90deg);
+      transition: transform 140ms ease-out;
+    }
+
+    .test-details[open] summary::after {
+      transform: rotate(0deg);
+    }
+
+    .test-details-content {
+      display: grid;
+      gap: 14px;
+      padding-top: 14px;
+    }
+
+    .version-label {
+      font-size: 12px;
+      line-height: 1.2;
+      text-align: center;
+      opacity: 0.55;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+  </style>
+</head>
+
+<body>
+  <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute;overflow:hidden">
+    <defs>
+      <symbol id="gear-icon" viewBox="0 0 64 64">
+        <mask id="gear-icon-mask">
+          <rect width="64" height="64" fill="white"></rect>
+          <circle cx="32" cy="32" r="13.2" fill="black"></circle>
+        </mask>
+        <g fill="currentColor" mask="url(#gear-icon-mask)">
+          <rect id="gear-tooth" x="26" y="2" width="12" height="16" rx="4"></rect>
+          <use href="#gear-tooth" transform="rotate(45 32 32)"></use>
+          <use href="#gear-tooth" transform="rotate(90 32 32)"></use>
+          <use href="#gear-tooth" transform="rotate(135 32 32)"></use>
+          <use href="#gear-tooth" transform="rotate(180 32 32)"></use>
+          <use href="#gear-tooth" transform="rotate(225 32 32)"></use>
+          <use href="#gear-tooth" transform="rotate(270 32 32)"></use>
+          <use href="#gear-tooth" transform="rotate(315 32 32)"></use>
+          <circle cx="32" cy="32" r="22"></circle>
+        </g>
+      </symbol>
+    </defs>
+  </svg>
+  <main>
+    <section class="app" aria-label="Случайный таймер">
+      <section class="home-screen" aria-label="Главный экран">
+        <button
+          class="primary-control"
+          id="primaryControl"
+          type="button"
+        >
+          Включить
+        </button>
+
+        <button
+          class="settings-toggle"
+          id="settingsToggle"
+          type="button"
+          aria-label="Открыть настройки"
+          aria-expanded="false"
+          aria-controls="settingsPanel"
+        >
+          <svg
+            class="settings-icon"
+            viewBox="0 0 64 64"
+            aria-hidden="true"
+          >
+            <use href="#gear-icon"></use>
+          </svg>
+          <span class="settings-label">Настройки</span>
+        </button>
+
+        <p class="home-version"></p>
+      </section>
+
+      <section
+        class="settings-panel"
+        id="settingsPanel"
+        aria-label="Настройки и отладка"
+        hidden
+      >
+        <div class="settings-header">
+          <div class="settings-title">
+            <svg
+              class="settings-title-icon"
+              viewBox="0 0 64 64"
+              aria-hidden="true"
+            >
+              <use href="#gear-icon"></use>
+            </svg>
+            <h2>Настройки</h2>
+          </div>
+          <button
+            class="settings-close"
+            id="settingsClose"
+            type="button"
+          >
+            Назад
+          </button>
+        </div>
+
+        <div class="settings-content">
+          <section class="settings-section" aria-labelledby="pauseSectionTitle">
+            <h3 class="settings-section-title" id="pauseSectionTitle">Пауза перед сигналом</h3>
+
+            <output class="result" id="result" aria-live="polite"></output>
+
+            <div class="delay-input-group">
+              <p class="delay-prompt">Введите размер паузы перед сигналом (например, 2m30s — 2 минуты 30 секунд; разделитель — «,»):</p>
+              <input
+                class="delay-input"
+                id="delayInput"
+                type="text"
+                inputmode="text"
+                autocomplete="off"
+                autocapitalize="off"
+                spellcheck="false"
+                aria-describedby="delayMessage"
+              >
+              <p class="input-message" id="delayMessage" aria-live="polite"></p>
+            </div>
+
+            <button id="generateButton" type="button">Выбрать случайно</button>
+          </section>
+
+          <section class="settings-section" aria-labelledby="signalSectionTitle">
+            <h3 class="settings-section-title" id="signalSectionTitle">Сигнал</h3>
+
+            <button
+              class="signal-button"
+              id="signalButton"
+              type="button"
+              aria-pressed="false"
+            >
+              Включить сигнал
+            </button>
+
+            <div class="control-group">
+              <label for="signalSelect">Сигнал</label>
+              <select id="signalSelect">
+                <option value="steady">Ровный тон</option>
+                <option value="low">Низкий гул</option>
+                <option value="dual">Двойной тон</option>
+                <option value="siren">Сирена</option>
+                <option value="pulse">Пульс</option>
+              </select>
+            </div>
+
+            <div class="control-group">
+              <div class="volume-row">
+                <label for="volumeControl">Громкость</label>
+                <output id="volumeValue" for="volumeControl"></output>
+              </div>
+              <input
+                id="volumeControl"
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+              >
+            </div>
+
+            <details class="test-details">
+              <summary>Тестирование</summary>
+              <div class="test-details-content">
+                <button
+                  class="test-button"
+                  id="testButton"
+                  type="button"
+                  aria-describedby="testStatus"
+                >
+                  Тест (5 секунд)
+                </button>
+
+                <button
+                  class="test-button"
+                  id="randomTestButton"
+                  type="button"
+                  aria-describedby="testStatus"
+                >
+                  Тест (случайно)
+                </button>
+
+                <span id="testStatus" aria-live="polite" hidden></span>
+              </div>
+            </details>
+          </section>
+
+          <footer class="settings-section settings-version-section version-label"></footer>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const primaryControl = document.getElementById("primaryControl");
+    const settingsToggle = document.getElementById("settingsToggle");
+    const settingsClose = document.getElementById("settingsClose");
+    const settingsPanel = document.getElementById("settingsPanel");
+    const result = document.getElementById("result");
+    const button = document.getElementById("generateButton");
+    const delayInput = document.getElementById("delayInput");
+    const delayMessage = document.getElementById("delayMessage");
+    const signalButton = document.getElementById("signalButton");
+    const testButton = document.getElementById("testButton");
+    const randomTestButton = document.getElementById("randomTestButton");
+    const testStatus = document.getElementById("testStatus");
+    const signalSelect = document.getElementById("signalSelect");
+    const volumeControl = document.getElementById("volumeControl");
+    const volumeValue = document.getElementById("volumeValue");
+    const versionElements = document.querySelectorAll(
+      ".home-version, .version-label"
+    );
+
+    const APP_CONFIG = Object.freeze({
+      version: "0.6.4",
+      defaults: Object.freeze({
+        delays: "2s, 5s, 10s, 2m30s",
+        signal: "steady",
+        volume: 30
+      }),
+      storageKeys: Object.freeze({
+        delays: "random_timer.delays",
+        signal: "random_timer.signal",
+        volume: "random_timer.volume"
+      }),
+      feedback: Object.freeze({
+        vibrationMilliseconds: 20
+      }),
+      signalTypes: Object.freeze([
+        "steady",
+        "low",
+        "dual",
+        "siren",
+        "pulse"
+      ])
+    });
+
+    const AppMode = Object.freeze({
+      IDLE: "idle",
+      WAITING: "waiting",
+      SIGNALING: "signaling"
+    });
+
+    const TestId = Object.freeze({
+      FIXED: "fixed",
+      RANDOM: "random"
+    });
+
+    const UI_TEXT = Object.freeze({
+      versionPrefix: "Версия",
+      delayError: Object.freeze({
+        invalidPrefix: "Некорректное значение: ",
+        format: "Проверьте формат задержек"
+      }),
+      status: Object.freeze({
+        cancelled: "Тест отменён",
+        signalEnabled: "Сигнал включён",
+        audioPrepareFailed: "Не удалось подготовить сигнал",
+        signalStartFailed: "Не удалось включить сигнал",
+        countdownPrefix: "Сигнал включится через ",
+        countdownSuffix: " секунд"
+      }),
+      tests: Object.freeze({
+        unavailable: "Тест недоступен",
+        cancelPrefix: "Отменить тест: ",
+        cancelSuffix: " с",
+        [TestId.FIXED]: Object.freeze({
+          defaultLabel: "Тест (5 секунд)"
+        }),
+        [TestId.RANDOM]: Object.freeze({
+          defaultLabel: "Тест (случайно)"
+        })
+      })
+    });
+
+    const TEST_CONFIG = Object.freeze({
+      [TestId.FIXED]: Object.freeze({
+        delaySeconds: 5,
+        usesRandomDelay: false
+      }),
+      [TestId.RANDOM]: Object.freeze({
+        delaySeconds: null,
+        usesRandomDelay: true
+      })
+    });
+
+    const MODE_PRESENTATION = Object.freeze({
+      [AppMode.IDLE]: Object.freeze({
+        primaryText: "Включить",
+        primaryAriaLabel: "Включить случайный таймер",
+        primaryClass: null,
+        signalText: "Включить сигнал",
+        signalPressed: false,
+        testsDisabled: false
+      }),
+      [AppMode.WAITING]: Object.freeze({
+        primaryText: "Остановить",
+        primaryAriaLabel: "Остановить отсчёт",
+        primaryClass: "is-stopping",
+        signalText: "Включить сигнал",
+        signalPressed: false,
+        testsDisabled: false
+      }),
+      [AppMode.SIGNALING]: Object.freeze({
+        primaryText: "Выключить",
+        primaryAriaLabel: "Выключить сигнал",
+        primaryClass: "is-active",
+        signalText: "Выключить сигнал",
+        signalPressed: true,
+        testsDisabled: true
+      })
+    });
+
+    function createStateViewModel(state) {
+      const modePresentation =
+        MODE_PRESENTATION[state.mode] ?? MODE_PRESENTATION[AppMode.IDLE];
+
+      const testButtons = {};
+
+      for (const testId of Object.values(TestId)) {
+        const isActive =
+          state.mode === AppMode.WAITING &&
+          state.activeTestId === testId;
+
+        testButtons[testId] = {
+          disabled: modePresentation.testsDisabled,
+          isCounting: isActive,
+          text: state.mode === AppMode.SIGNALING
+            ? UI_TEXT.tests.unavailable
+            : (isActive
+              ? `${UI_TEXT.tests.cancelPrefix}${state.countdownRemaining}${UI_TEXT.tests.cancelSuffix}`
+              : UI_TEXT.tests[testId].defaultLabel)
+        };
+      }
+
+      return {
+        primary: {
+          text: modePresentation.primaryText,
+          ariaLabel: modePresentation.primaryAriaLabel,
+          className: modePresentation.primaryClass
+        },
+        signal: {
+          text: modePresentation.signalText,
+          pressed: modePresentation.signalPressed
+        },
+        tests: testButtons
+      };
+    }
+
+    const ALLOWED_MODE_TRANSITIONS = Object.freeze({
+      [AppMode.IDLE]: new Set([AppMode.WAITING, AppMode.SIGNALING]),
+      [AppMode.WAITING]: new Set([AppMode.IDLE, AppMode.SIGNALING]),
+      [AppMode.SIGNALING]: new Set([AppMode.IDLE])
+    });
+
+    const SettingsStore = (() => {
+      function read(key) {
+        try {
+          return localStorage.getItem(key);
+        } catch (error) {
+          console.warn(`Не удалось прочитать настройку ${key}`, error);
+          return null;
+        }
+      }
+
+      function write(key, value) {
+        try {
+          localStorage.setItem(key, value);
+          return true;
+        } catch (error) {
+          console.warn(`Не удалось сохранить настройку ${key}`, error);
+          return false;
+        }
+      }
+
+      function load() {
+        const savedDelays = read(APP_CONFIG.storageKeys.delays);
+        const savedSignal = read(APP_CONFIG.storageKeys.signal);
+        const savedVolume = read(APP_CONFIG.storageKeys.volume);
+
+        const signal = APP_CONFIG.signalTypes.includes(savedSignal)
+          ? savedSignal
+          : APP_CONFIG.defaults.signal;
+
+        let volume = APP_CONFIG.defaults.volume;
+
+        if (savedVolume !== null && !Number.isNaN(Number(savedVolume))) {
+          volume = Math.min(100, Math.max(0, Number(savedVolume)));
+        }
+
+        return {
+          delays: savedDelays || APP_CONFIG.defaults.delays,
+          signal,
+          volume
+        };
+      }
+
+      return Object.freeze({
+        load,
+        saveDelays(value) {
+          return write(APP_CONFIG.storageKeys.delays, value);
+        },
+        saveSignal(value) {
+          return write(APP_CONFIG.storageKeys.signal, value);
+        },
+        saveVolume(value) {
+          return write(APP_CONFIG.storageKeys.volume, value);
+        }
+      });
+    })();
+
+    const CountdownController = (() => {
+      let timeoutId = null;
+      let intervalId = null;
+
+      function clear() {
+        if (timeoutId !== null) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+
+        if (intervalId !== null) {
+          clearInterval(intervalId);
+          intervalId = null;
+        }
+      }
+
+      function start(delaySeconds, callbacks) {
+        clear();
+        let remaining = delaySeconds;
+
+        intervalId = setInterval(() => {
+          remaining -= 1;
+
+          if (remaining > 0) {
+            callbacks.onTick(remaining);
+          }
+        }, 1000);
+
+        timeoutId = setTimeout(() => {
+          clear();
+          callbacks.onElapsed();
+        }, delaySeconds * 1000);
+      }
+
+      return Object.freeze({
+        start,
+        clear,
+        isActive() {
+          return timeoutId !== null || intervalId !== null;
+        }
+      });
+    })();
+
+    const AudioSignal = (() => {
+      let audioContext = null;
+      let oscillator = null;
+      let gainNode = null;
+      let modulationOscillator = null;
+      let modulationGain = null;
+      let pulseTimer = null;
+      let dualToneTimer = null;
+      let cleanupTimer = null;
+      let selectedVolume = APP_CONFIG.defaults.volume / 100;
+      let signalLevel = 1;
+      let resourceGeneration = 0;
+
+      function getAudioContextConstructor() {
+        return window.AudioContext || window.webkitAudioContext;
+      }
+
+      async function prepare() {
+        if (!audioContext) {
+          const AudioContextConstructor = getAudioContextConstructor();
+
+          if (!AudioContextConstructor) {
+            throw new Error("Web Audio API недоступен");
+          }
+
+          audioContext = new AudioContextConstructor();
+        }
+
+        if (audioContext.state === "suspended") {
+          await audioContext.resume();
+        }
+      }
+
+      function clearNodes() {
+        if (cleanupTimer !== null) {
+          clearTimeout(cleanupTimer);
+          cleanupTimer = null;
+        }
+
+        if (pulseTimer !== null) {
+          clearInterval(pulseTimer);
+          pulseTimer = null;
+        }
+
+        if (dualToneTimer !== null) {
+          clearInterval(dualToneTimer);
+          dualToneTimer = null;
+        }
+
+        if (modulationOscillator) {
+          try {
+            modulationOscillator.stop();
+          } catch {}
+          modulationOscillator = null;
+        }
+
+        modulationGain = null;
+
+        if (oscillator) {
+          try {
+            oscillator.stop();
+          } catch {}
+          oscillator = null;
+        }
+
+        gainNode = null;
+      }
+
+      function effectiveVolume() {
+        return selectedVolume * signalLevel;
+      }
+
+      function applyVolume(target = effectiveVolume()) {
+        if (!gainNode || !audioContext) {
+          return;
+        }
+
+        const now = audioContext.currentTime;
+        gainNode.gain.cancelScheduledValues(now);
+        gainNode.gain.setTargetAtTime(target, now, 0.015);
+      }
+
+      function createBaseSignal(type, frequency, level = 1) {
+        signalLevel = level;
+        oscillator = audioContext.createOscillator();
+        gainNode = audioContext.createGain();
+
+        oscillator.type = type;
+        oscillator.frequency.value = frequency;
+
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(
+          effectiveVolume(),
+          audioContext.currentTime + 0.05
+        );
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        oscillator.start();
+      }
+
+      function build(type) {
+        clearNodes();
+
+        switch (type) {
+          case "low":
+            createBaseSignal("triangle", 220, 0.75);
+            break;
+
+          case "dual":
+            createBaseSignal("sine", 660, 0.7);
+            dualToneTimer = setInterval(() => {
+              if (!oscillator || !audioContext) {
+                return;
+              }
+
+              const nextFrequency = oscillator.frequency.value < 800
+                ? 990
+                : 660;
+              oscillator.frequency.setTargetAtTime(
+                nextFrequency,
+                audioContext.currentTime,
+                0.015
+              );
+            }, 280);
+            break;
+
+          case "siren":
+            createBaseSignal("sine", 700, 0.65);
+            modulationOscillator = audioContext.createOscillator();
+            modulationGain = audioContext.createGain();
+
+            modulationOscillator.type = "sine";
+            modulationOscillator.frequency.value = 0.8;
+            modulationGain.gain.value = 350;
+
+            modulationOscillator.connect(modulationGain);
+            modulationGain.connect(oscillator.frequency);
+            modulationOscillator.start();
+            break;
+
+          case "pulse":
+            createBaseSignal("sine", 880, 0);
+            signalLevel = 0.8;
+            pulseTimer = setInterval(() => {
+              const now = audioContext.currentTime;
+              gainNode.gain.cancelScheduledValues(now);
+              gainNode.gain.setValueAtTime(0, now);
+              gainNode.gain.linearRampToValueAtTime(
+                effectiveVolume(),
+                now + 0.02
+              );
+              gainNode.gain.linearRampToValueAtTime(0, now + 0.22);
+            }, 700);
+
+            {
+              const now = audioContext.currentTime;
+              gainNode.gain.setValueAtTime(0, now);
+              gainNode.gain.linearRampToValueAtTime(
+                effectiveVolume(),
+                now + 0.02
+              );
+              gainNode.gain.linearRampToValueAtTime(0, now + 0.22);
+            }
+            break;
+
+          case "steady":
+          default:
+            createBaseSignal("sine", 880, 0.8);
+        }
+      }
+
+      function play(type, volume) {
+        resourceGeneration += 1;
+        selectedVolume = volume;
+        build(type);
+      }
+
+      function rebuild(type, volume) {
+        play(type, volume);
+      }
+
+      function setVolume(volume, type) {
+        selectedVolume = volume;
+
+        if (type !== "pulse") {
+          applyVolume();
+        }
+      }
+
+      function stop() {
+        const stoppedGeneration = ++resourceGeneration;
+
+        if (audioContext && gainNode) {
+          const now = audioContext.currentTime;
+          gainNode.gain.cancelScheduledValues(now);
+          gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+          gainNode.gain.linearRampToValueAtTime(0, now + 0.05);
+        }
+
+        if (cleanupTimer !== null) {
+          clearTimeout(cleanupTimer);
+        }
+
+        cleanupTimer = setTimeout(() => {
+          if (resourceGeneration === stoppedGeneration) {
+            clearNodes();
+          }
+        }, 70);
+      }
+
+      function clearImmediately() {
+        resourceGeneration += 1;
+        clearNodes();
+      }
+
+      return Object.freeze({
+        prepare,
+        play,
+        rebuild,
+        setVolume,
+        stop,
+        clearImmediately,
+        isPlaying() {
+          return Boolean(oscillator && gainNode);
+        }
+      });
+    })();
+
+    const AppView = (() => {
+      const testElements = Object.freeze({
+        [TestId.FIXED]: testButton,
+        [TestId.RANDOM]: randomTestButton
+      });
+
+      function initialize(settings) {
+        delayInput.value = settings.delays;
+        signalSelect.value = settings.signal;
+        volumeControl.value = String(settings.volume);
+        updateVolumeLabel();
+      }
+
+      function renderVersion() {
+        versionElements.forEach(element => {
+          element.textContent =
+            `${UI_TEXT.versionPrefix} ${APP_CONFIG.version}`;
+        });
+      }
+
+      function renderState(state) {
+        const viewModel = createStateViewModel(state);
+
+        primaryControl.textContent = viewModel.primary.text;
+        primaryControl.setAttribute(
+          "aria-label",
+          viewModel.primary.ariaLabel
+        );
+        primaryControl.classList.toggle(
+          "is-stopping",
+          viewModel.primary.className === "is-stopping"
+        );
+        primaryControl.classList.toggle(
+          "is-active",
+          viewModel.primary.className === "is-active"
+        );
+
+        for (const testId of Object.values(TestId)) {
+          const buttonElement = testElements[testId];
+          const testView = viewModel.tests[testId];
+
+          buttonElement.disabled = testView.disabled;
+          buttonElement.classList.toggle(
+            "is-counting",
+            testView.isCounting
+          );
+          buttonElement.textContent = testView.text;
+        }
+
+        signalButton.textContent = viewModel.signal.text;
+        signalButton.classList.toggle(
+          "is-active",
+          viewModel.signal.pressed
+        );
+        signalButton.setAttribute(
+          "aria-pressed",
+          String(viewModel.signal.pressed)
+        );
+      }
+
+      function getDelayValue() {
+        return delayInput.value;
+      }
+
+      function getSignalType() {
+        return signalSelect.value;
+      }
+
+      function getVolumePercent() {
+        return Number(volumeControl.value);
+      }
+
+      function updateVolumeLabel() {
+        volumeValue.textContent = `${volumeControl.value}%`;
+      }
+
+      function showDelayError(selection) {
+        delayInput.setAttribute("aria-invalid", "true");
+        delayMessage.textContent = selection.invalidToken
+          ? `${UI_TEXT.delayError.invalidPrefix}${selection.invalidToken}`
+          : UI_TEXT.delayError.format;
+      }
+
+      function clearDelayError() {
+        delayInput.setAttribute("aria-invalid", "false");
+        delayMessage.textContent = "";
+      }
+
+      function clearResult() {
+        result.textContent = "";
+      }
+
+      function showSelectedDelay(selected) {
+        result.textContent = selected.source;
+        clearDelayError();
+        restartAnimation(result, "is-updated");
+      }
+
+      function setStatus(message) {
+        testStatus.textContent = message;
+      }
+
+      function openSettings() {
+        settingsPanel.hidden = false;
+        settingsToggle.setAttribute("aria-expanded", "true");
+        settingsPanel.scrollTop = 0;
+        document.body.style.overflow = "hidden";
+      }
+
+      function closeSettings() {
+        settingsPanel.hidden = true;
+        settingsToggle.setAttribute("aria-expanded", "false");
+        document.body.style.overflow = "";
+      }
+
+      function animateGenerate() {
+        restartAnimation(button, "is-pressed");
+      }
+
+      function animatePrimary() {
+        restartAnimation(primaryControl, "is-pressed");
+      }
+
+      function animateSignal() {
+        restartAnimation(signalButton, "is-pressed");
+      }
+
+      function animateTest(testId) {
+        const buttonElement = testElements[testId];
+
+        if (buttonElement) {
+          restartAnimation(buttonElement, "is-pressed");
+        }
+      }
+
+      function bindAnimationCleanupHandlers() {
+        bindAnimationCleanup(result, "is-updated");
+
+        [
+          button,
+          signalButton,
+          testButton,
+          randomTestButton,
+          primaryControl
+        ].forEach(element => {
+          bindAnimationCleanup(element, "is-pressed");
+        });
+      }
+
+      return Object.freeze({
+        initialize,
+        renderVersion,
+        renderState,
+        getDelayValue,
+        getSignalType,
+        getVolumePercent,
+        updateVolumeLabel,
+        showDelayError,
+        clearDelayError,
+        clearResult,
+        showSelectedDelay,
+        setStatus,
+        openSettings,
+        closeSettings,
+        animateGenerate,
+        animatePrimary,
+        animateSignal,
+        animateTest,
+        bindAnimationCleanupHandlers
+      });
+    })();
+
+    function restartAnimation(element, className) {
+      element.classList.remove(className);
+      void element.offsetWidth;
+      element.classList.add(className);
+    }
+
+    function bindAnimationCleanup(element, className) {
+      element.addEventListener("animationend", () => {
+        element.classList.remove(className);
+      });
+    }
+
+    function vibrateFeedback() {
+      if ("vibrate" in navigator) {
+        navigator.vibrate(APP_CONFIG.feedback.vibrationMilliseconds);
+      }
+    }
+
+    function parseDelayToken(token) {
+      const normalized = token.trim().toLowerCase();
+      const match = normalized.match(/^(?:(\d+)m)?(?:(\d+)s)?$/);
+
+      if (!match || (!match[1] && !match[2])) {
+        return null;
+      }
+
+      const minutes = Number(match[1] || 0);
+      const seconds = Number(match[2] || 0);
+      const totalSeconds = minutes * 60 + seconds;
+
+      if (!Number.isSafeInteger(totalSeconds) || totalSeconds <= 0) {
+        return null;
+      }
+
+      return {
+        source: token.trim(),
+        totalSeconds
+      };
+    }
+
+    function parseDelayList(value) {
+      const tokens = value.split(",").map(token => token.trim());
+
+      if (!tokens.length || tokens.some(token => token === "")) {
+        return {
+          ok: false,
+          invalidToken: ""
+        };
+      }
+
+      const parsed = [];
+
+      for (const token of tokens) {
+        const delay = parseDelayToken(token);
+
+        if (!delay) {
+          return {
+            ok: false,
+            invalidToken: token
+          };
+        }
+
+        parsed.push(delay);
+      }
+
+      return {
+        ok: true,
+        values: parsed
+      };
+    }
+
+    function selectRandomDelay(value) {
+      const parsed = parseDelayList(value);
+
+      if (!parsed.ok) {
+        return parsed;
+      }
+
+      return {
+        ok: true,
+        selected:
+          parsed.values[Math.floor(Math.random() * parsed.values.length)]
+      };
+    }
+
+    const AppController = (() => {
+      const state = {
+        mode: AppMode.IDLE,
+        activeTestId: null,
+        countdownRemaining: null
+      };
+
+      let operationSequence = 0;
+      let settings = SettingsStore.load();
+
+      function beginOperation() {
+        operationSequence += 1;
+        return operationSequence;
+      }
+
+      function invalidatePendingOperations() {
+        operationSequence += 1;
+      }
+
+      function isCurrentOperation(operationId) {
+        return operationSequence === operationId;
+      }
+
+      function transitionTo(nextMode, options = {}) {
+        const previousMode = state.mode;
+
+        if (previousMode !== nextMode) {
+          const allowedTransitions = ALLOWED_MODE_TRANSITIONS[previousMode];
+
+          if (!allowedTransitions?.has(nextMode)) {
+            throw new Error(
+              `Недопустимый переход состояния: ${previousMode} → ${nextMode}`
+            );
+          }
+        }
+
+        state.mode = nextMode;
+
+        if (nextMode === AppMode.WAITING) {
+          state.activeTestId = Object.prototype.hasOwnProperty.call(
+            options,
+            "activeTestId"
+          )
+            ? options.activeTestId
+            : state.activeTestId;
+
+          state.countdownRemaining =
+            Object.prototype.hasOwnProperty.call(
+              options,
+              "countdownRemaining"
+            )
+              ? options.countdownRemaining
+              : state.countdownRemaining;
+        } else {
+          state.activeTestId = null;
+          state.countdownRemaining = null;
+        }
+
+        AppView.renderState(state);
+      }
+
+      function updateCountdown(remaining) {
+        if (state.mode !== AppMode.WAITING) {
+          return;
+        }
+
+        state.countdownRemaining = remaining;
+        AppView.renderState(state);
+        AppView.setStatus(
+          `${UI_TEXT.status.countdownPrefix}${remaining}${UI_TEXT.status.countdownSuffix}`
+        );
+      }
+
+      function cancelTest() {
+        invalidatePendingOperations();
+        CountdownController.clear();
+
+        if (state.mode === AppMode.WAITING) {
+          transitionTo(AppMode.IDLE);
+        }
+
+        AppView.setStatus(UI_TEXT.status.cancelled);
+      }
+
+      async function startTest(delaySeconds, testId = null) {
+        if (state.mode === AppMode.SIGNALING) {
+          return false;
+        }
+
+        if (state.mode === AppMode.WAITING) {
+          cancelTest();
+        }
+
+        CountdownController.clear();
+        const operationId = beginOperation();
+
+        transitionTo(AppMode.WAITING, {
+          activeTestId: testId,
+          countdownRemaining: delaySeconds
+        });
+        AppView.setStatus(
+          `${UI_TEXT.status.countdownPrefix}${delaySeconds}${UI_TEXT.status.countdownSuffix}`
+        );
+
+        try {
+          await AudioSignal.prepare();
+        } catch (error) {
+          if (isCurrentOperation(operationId)) {
+            CountdownController.clear();
+            transitionTo(AppMode.IDLE);
+            AppView.setStatus(UI_TEXT.status.audioPrepareFailed);
+          }
+
+          console.error("Не удалось подготовить аудио", error);
+          return false;
+        }
+
+        if (
+          !isCurrentOperation(operationId) ||
+          state.mode !== AppMode.WAITING
+        ) {
+          return false;
+        }
+
+        CountdownController.start(delaySeconds, {
+          onTick(remaining) {
+            if (
+              !isCurrentOperation(operationId) ||
+              state.mode !== AppMode.WAITING
+            ) {
+              CountdownController.clear();
+              return;
+            }
+
+            updateCountdown(remaining);
+          },
+
+          async onElapsed() {
+            if (
+              !isCurrentOperation(operationId) ||
+              state.mode !== AppMode.WAITING
+            ) {
+              return;
+            }
+
+            const started = await startSignal();
+
+            if (started) {
+              AppView.setStatus(UI_TEXT.status.signalEnabled);
+            }
+          }
+        });
+
+        return true;
+      }
+
+      async function startSignal() {
+        if (state.mode === AppMode.SIGNALING) {
+          return true;
+        }
+
+        const operationId = beginOperation();
+
+        try {
+          await AudioSignal.prepare();
+
+          if (!isCurrentOperation(operationId)) {
+            return false;
+          }
+
+          AudioSignal.play(settings.signal, settings.volume / 100);
+          transitionTo(AppMode.SIGNALING);
+          return true;
+        } catch (error) {
+          if (isCurrentOperation(operationId)) {
+            CountdownController.clear();
+            AudioSignal.clearImmediately();
+
+            if (state.mode !== AppMode.IDLE) {
+              transitionTo(AppMode.IDLE);
+            } else {
+              AppView.renderState(state);
+            }
+
+            AppView.setStatus(UI_TEXT.status.signalStartFailed);
+          }
+
+          console.error("Не удалось включить сигнал", error);
+          return false;
+        }
+      }
+
+      function stopSignal() {
+        invalidatePendingOperations();
+        AudioSignal.stop();
+
+        if (state.mode === AppMode.SIGNALING) {
+          transitionTo(AppMode.IDLE);
+        }
+      }
+
+      function selectDelay(options = {}) {
+        const selection = selectRandomDelay(AppView.getDelayValue());
+
+        if (!selection.ok) {
+          AppView.showDelayError(selection);
+
+          if (options.clearResultOnError) {
+            AppView.clearResult();
+          }
+
+          if (options.openSettingsOnError) {
+            AppView.openSettings();
+          }
+
+          return null;
+        }
+
+        AppView.showSelectedDelay(selection.selected);
+        return selection.selected;
+      }
+
+      async function handleTest(testId) {
+        const testConfig = TEST_CONFIG[testId];
+
+        if (!testConfig) {
+          throw new Error(`Неизвестный тест: ${testId}`);
+        }
+
+        AppView.animateTest(testId);
+
+        if (
+          state.mode === AppMode.WAITING &&
+          state.activeTestId === testId
+        ) {
+          cancelTest();
+          return;
+        }
+
+        let delaySeconds = testConfig.delaySeconds;
+
+        if (testConfig.usesRandomDelay) {
+          const selected = selectDelay();
+
+          if (!selected) {
+            return;
+          }
+
+          delaySeconds = selected.totalSeconds;
+        }
+
+        const started = await startTest(delaySeconds, testId);
+
+        if (started) {
+          vibrateFeedback();
+        }
+      }
+
+      function initialize() {
+        AppView.initialize(settings);
+        AppView.renderVersion();
+        AppView.renderState(state);
+        AppView.bindAnimationCleanupHandlers();
+      }
+
+      return Object.freeze({
+        initialize,
+
+        onDelayInput() {
+          settings.delays = AppView.getDelayValue();
+          SettingsStore.saveDelays(settings.delays);
+          AppView.clearDelayError();
+        },
+
+        onGenerate() {
+          const selected = selectDelay({
+            clearResultOnError: true
+          });
+
+          if (!selected) {
+            return;
+          }
+
+          AppView.animateGenerate();
+          vibrateFeedback();
+        },
+
+        async onPrimaryControl() {
+          AppView.animatePrimary();
+
+          switch (state.mode) {
+            case AppMode.SIGNALING:
+              stopSignal();
+              vibrateFeedback();
+              break;
+
+            case AppMode.WAITING:
+              cancelTest();
+              vibrateFeedback();
+              break;
+
+            case AppMode.IDLE:
+            default: {
+              const selected = selectDelay({
+                openSettingsOnError: true
+              });
+
+              if (!selected) {
+                return;
+              }
+
+              const started = await startTest(selected.totalSeconds);
+
+              if (started) {
+                vibrateFeedback();
+              }
+            }
+          }
+        },
+
+        async onSignalButton() {
+          AppView.animateSignal();
+
+          if (state.mode === AppMode.SIGNALING) {
+            stopSignal();
+            vibrateFeedback();
+            return;
+          }
+
+          if (state.mode === AppMode.WAITING) {
+            cancelTest();
+          }
+
+          const started = await startSignal();
+
+          if (started) {
+            vibrateFeedback();
+          }
+        },
+
+        onTest(testId) {
+          return handleTest(testId);
+        },
+
+        onSignalTypeChange() {
+          settings.signal = AppView.getSignalType();
+          SettingsStore.saveSignal(settings.signal);
+
+          if (state.mode === AppMode.SIGNALING) {
+            AudioSignal.rebuild(
+              settings.signal,
+              settings.volume / 100
+            );
+          }
+        },
+
+        onVolumeInput() {
+          settings.volume = AppView.getVolumePercent();
+          AppView.updateVolumeLabel();
+          SettingsStore.saveVolume(String(settings.volume));
+
+          if (state.mode === AppMode.SIGNALING) {
+            AudioSignal.setVolume(
+              settings.volume / 100,
+              settings.signal
+            );
+          }
+        },
+
+        openSettings() {
+          AppView.openSettings();
+        },
+
+        closeSettings() {
+          AppView.closeSettings();
+        }
+      });
+    })();
+
+    delayInput.addEventListener("input", AppController.onDelayInput);
+    button.addEventListener("click", AppController.onGenerate);
+    primaryControl.addEventListener(
+      "click",
+      AppController.onPrimaryControl
+    );
+    signalButton.addEventListener("click", AppController.onSignalButton);
+    testButton.addEventListener("click", () => {
+      return AppController.onTest(TestId.FIXED);
+    });
+    randomTestButton.addEventListener("click", () => {
+      return AppController.onTest(TestId.RANDOM);
+    });
+    signalSelect.addEventListener(
+      "change",
+      AppController.onSignalTypeChange
+    );
+    volumeControl.addEventListener(
+      "input",
+      AppController.onVolumeInput
+    );
+    settingsToggle.addEventListener("click", AppController.openSettings);
+    settingsClose.addEventListener("click", AppController.closeSettings);
+
+    AppController.initialize();
+  </script>
+</body>
+</html>
