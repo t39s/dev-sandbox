@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#000000">
+  <title>YouTube — таймер паузы 0.1.6</title>
+  <style>
+    :root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; background: #000; color: #fff; overflow: hidden; }
+    button, input { font: inherit; }
+
+    .setup {
+      min-height: 100%; overflow-y: auto; display: grid; place-items: center;
+      padding: max(24px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+      background: #111;
+    }
+    .card { width: min(100%, 760px); display: grid; gap: 18px; }
+    h1 { margin: 0 0 4px; font-size: clamp(26px, 7vw, 38px); line-height: 1.05; }
+    .hint { margin: 0; color: #aaa; line-height: 1.45; }
+    label { display: grid; gap: 8px; font-weight: 600; }
+    input { width: 100%; min-height: 48px; border: 1px solid #444; border-radius: 10px; background: #202020; color: #fff; padding: 10px 12px; outline: none; font-size: 16px; }
+    input:focus { border-color: #fff; }
+
+    .episode-table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .episode-table { width: 100%; min-width: 520px; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
+    .episode-table th { padding: 0 6px 8px; color: #bbb; font-size: 14px; text-align: left; }
+    .episode-table th:first-child { width: 64%; }
+    .episode-table th:nth-child(2), .episode-table th:nth-child(3) { width: 18%; }
+    .episode-table td { padding: 5px 6px; vertical-align: middle; }
+    .episode-table td:first-child, .episode-table th:first-child { padding-left: 0; }
+    .episode-table td:last-child, .episode-table th:last-child { padding-right: 0; }
+    .episode-table input { min-height: 46px; }
+
+    .primary { min-height: 54px; border: 0; border-radius: 12px; background: #fff; color: #000; font-weight: 750; cursor: pointer; }
+    .error { min-height: 1.4em; margin: 0; color: #ff8c8c; font-size: 14px; }
+
+    .player-screen { position: fixed; inset: 0; display: none; background: #000; overflow: hidden; }
+    .player-screen.active { display: block; }
+    #player { position: absolute; inset: 0; overflow: hidden; background: #000; }
+    #player iframe { position: absolute; top: 50%; left: 50%; width: max(100vw, calc(100vh * 16 / 9)); height: max(100vh, calc(100vw * 9 / 16)); border: 0; transform: translate(-50%, -50%); pointer-events: none; }
+    .interaction-shield { position: absolute; z-index: 4; inset: 0; background: transparent; touch-action: manipulation; }
+    .timer { position: absolute; z-index: 5; top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); min-width: 82px; padding: 8px 10px; border-radius: 999px; background: rgba(0,0,0,.68); border: 1px solid rgba(255,255,255,.28); color: #fff; text-align: center; font-variant-numeric: tabular-nums; font-weight: 750; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    .start-overlay { position: absolute; z-index: 8; inset: 0; display: none; place-items: center; background: rgba(0,0,0,.18); }
+    .start-overlay.visible { display: grid; }
+    .start-overlay button { min-width: 150px; min-height: 54px; border: 1px solid rgba(255,255,255,.32); border-radius: 999px; background: rgba(0,0,0,.72); color: #fff; font-weight: 750; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+    .expired { position: absolute; z-index: 7; inset: 0; display: none; place-items: center; padding: 24px; background: rgba(0,0,0,.62); text-align: center; }
+    .expired.visible { display: grid; }
+    .expired-panel { width: min(100%, 420px); padding: 24px; border: 1px solid rgba(255,255,255,.28); border-radius: 18px; background: rgba(15,15,15,.92); }
+    .expired h2 { margin: 0 0 10px; font-size: 30px; }
+    .expired p { margin: 0 0 18px; color: #bbb; }
+    .expired button { width: 100%; min-height: 50px; border: 0; border-radius: 12px; background: #fff; color: #000; font-weight: 750; }
+  </style>
+</head>
+<body>
+  <main id="setup" class="setup">
+    <form id="form" class="card" novalidate>
+      <div>
+        <h1>YouTube с таймером паузы</h1>
+        <p class="hint">Версия 0.1.6</p>
+        <p class="hint">Фрагменты воспроизводятся сверху вниз через нативную очередь одного YouTube-плеера. После последнего фрагмента цикл начинается заново и повторяется до истечения времени фактического воспроизведения.</p>
+      </div>
+
+      <div class="episode-table-wrap">
+        <table class="episode-table" aria-label="Фрагменты смонтированного эпизода">
+          <thead><tr><th>Адрес</th><th>Начало</th><th>Конец</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><input class="video-url" type="url" inputmode="url" autocomplete="url" placeholder="https://youtu.be/…" aria-label="Адрес первого видео"></td>
+              <td><input class="episode-start" type="number" inputmode="decimal" min="0" step="0.1" value="0" aria-label="Начало первого фрагмента, секунд"></td>
+              <td><input class="episode-end" type="number" inputmode="decimal" min="0.1" step="0.1" value="10" aria-label="Конец первого фрагмента, секунд"></td>
+            </tr>
+            <tr>
+              <td><input class="video-url" type="url" inputmode="url" autocomplete="url" placeholder="https://youtu.be/…" aria-label="Адрес второго видео"></td>
+              <td><input class="episode-start" type="number" inputmode="decimal" min="0" step="0.1" value="0" aria-label="Начало второго фрагмента, секунд"></td>
+              <td><input class="episode-end" type="number" inputmode="decimal" min="0.1" step="0.1" value="10" aria-label="Конец второго фрагмента, секунд"></td>
+            </tr>
+            <tr>
+              <td><input class="video-url" type="url" inputmode="url" autocomplete="url" placeholder="https://youtu.be/…" aria-label="Адрес третьего видео"></td>
+              <td><input class="episode-start" type="number" inputmode="decimal" min="0" step="0.1" value="0" aria-label="Начало третьего фрагмента, секунд"></td>
+              <td><input class="episode-end" type="number" inputmode="decimal" min="0.1" step="0.1" value="10" aria-label="Конец третьего фрагмента, секунд"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <label>Пауза таймера, секунд
+        <input id="pauseSeconds" type="number" inputmode="numeric" min="1" step="1" value="60" required>
+      </label>
+
+      <button class="primary" type="submit">Показать видео</button>
+      <p id="error" class="error" role="alert" aria-live="polite"></p>
+    </form>
+  </main>
+
+  <section id="playerScreen" class="player-screen" aria-label="Видеоплеер">
+    <div id="player"></div>
+    <div class="interaction-shield" aria-hidden="true"></div>
+    <button id="timer" class="timer" type="button" aria-label="Оставшееся время. Нажмите, чтобы вернуться к настройкам">01:00</button>
+    <div id="startOverlay" class="start-overlay"><button id="startPlayback" type="button">Запустить видео</button></div>
+    <div id="expired" class="expired" role="dialog" aria-modal="true" aria-labelledby="expiredTitle">
+      <div class="expired-panel"><h2 id="expiredTitle">Время истекло</h2><p>Видео поставлено на паузу.</p><button id="continue" type="button">Продолжить ещё раз</button></div>
+    </div>
+  </section>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const form = document.getElementById('form');
+      const setup = document.getElementById('setup');
+      const screen = document.getElementById('playerScreen');
+      const error = document.getElementById('error');
+      const timerEl = document.getElementById('timer');
+      const expiredEl = document.getElementById('expired');
+      const continueBtn = document.getElementById('continue');
+      const startOverlay = document.getElementById('startOverlay');
+      const startPlaybackBtn = document.getElementById('startPlayback');
+
+      let player = null;
+      let apiReady = false;
+      let pendingStart = false;
+      let durationMs = 60000;
+      let remainingMs = durationMs;
+      let deadline = 0;
+      let intervalId = null;
+      let expired = false;
+      let clips = [];
+      let clipIndex = 0;
+      let switchingClip = false;
+      let positionedClipIndex = null;
+      let sequenceLoaded = false;
+
+      function configurePlayback(target) {
+        if (!target) return;
+        try { target.unloadModule?.('captions'); } catch (_) {}
+        try { target.setPlaybackQuality?.('hd720'); } catch (_) {}
+      }
+
+      function extractVideoId(raw) {
+        const value = raw.trim();
+        if (/^[A-Za-z0-9_-]{11}$/.test(value)) return value;
+        let url;
+        try { url = new URL(value); } catch { return null; }
+        const host = url.hostname.replace(/^www\./, '').toLowerCase();
+        let id = null;
+        if (host === 'youtu.be') id = url.pathname.split('/').filter(Boolean)[0];
+        else if (host === 'youtube.com' || host === 'm.youtube.com' || host === 'music.youtube.com') {
+          if (url.pathname === '/watch') id = url.searchParams.get('v');
+          else {
+            const parts = url.pathname.split('/').filter(Boolean);
+            if (['embed', 'shorts', 'live'].includes(parts[0])) id = parts[1];
+          }
+        }
+        return id && /^[A-Za-z0-9_-]{11}$/.test(id) ? id : null;
+      }
+
+      function formatTime(ms) {
+        const seconds = Math.max(0, Math.ceil(ms / 1000));
+        return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+      }
+
+      function renderTimer() { timerEl.textContent = formatTime(remainingMs); }
+      function stopTicking() { if (intervalId !== null) { clearInterval(intervalId); intervalId = null; } }
+      function currentClip() { return clips[clipIndex] || null; }
+
+      function positionCurrentClip(force = false) {
+        const clip = currentClip();
+        if (!player || !clip || expired) return;
+        if (!force && positionedClipIndex === clipIndex) return;
+        positionedClipIndex = clipIndex;
+        configurePlayback(player);
+        try { player.seekTo(clip.start, true); } catch (_) {}
+      }
+
+      function loadSequence() {
+        if (!player || clips.length === 0 || expired) return;
+        switchingClip = true;
+        positionedClipIndex = null;
+        clipIndex = 0;
+        sequenceLoaded = true;
+        configurePlayback(player);
+        try {
+          player.loadPlaylist({
+            playlist: clips.map((clip) => clip.videoId),
+            listType: 'playlist',
+            index: 0,
+            startSeconds: clips[0].start,
+            suggestedQuality: 'hd720'
+          });
+          player.setLoop(true);
+        } catch (_) {
+          switchingClip = false;
+          startOverlay.classList.add('visible');
+        }
+      }
+
+      function advanceClip() {
+        if (switchingClip || expired || clips.length === 0) return;
+        switchingClip = true;
+        clipIndex = (clipIndex + 1) % clips.length;
+        positionedClipIndex = null;
+        pauseTicking();
+        try { player.nextVideo(); } catch (_) { switchingClip = false; }
+      }
+
+      function enforceSequence() {
+        const clip = currentClip();
+        if (!player || !clip || expired || switchingClip) return;
+        try {
+          const currentTime = player.getCurrentTime();
+          if (Number.isFinite(currentTime) && currentTime >= clip.end - 0.10) advanceClip();
+        } catch (_) {}
+      }
+
+      function syncRemaining() {
+        if (!deadline) return;
+        remainingMs = Math.max(0, deadline - Date.now());
+        renderTimer();
+        if (remainingMs <= 0) { expireTimer(); return; }
+        enforceSequence();
+      }
+
+      function startTicking() {
+        if (expired || remainingMs <= 0 || intervalId !== null) return;
+        deadline = Date.now() + remainingMs;
+        intervalId = window.setInterval(syncRemaining, 100);
+        syncRemaining();
+      }
+
+      function pauseTicking() {
+        if (intervalId !== null) syncRemaining();
+        stopTicking();
+        deadline = 0;
+      }
+
+      function expireTimer() {
+        if (expired) return;
+        expired = true; remainingMs = 0; renderTimer(); stopTicking(); deadline = 0;
+        try { player?.pauseVideo(); } catch (_) {}
+        expiredEl.classList.add('visible');
+      }
+
+      function resetTimer() {
+        stopTicking(); expired = false; remainingMs = durationMs; deadline = 0;
+        expiredEl.classList.remove('visible'); renderTimer();
+      }
+
+      function createPlayerIfNeeded() {
+        if (!apiReady) { pendingStart = true; return; }
+        if (player) { loadSequence(); return; }
+
+        player = new YT.Player('player', {
+          width: '100%', height: '100%',
+          playerVars: {
+            autoplay: 0, controls: 0, disablekb: 1, playsinline: 1, rel: 0,
+            fs: 0, modestbranding: 1, iv_load_policy: 3, cc_load_policy: 0,
+            origin: location.origin === 'null' ? undefined : location.origin
+          },
+          events: {
+            onReady(event) {
+              configurePlayback(event.target);
+              loadSequence();
+            },
+            onStateChange(event) {
+              if (!sequenceLoaded) return;
+              if (event.data === YT.PlayerState.PLAYING) {
+                positionCurrentClip();
+                switchingClip = false;
+                startOverlay.classList.remove('visible');
+                configurePlayback(event.target);
+                startTicking();
+              } else if (event.data === YT.PlayerState.CUED) {
+                positionCurrentClip(true);
+              } else if (event.data === YT.PlayerState.ENDED && !expired) {
+                switchingClip = false;
+                advanceClip();
+              } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.BUFFERING) {
+                pauseTicking();
+              }
+            },
+            onApiChange(event) { configurePlayback(event.target); },
+            onAutoplayBlocked() {
+              pauseTicking();
+              switchingClip = false;
+              startOverlay.classList.add('visible');
+            },
+            onError() {
+              pauseTicking();
+              switchingClip = false;
+              error.textContent = `YouTube не смог загрузить видео ${clipIndex + 1}. Проверьте ссылку и разрешение на встраивание.`;
+            }
+          }
+        });
+      }
+
+      function readClips() {
+        const rows = [...document.querySelectorAll('.episode-table tbody tr')];
+        const result = [];
+        for (let i = 0; i < rows.length; i += 1) {
+          const address = rows[i].querySelector('.video-url').value.trim();
+          if (!address) continue;
+          const videoId = extractVideoId(address);
+          const start = Number(rows[i].querySelector('.episode-start').value);
+          const end = Number(rows[i].querySelector('.episode-end').value);
+          if (!videoId) throw new Error(`Строка ${i + 1}: введите корректную ссылку YouTube или идентификатор видео.`);
+          if (!Number.isFinite(start) || start < 0) throw new Error(`Строка ${i + 1}: начало должно быть числом не меньше 0.`);
+          if (!Number.isFinite(end) || end <= start) throw new Error(`Строка ${i + 1}: конец должен быть больше начала.`);
+          result.push({ videoId, start, end });
+        }
+        if (result.length === 0) throw new Error('Заполните хотя бы одну строку таблицы.');
+        return result;
+      }
+
+      async function tryPageFullscreen() {
+        const request = screen.requestFullscreen || screen.webkitRequestFullscreen;
+        if (!request) return;
+        try { await request.call(screen); } catch (_) {}
+      }
+
+      form.addEventListener('submit', (event) => {
+        event.preventDefault(); error.textContent = '';
+        const seconds = Number(document.getElementById('pauseSeconds').value);
+        if (!Number.isFinite(seconds) || seconds < 1 || !Number.isInteger(seconds)) {
+          error.textContent = 'Пауза должна быть целым числом не меньше 1 секунды.'; return;
+        }
+        try { clips = readClips(); } catch (validationError) { error.textContent = validationError.message; return; }
+
+        clipIndex = 0; switchingClip = false; positionedClipIndex = null; sequenceLoaded = false; durationMs = seconds * 1000; resetTimer();
+        startOverlay.classList.remove('visible'); setup.hidden = true; screen.classList.add('active');
+        createPlayerIfNeeded(); tryPageFullscreen();
+      });
+
+      async function returnToSetup() {
+        pauseTicking();
+        try { player?.pauseVideo(); } catch (_) {}
+        startOverlay.classList.remove('visible'); screen.classList.remove('active'); setup.hidden = false; expiredEl.classList.remove('visible');
+        if (document.fullscreenElement || document.webkitFullscreenElement) {
+          try { const exit = document.exitFullscreen || document.webkitExitFullscreen; await exit?.call(document); } catch (_) {}
+        }
+      }
+
+      timerEl.addEventListener('click', returnToSetup);
+      startPlaybackBtn.addEventListener('click', () => {
+        startOverlay.classList.remove('visible');
+        try { positionCurrentClip(true); player?.playVideo(); } catch (_) {}
+      });
+      continueBtn.addEventListener('click', () => {
+        resetTimer(); clipIndex = 0; switchingClip = false; positionedClipIndex = null; loadSequence();
+      });
+
+      document.addEventListener('visibilitychange', () => { if (!document.hidden && intervalId !== null) syncRemaining(); });
+      window.onYouTubeIframeAPIReady = () => { apiReady = true; if (pendingStart) { pendingStart = false; createPlayerIfNeeded(); } };
+
+      const apiScript = document.createElement('script');
+      apiScript.src = 'https://www.youtube.com/iframe_api'; apiScript.async = true; document.head.appendChild(apiScript);
+      renderTimer();
+    })();
+  </script>
+</body>
+</html>
