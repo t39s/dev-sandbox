@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <meta name="referrer" content="no-referrer" />
+    <meta
+      name="description"
+      content="Генератор пяти уникальных чисел от 1 до 35 на основе Web Crypto API."
+    />
+    <title>5 из 35 — генератор случайных чисел</title>
+    <style>
+      :root {
+        --paper: #f5f4f0;
+        --ink: #141413;
+        --muted: #6d6b65;
+        --line: #d8d6cf;
+        --surface: #fbfaf7;
+        --accent: #e8ff47;
+        --error: #a33125;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        background: var(--paper);
+      }
+
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      button,
+      a {
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .page-shell {
+        min-height: 100svh;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        padding: 28px clamp(20px, 4vw, 64px);
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-bottom: 24px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .wordmark {
+        color: var(--ink);
+        font-size: 14px;
+        font-weight: 760;
+        letter-spacing: -0.02em;
+        text-decoration: none;
+      }
+
+      .topbar-note,
+      .eyebrow,
+      .lede,
+      .source-note p,
+      .error-message {
+        margin: 0;
+      }
+
+      .topbar-note {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .generator {
+        width: min(100%, 980px);
+        margin: auto;
+        padding: clamp(64px, 11vh, 128px) 0;
+      }
+
+      .intro {
+        width: min(100%, 760px);
+      }
+
+      .eyebrow {
+        margin-bottom: 18px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        max-width: 800px;
+        margin: 0;
+        font-size: clamp(42px, 7.1vw, 92px);
+        font-weight: 610;
+        letter-spacing: -0.064em;
+        line-height: 0.96;
+        text-wrap: balance;
+      }
+
+      .lede {
+        margin-top: 28px;
+        color: var(--muted);
+        font-size: clamp(15px, 1.8vw, 18px);
+        line-height: 1.55;
+      }
+
+      .number-row {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: clamp(8px, 1.4vw, 18px);
+        margin-top: clamp(48px, 8vh, 88px);
+      }
+
+      .number {
+        aspect-ratio: 1;
+        display: grid;
+        place-items: center;
+        border: 1px solid var(--line);
+        border-radius: 50%;
+        background: transparent;
+        color: #a4a199;
+        font-size: clamp(27px, 4.4vw, 58px);
+        font-variant-numeric: tabular-nums;
+        font-weight: 590;
+        letter-spacing: -0.04em;
+      }
+
+      .number--filled {
+        border-color: var(--ink);
+        background: var(--ink);
+        color: var(--surface);
+        animation: number-in 420ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+      }
+
+      .number--filled:nth-child(2) {
+        animation-delay: 40ms;
+      }
+
+      .number--filled:nth-child(3) {
+        animation-delay: 80ms;
+      }
+
+      .number--filled:nth-child(4) {
+        animation-delay: 120ms;
+      }
+
+      .number--filled:nth-child(5) {
+        animation-delay: 160ms;
+      }
+
+      .generate-button {
+        width: 100%;
+        min-height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: clamp(24px, 4vh, 40px);
+        padding: 0 24px;
+        border: 1px solid var(--ink);
+        border-radius: 0;
+        background: var(--accent);
+        color: var(--ink);
+        cursor: pointer;
+        font: inherit;
+        font-size: 15px;
+        font-weight: 700;
+        transition:
+          background-color 150ms ease,
+          color 150ms ease,
+          transform 150ms ease;
+      }
+
+      .generate-button:hover {
+        background: var(--ink);
+        color: var(--surface);
+      }
+
+      .generate-button:active {
+        transform: translateY(1px);
+      }
+
+      .generate-button:focus-visible {
+        outline: 3px solid var(--ink);
+        outline-offset: 4px;
+      }
+
+      .generate-button-arrow {
+        font-size: 20px;
+        font-weight: 400;
+      }
+
+      .error-message {
+        margin-top: 14px;
+        color: var(--error);
+        font-size: 14px;
+      }
+
+      .source-note {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding-top: 22px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+      }
+
+      .source-note p {
+        max-width: 760px;
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      .source-note code {
+        color: var(--ink);
+        font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+        font-size: 0.95em;
+      }
+
+      .status-dot {
+        width: 7px;
+        height: 7px;
+        flex: 0 0 auto;
+        margin-top: 5px;
+        border-radius: 50%;
+        background: #458536;
+        box-shadow: 0 0 0 3px rgb(69 133 54 / 12%);
+      }
+
+      @keyframes number-in {
+        from {
+          opacity: 0;
+          transform: translateY(12px) scale(0.92);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      @media (max-width: 640px) {
+        .page-shell {
+          padding: 20px;
+        }
+
+        .topbar-note {
+          display: none;
+        }
+
+        .generator {
+          padding: 56px 0 44px;
+        }
+
+        h1 {
+          font-size: clamp(42px, 13vw, 64px);
+        }
+
+        .lede {
+          max-width: 30ch;
+        }
+
+        .number-row {
+          margin-top: 44px;
+          gap: 6px;
+        }
+
+        .number {
+          font-size: clamp(22px, 8vw, 36px);
+        }
+
+        .generate-button {
+          min-height: 58px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          transition-duration: 0.01ms !important;
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+        }
+      }
+
+      @media (prefers-contrast: more) {
+        :root {
+          --muted: #494842;
+          --line: #77746c;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page-shell">
+      <header class="topbar" aria-label="Заголовок приложения">
+        <a class="wordmark" href="./" aria-label="Пять из тридцати пяти">
+          5 / 35
+        </a>
+        <p class="topbar-note">Генератор случайных чисел</p>
+      </header>
+
+      <section class="generator" aria-labelledby="generator-title">
+        <div class="intro">
+          <p class="eyebrow">Уникальная выборка</p>
+          <h1 id="generator-title">Пять случайных чисел из 35</h1>
+          <p class="lede">
+            Без повторений. Числа показаны в порядке генерации.
+          </p>
+        </div>
+
+        <div
+          class="number-row"
+          id="number-row"
+          aria-live="polite"
+          aria-atomic="true"
+          aria-label="Числа ещё не сгенерированы"
+        >
+          <span class="number" aria-hidden="true">—</span>
+          <span class="number" aria-hidden="true">—</span>
+          <span class="number" aria-hidden="true">—</span>
+          <span class="number" aria-hidden="true">—</span>
+          <span class="number" aria-hidden="true">—</span>
+        </div>
+
+        <button class="generate-button" id="generate-button" type="button">
+          <span id="button-label">Сгенерировать</span>
+          <span class="generate-button-arrow" aria-hidden="true">↗</span>
+        </button>
+
+        <p class="error-message" id="error-message" role="alert" hidden></p>
+      </section>
+
+      <footer class="source-note">
+        <span class="status-dot" aria-hidden="true"></span>
+        <p>
+          Источник — <code>crypto.getRandomValues()</code>. Равномерность
+          обеспечивается выборкой с отбрасыванием; <code>Math.random()</code> не
+          используется.
+        </p>
+      </footer>
+    </main>
+
+    <script>
+      (() => {
+        "use strict";
+
+        const TOTAL_NUMBERS = 35;
+        const DRAW_SIZE = 5;
+        const UINT32_RANGE = 0x100000000;
+
+        const numberRow = document.getElementById("number-row");
+        const numberElements = Array.from(
+          numberRow.querySelectorAll(".number"),
+        );
+        const generateButton = document.getElementById("generate-button");
+        const buttonLabel = document.getElementById("button-label");
+        const errorMessage = document.getElementById("error-message");
+
+        function secureRandomBelow(maxExclusive) {
+          if (!Number.isInteger(maxExclusive) || maxExclusive <= 0) {
+            throw new RangeError(
+              "Верхняя граница должна быть положительным целым числом.",
+            );
+          }
+
+          const limit = UINT32_RANGE - (UINT32_RANGE % maxExclusive);
+          const sample = new Uint32Array(1);
+          let value;
+
+          do {
+            globalThis.crypto.getRandomValues(sample);
+            value = sample[0];
+          } while (value >= limit);
+
+          return value % maxExclusive;
+        }
+
+        function drawNumbers() {
+          if (!globalThis.crypto?.getRandomValues) {
+            throw new Error("Web Crypto API недоступен в этом браузере.");
+          }
+
+          const pool = Array.from(
+            { length: TOTAL_NUMBERS },
+            (_, index) => index + 1,
+          );
+
+          for (let index = 0; index < DRAW_SIZE; index += 1) {
+            const swapIndex =
+              index + secureRandomBelow(TOTAL_NUMBERS - index);
+            [pool[index], pool[swapIndex]] = [
+              pool[swapIndex],
+              pool[index],
+            ];
+          }
+
+          return pool.slice(0, DRAW_SIZE);
+        }
+
+        function renderNumbers(numbers) {
+          numberRow.setAttribute(
+            "aria-label",
+            `Выпали числа: ${numbers.join(", ")}`,
+          );
+
+          numberElements.forEach((element, index) => {
+            element.classList.remove("number--filled");
+            element.textContent = String(numbers[index]);
+          });
+
+          void numberRow.offsetWidth;
+
+          numberElements.forEach((element) => {
+            element.classList.add("number--filled");
+          });
+
+          buttonLabel.textContent = "Сгенерировать ещё";
+        }
+
+        generateButton.addEventListener("click", () => {
+          try {
+            renderNumbers(drawNumbers());
+            errorMessage.hidden = true;
+            errorMessage.textContent = "";
+          } catch (error) {
+            numberRow.setAttribute(
+              "aria-label",
+              "Не удалось сгенерировать числа",
+            );
+            errorMessage.textContent =
+              error instanceof Error
+                ? error.message
+                : "Не удалось получить случайные числа.";
+            errorMessage.hidden = false;
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>
