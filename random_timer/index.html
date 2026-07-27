@@ -745,7 +745,7 @@
       "use strict";
 
       const APP_CONFIG = Object.freeze({
-        version: "0.8.0",
+        version: "0.8.1",
         defaults: Object.freeze({
           delays: "2s, 5s, 10s, 2m30s",
           signal: "steady",
@@ -799,7 +799,8 @@
           completed: "Цикл завершён",
           reset: "Цикл сброшен",
           changed: "Цикл сброшен: список пауз изменён",
-          invalid: "Цикл не создан: исправьте список пауз"
+          invalid: "Цикл не создан: исправьте список пауз",
+          randomUnavailable: "Не удалось получить случайное число"
         }),
         tests: Object.freeze({
           unavailable: "Тест недоступен",
@@ -1567,7 +1568,44 @@
         };
       }
 
-      function createDelayCycle(random = Math.random) {
+      function createCryptoRandomSource(cryptoApi) {
+        const UINT32_RANGE = 0x100000000;
+
+        function getIndex(length) {
+          if (
+            !Number.isInteger(length) ||
+            length <= 0 ||
+            length > UINT32_RANGE
+          ) {
+            throw new RangeError(
+              "Размер диапазона должен быть целым числом от 1 до 2^32"
+            );
+          }
+
+          if (
+            !cryptoApi ||
+            typeof cryptoApi.getRandomValues !== "function"
+          ) {
+            throw new Error("Web Crypto API недоступен");
+          }
+
+          const acceptedLimit =
+            UINT32_RANGE - (UINT32_RANGE % length);
+          const values = new Uint32Array(1);
+
+          do {
+            cryptoApi.getRandomValues(values);
+          } while (values[0] >= acceptedLimit);
+
+          return values[0] % length;
+        }
+
+        return Object.freeze({
+          getIndex
+        });
+      }
+
+      function createDelayCycle(getRandomIndex) {
         let sourceValue = null;
         let fullValues = [];
         let remainingValues = [];
@@ -1633,19 +1671,13 @@
             return prepared;
           }
 
-          const randomValue = random();
-
-          if (
-            !Number.isFinite(randomValue) ||
-            randomValue < 0 ||
-            randomValue >= 1
-          ) {
-            throw new RangeError(
-              "Источник случайных чисел должен возвращать значение в диапазоне [0, 1)"
+          if (typeof getRandomIndex !== "function") {
+            throw new TypeError(
+              "Источник случайных индексов не задан"
             );
           }
 
-          const index = Math.floor(randomValue * remainingValues.length);
+          const index = getRandomIndex(remainingValues.length);
           const [selected] = remainingValues.splice(index, 1);
 
           return {
@@ -1666,7 +1698,7 @@
         });
       }
 
-      function createAppController(AppView) {
+      function createAppController(AppView, RandomSource) {
         const state = {
           mode: AppMode.IDLE,
           activeTestId: null,
@@ -1675,7 +1707,9 @@
 
         let operationSequence = 0;
         let settings = SettingsStore.load();
-        const delayCycle = createDelayCycle();
+        const delayCycle = createDelayCycle(
+          RandomSource.getIndex
+        );
 
         function beginOperation() {
           operationSequence += 1;
@@ -1869,7 +1903,30 @@
         }
 
         function selectDelay(options = {}) {
-          const selection = delayCycle.select(AppView.getDelayValue());
+          let selection;
+
+          try {
+            selection = delayCycle.select(AppView.getDelayValue());
+          } catch (error) {
+            AppView.renderCycle(
+              delayCycle.getStatus(),
+              UI_TEXT.cycle.randomUnavailable
+            );
+
+            if (options.clearResultOnError) {
+              AppView.clearResult();
+            }
+
+            if (options.openSettingsOnError) {
+              AppView.openSettings();
+            }
+
+            console.error(
+              "Не удалось получить случайный индекс",
+              error
+            );
+            return null;
+          }
 
           if (!selection.ok) {
             AppView.showDelayError(selection);
@@ -2136,7 +2193,13 @@
       function bootstrap() {
         const dom = createDomBindings(document);
         const view = createAppView(dom);
-        const controller = createAppController(view);
+        const randomSource = createCryptoRandomSource(
+          globalThis.crypto
+        );
+        const controller = createAppController(
+          view,
+          randomSource
+        );
 
         bindEvents(dom, controller);
         controller.initialize();
