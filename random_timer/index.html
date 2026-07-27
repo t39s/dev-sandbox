@@ -15,6 +15,7 @@
       --idle-background: #000000;
       --waiting-background: #123F2D;
       --active-background: #b42318;
+      --back-button-background: #123F2D;
       --divider: rgb(255 255 255 / 15%);
     }
 
@@ -438,9 +439,9 @@
       min-height: 44px;
       width: auto;
       padding-inline: 18px;
-      background: var(--active-background);
+      background: var(--back-button-background);
       color: var(--foreground);
-      border-color: var(--active-background);
+      border-color: var(--back-button-background);
     }
 
     .settings-content {
@@ -701,7 +702,7 @@
       "use strict";
 
       const APP_CONFIG = Object.freeze({
-        version: "0.6.7",
+        version: "0.7.0",
         defaults: Object.freeze({
           delays: "2s, 5s, 10s, 2m30s",
           signal: "steady",
