@@ -131,6 +131,33 @@
       opacity: 0.75;
     }
 
+    .cycle-actions {
+      display: grid;
+      gap: 14px;
+    }
+
+    .cycle-status {
+      min-height: 1.2em;
+      margin: 0;
+      font-size: 0.9rem;
+      line-height: 1.35;
+      text-align: center;
+      opacity: 0.75;
+    }
+
+    .cycle-reset-button {
+      min-height: 56px;
+      background: transparent;
+      border: 1px solid currentColor;
+      font-size: 17px;
+      opacity: 0.88;
+    }
+
+    .cycle-reset-button:disabled {
+      cursor: not-allowed;
+      opacity: 0.35;
+    }
+
     .signal-button {
       background: transparent;
       color: var(--foreground);
@@ -625,7 +652,23 @@
               <p class="input-message" id="delayMessage" aria-live="polite"></p>
             </div>
 
-            <button id="generateButton" type="button">Выбрать случайно</button>
+            <div class="cycle-actions">
+              <button id="generateButton" type="button">Выбрать из оставшихся</button>
+              <button
+                class="cycle-reset-button"
+                id="resetCycleButton"
+                type="button"
+                disabled
+              >
+                Сбросить цикл
+              </button>
+            </div>
+
+            <p
+              class="cycle-status"
+              id="cycleStatus"
+              aria-live="polite"
+            ></p>
           </section>
 
           <section class="settings-section" aria-labelledby="signalSectionTitle">
@@ -702,7 +745,7 @@
       "use strict";
 
       const APP_CONFIG = Object.freeze({
-        version: "0.7.0",
+        version: "0.8.0",
         defaults: Object.freeze({
           delays: "2s, 5s, 10s, 2m30s",
           signal: "steady",
@@ -750,6 +793,14 @@
           countdownPrefix: "Сигнал включится через ",
           countdownSuffix: " секунд"
         }),
+        cycle: Object.freeze({
+          remainingPrefix: "Осталось в цикле: ",
+          remainingSeparator: " из ",
+          completed: "Цикл завершён",
+          reset: "Цикл сброшен",
+          changed: "Цикл сброшен: список пауз изменён",
+          invalid: "Цикл не создан: исправьте список пауз"
+        }),
         tests: Object.freeze({
           unavailable: "Тест недоступен",
           cancelPrefix: "Отменить тест: ",
@@ -773,6 +824,21 @@
           usesRandomDelay: true
         })
       });
+
+      function createCycleViewModel(cycleState, notice = "") {
+        let detail = "";
+
+        if (cycleState.valid) {
+          detail = cycleState.completed
+            ? UI_TEXT.cycle.completed
+            : `${UI_TEXT.cycle.remainingPrefix}${cycleState.remaining}${UI_TEXT.cycle.remainingSeparator}${cycleState.total}`;
+        }
+
+        return {
+          text: [notice, detail].filter(Boolean).join(". "),
+          resetDisabled: !cycleState.hasUsed
+        };
+      }
 
       const MODE_PRESENTATION = Object.freeze({
         [AppMode.IDLE]: Object.freeze({
@@ -1173,6 +1239,8 @@
           "settingsPanel",
           "result",
           "generateButton",
+          "resetCycleButton",
+          "cycleStatus",
           "delayInput",
           "delayMessage",
           "signalButton",
@@ -1229,6 +1297,8 @@
           settingsPanel,
           result,
           generateButton: button,
+          resetCycleButton,
+          cycleStatus,
           delayInput,
           delayMessage,
           signalButton,
@@ -1351,6 +1421,12 @@
           restartAnimation(result, "is-updated");
         }
 
+        function renderCycle(cycleState, notice = "") {
+          const viewModel = createCycleViewModel(cycleState, notice);
+          cycleStatus.textContent = viewModel.text;
+          resetCycleButton.disabled = viewModel.resetDisabled;
+        }
+
         function setStatus(message) {
           testStatus.textContent = message;
         }
@@ -1370,6 +1446,10 @@
 
         function animateGenerate() {
           restartAnimation(button, "is-pressed");
+        }
+
+        function animateResetCycle() {
+          restartAnimation(resetCycleButton, "is-pressed");
         }
 
         function animatePrimary() {
@@ -1393,6 +1473,7 @@
 
           [
             button,
+            resetCycleButton,
             signalButton,
             testButton,
             randomTestButton,
@@ -1414,10 +1495,12 @@
           clearDelayError,
           clearResult,
           showSelectedDelay,
+          renderCycle,
           setStatus,
           openSettings,
           closeSettings,
           animateGenerate,
+          animateResetCycle,
           animatePrimary,
           animateSignal,
           animateTest,
@@ -1484,18 +1567,103 @@
         };
       }
 
-      function selectRandomDelay(value) {
-        const parsed = parseDelayList(value);
+      function createDelayCycle(random = Math.random) {
+        let sourceValue = null;
+        let fullValues = [];
+        let remainingValues = [];
 
-        if (!parsed.ok) {
-          return parsed;
+        function createStatus(valid = true) {
+          return {
+            valid,
+            total: fullValues.length,
+            remaining: remainingValues.length,
+            completed:
+              valid &&
+              fullValues.length > 0 &&
+              remainingValues.length === 0,
+            hasUsed:
+              valid &&
+              fullValues.length > 0 &&
+              remainingValues.length < fullValues.length
+          };
         }
 
-        return {
-          ok: true,
-          selected:
-            parsed.values[Math.floor(Math.random() * parsed.values.length)]
-        };
+        function reset(value) {
+          const parsed = parseDelayList(value);
+          sourceValue = value;
+
+          if (!parsed.ok) {
+            fullValues = [];
+            remainingValues = [];
+
+            return {
+              ...parsed,
+              cycle: createStatus(false)
+            };
+          }
+
+          fullValues = parsed.values.slice();
+          remainingValues = fullValues.slice();
+
+          return {
+            ok: true,
+            cycle: createStatus()
+          };
+        }
+
+        function ensureCurrent(value) {
+          if (value !== sourceValue || fullValues.length === 0) {
+            return reset(value);
+          }
+
+          if (remainingValues.length === 0) {
+            remainingValues = fullValues.slice();
+          }
+
+          return {
+            ok: true,
+            cycle: createStatus()
+          };
+        }
+
+        function select(value) {
+          const prepared = ensureCurrent(value);
+
+          if (!prepared.ok) {
+            return prepared;
+          }
+
+          const randomValue = random();
+
+          if (
+            !Number.isFinite(randomValue) ||
+            randomValue < 0 ||
+            randomValue >= 1
+          ) {
+            throw new RangeError(
+              "Источник случайных чисел должен возвращать значение в диапазоне [0, 1)"
+            );
+          }
+
+          const index = Math.floor(randomValue * remainingValues.length);
+          const [selected] = remainingValues.splice(index, 1);
+
+          return {
+            ok: true,
+            selected,
+            cycle: createStatus()
+          };
+        }
+
+        function getStatus() {
+          return createStatus(fullValues.length > 0);
+        }
+
+        return Object.freeze({
+          reset,
+          select,
+          getStatus
+        });
       }
 
       function createAppController(AppView) {
@@ -1507,6 +1675,7 @@
 
         let operationSequence = 0;
         let settings = SettingsStore.load();
+        const delayCycle = createDelayCycle();
 
         function beginOperation() {
           operationSequence += 1;
@@ -1700,10 +1869,14 @@
         }
 
         function selectDelay(options = {}) {
-          const selection = selectRandomDelay(AppView.getDelayValue());
+          const selection = delayCycle.select(AppView.getDelayValue());
 
           if (!selection.ok) {
             AppView.showDelayError(selection);
+            AppView.renderCycle(
+              selection.cycle,
+              UI_TEXT.cycle.invalid
+            );
 
             if (options.clearResultOnError) {
               AppView.clearResult();
@@ -1717,6 +1890,7 @@
           }
 
           AppView.showSelectedDelay(selection.selected);
+          AppView.renderCycle(selection.cycle);
           return selection.selected;
         }
 
@@ -1758,6 +1932,8 @@
 
         function initialize() {
           AppView.initialize(settings);
+          const initializedCycle = delayCycle.reset(settings.delays);
+          AppView.renderCycle(initializedCycle.cycle);
           AppView.renderVersion();
           AppView.renderState(state);
           AppView.bindAnimationCleanupHandlers();
@@ -1770,6 +1946,12 @@
             settings.delays = AppView.getDelayValue();
             SettingsStore.saveDelays(settings.delays);
             AppView.clearDelayError();
+
+            const resetResult = delayCycle.reset(settings.delays);
+            AppView.renderCycle(
+              resetResult.cycle,
+              UI_TEXT.cycle.changed
+            );
           },
 
           onGenerate() {
@@ -1782,6 +1964,27 @@
             }
 
             AppView.animateGenerate();
+            vibrateFeedback();
+          },
+
+          onResetCycle() {
+            const resetResult = delayCycle.reset(
+              AppView.getDelayValue()
+            );
+
+            AppView.renderCycle(
+              resetResult.cycle,
+              resetResult.ok
+                ? UI_TEXT.cycle.reset
+                : UI_TEXT.cycle.invalid
+            );
+            AppView.animateResetCycle();
+
+            if (!resetResult.ok) {
+              AppView.showDelayError(resetResult);
+              return;
+            }
+
             vibrateFeedback();
           },
 
@@ -1881,6 +2084,7 @@
         const {
           delayInput,
           generateButton,
+          resetCycleButton,
           primaryControl,
           signalButton,
           testButton,
@@ -1893,6 +2097,10 @@
 
         delayInput.addEventListener("input", controller.onDelayInput);
         generateButton.addEventListener("click", controller.onGenerate);
+        resetCycleButton.addEventListener(
+          "click",
+          controller.onResetCycle
+        );
         primaryControl.addEventListener(
           "click",
           controller.onPrimaryControl
