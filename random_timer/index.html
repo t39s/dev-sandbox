@@ -98,7 +98,7 @@
       width: 100%;
       min-height: 48px;
       box-sizing: border-box;
-      padding: 0 14px;
+      padding: 10px 14px;
       border: 1px solid color-mix(in srgb, var(--foreground) 35%, transparent);
       border-radius: 12px;
       background: transparent;
@@ -106,7 +106,13 @@
       font: inherit;
       font-size: 20px;
       font-weight: 650;
-      text-align: center;
+      line-height: 1.35;
+      text-align: left;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      overflow-x: hidden;
+      overflow-y: hidden;
+      resize: none;
     }
 
     .delay-input:focus-visible {
@@ -638,17 +644,17 @@
             <output class="result" id="result" aria-live="polite"></output>
 
             <div class="delay-input-group">
-              <p class="delay-prompt">Введите размер паузы перед сигналом (например, 2m30s — 2 минуты 30 секунд; разделитель — «,»):</p>
-              <input
+              <p class="delay-prompt">Введите паузы. Множитель указывается через *: 5s*3 — три паузы по 5 секунд; *0 отключает паузу. Разделители — запятая или новая строка.</p>
+              <textarea
                 class="delay-input"
                 id="delayInput"
-                type="text"
+                rows="1"
                 inputmode="text"
                 autocomplete="off"
                 autocapitalize="off"
                 spellcheck="false"
                 aria-describedby="delayMessage"
-              >
+              ></textarea>
               <p class="input-message" id="delayMessage" aria-live="polite"></p>
             </div>
 
@@ -663,6 +669,12 @@
                 Сбросить цикл
               </button>
             </div>
+
+            <p
+              class="cycle-status"
+              id="selectedCycleStatus"
+              aria-live="polite"
+            ></p>
 
             <p
               class="cycle-status"
@@ -745,7 +757,7 @@
       "use strict";
 
       const APP_CONFIG = Object.freeze({
-        version: "0.8.1",
+        version: "0.9.2",
         defaults: Object.freeze({
           delays: "2s, 5s, 10s, 2m30s",
           signal: "steady",
@@ -783,7 +795,10 @@
         versionPrefix: "Версия",
         delayError: Object.freeze({
           invalidPrefix: "Некорректное значение: ",
-          format: "Проверьте формат задержек"
+          format: "Проверьте формат пауз",
+          multiplierTooLargePrefix: "Множитель не должен превышать 999: ",
+          emptyEntry: "Обнаружено пустое значение между разделителями",
+          noEnabled: "Все паузы отключены: укажите множитель от *1 до *999 хотя бы для одной паузы"
         }),
         status: Object.freeze({
           cancelled: "Тест отменён",
@@ -794,6 +809,8 @@
           countdownSuffix: " секунд"
         }),
         cycle: Object.freeze({
+          selectedPrefix: "Выбрано: ",
+          selectedEmpty: "—",
           remainingPrefix: "Осталось в цикле: ",
           remainingSeparator: " из ",
           completed: "Цикл завершён",
@@ -835,7 +852,15 @@
             : `${UI_TEXT.cycle.remainingPrefix}${cycleState.remaining}${UI_TEXT.cycle.remainingSeparator}${cycleState.total}`;
         }
 
+        const selectedValues = Array.isArray(cycleState.selected)
+          ? cycleState.selected
+          : [];
+        const selectedDetail = selectedValues.length > 0
+          ? selectedValues.join("; ")
+          : UI_TEXT.cycle.selectedEmpty;
+
         return {
+          selectedText: `${UI_TEXT.cycle.selectedPrefix}${selectedDetail}`,
           text: [notice, detail].filter(Boolean).join(". "),
           resetDisabled: !cycleState.hasUsed
         };
@@ -1241,6 +1266,7 @@
           "result",
           "generateButton",
           "resetCycleButton",
+          "selectedCycleStatus",
           "cycleStatus",
           "delayInput",
           "delayMessage",
@@ -1299,6 +1325,7 @@
           result,
           generateButton: button,
           resetCycleButton,
+          selectedCycleStatus,
           cycleStatus,
           delayInput,
           delayMessage,
@@ -1330,8 +1357,21 @@
           });
         }
 
+        function resizeDelayInput() {
+          if (settingsPanel.hidden) {
+            return;
+          }
+
+          delayInput.style.height = "auto";
+          const borderHeight =
+            delayInput.offsetHeight - delayInput.clientHeight;
+          delayInput.style.height =
+            `${Math.ceil(delayInput.scrollHeight + borderHeight)}px`;
+        }
+
         function initialize(settings) {
           delayInput.value = settings.delays;
+          resizeDelayInput();
           signalSelect.value = settings.signal;
           volumeControl.value = String(settings.volume);
           updateVolumeLabel();
@@ -1402,6 +1442,23 @@
 
         function showDelayError(selection) {
           delayInput.setAttribute("aria-invalid", "true");
+
+          if (selection.errorCode === "multiplier-too-large") {
+            delayMessage.textContent =
+              `${UI_TEXT.delayError.multiplierTooLargePrefix}${selection.invalidToken}`;
+            return;
+          }
+
+          if (selection.errorCode === "empty-entry") {
+            delayMessage.textContent = UI_TEXT.delayError.emptyEntry;
+            return;
+          }
+
+          if (selection.errorCode === "no-enabled-delays") {
+            delayMessage.textContent = UI_TEXT.delayError.noEnabled;
+            return;
+          }
+
           delayMessage.textContent = selection.invalidToken
             ? `${UI_TEXT.delayError.invalidPrefix}${selection.invalidToken}`
             : UI_TEXT.delayError.format;
@@ -1424,6 +1481,7 @@
 
         function renderCycle(cycleState, notice = "") {
           const viewModel = createCycleViewModel(cycleState, notice);
+          selectedCycleStatus.textContent = viewModel.selectedText;
           cycleStatus.textContent = viewModel.text;
           resetCycleButton.disabled = viewModel.resetDisabled;
         }
@@ -1437,6 +1495,7 @@
           settingsToggle.setAttribute("aria-expanded", "true");
           settingsPanel.scrollTop = 0;
           body.style.overflow = "hidden";
+          resizeDelayInput();
         }
 
         function closeSettings() {
@@ -1488,6 +1547,7 @@
           initialize,
           renderVersion,
           renderState,
+          resizeDelayInput,
           getDelayValue,
           getSignalType,
           getVolumePercent,
@@ -1517,49 +1577,127 @@
 
       function parseDelayToken(token) {
         const normalized = token.trim().toLowerCase();
-        const match = normalized.match(/^(?:(\d+)m)?(?:(\d+)s)?$/);
+        const match = normalized.match(
+          /^(?:(\d+)m)?\s*(?:(\d+)s)?\s*(?:\*(\d+))?$/
+        );
 
         if (!match || (!match[1] && !match[2])) {
-          return null;
+          return {
+            ok: false,
+            errorCode: "invalid-format"
+          };
         }
 
         const minutes = Number(match[1] || 0);
         const seconds = Number(match[2] || 0);
+        const multiplier = Number(match[3] ?? 1);
         const totalSeconds = minutes * 60 + seconds;
 
-        if (!Number.isSafeInteger(totalSeconds) || totalSeconds <= 0) {
-          return null;
+        if (
+          !Number.isSafeInteger(totalSeconds) ||
+          totalSeconds <= 0 ||
+          !Number.isSafeInteger(multiplier) ||
+          multiplier < 0
+        ) {
+          return {
+            ok: false,
+            errorCode: "invalid-format"
+          };
         }
 
+        if (multiplier > 999) {
+          return {
+            ok: false,
+            errorCode: "multiplier-too-large"
+          };
+        }
+
+        const source = [
+          match[1] ? `${match[1]}m` : "",
+          match[2] ? `${match[2]}s` : ""
+        ].join("");
+
         return {
-          source: token.trim(),
-          totalSeconds
+          ok: true,
+          delay: {
+            source,
+            totalSeconds
+          },
+          multiplier
         };
       }
 
-      function parseDelayList(value) {
-        const tokens = value.split(",").map(token => token.trim());
+      function tokenizeDelayList(value) {
+        const normalized = value.replace(/\r\n?/g, "\n");
+        const tokens = [];
 
-        if (!tokens.length || tokens.some(token => token === "")) {
+        for (const line of normalized.split("\n")) {
+          if (line.trim() === "") {
+            continue;
+          }
+
+          const lineTokens = line.split(",");
+
+          if (lineTokens.some(token => token.trim() === "")) {
+            return {
+              ok: false,
+              errorCode: "empty-entry",
+              invalidToken: ""
+            };
+          }
+
+          tokens.push(...lineTokens.map(token => token.trim()));
+        }
+
+        if (tokens.length === 0) {
           return {
             ok: false,
+            errorCode: "invalid-format",
             invalidToken: ""
           };
         }
 
+        return {
+          ok: true,
+          tokens
+        };
+      }
+
+      function parseDelayList(value) {
+        const tokenized = tokenizeDelayList(value);
+
+        if (!tokenized.ok) {
+          return tokenized;
+        }
+
         const parsed = [];
 
-        for (const token of tokens) {
-          const delay = parseDelayToken(token);
+        for (const token of tokenized.tokens) {
+          const tokenResult = parseDelayToken(token);
 
-          if (!delay) {
+          if (!tokenResult.ok) {
             return {
               ok: false,
+              errorCode: tokenResult.errorCode,
               invalidToken: token
             };
           }
 
-          parsed.push(delay);
+          for (
+            let index = 0;
+            index < tokenResult.multiplier;
+            index += 1
+          ) {
+            parsed.push({ ...tokenResult.delay });
+          }
+        }
+
+        if (parsed.length === 0) {
+          return {
+            ok: false,
+            errorCode: "no-enabled-delays",
+            invalidToken: ""
+          };
         }
 
         return {
@@ -1609,12 +1747,14 @@
         let sourceValue = null;
         let fullValues = [];
         let remainingValues = [];
+        let selectedValues = [];
 
         function createStatus(valid = true) {
           return {
             valid,
             total: fullValues.length,
             remaining: remainingValues.length,
+            selected: selectedValues.map(value => value.source),
             completed:
               valid &&
               fullValues.length > 0 &&
@@ -1633,6 +1773,7 @@
           if (!parsed.ok) {
             fullValues = [];
             remainingValues = [];
+            selectedValues = [];
 
             return {
               ...parsed,
@@ -1642,6 +1783,7 @@
 
           fullValues = parsed.values.slice();
           remainingValues = fullValues.slice();
+          selectedValues = [];
 
           return {
             ok: true,
@@ -1652,10 +1794,6 @@
         function ensureCurrent(value) {
           if (value !== sourceValue || fullValues.length === 0) {
             return reset(value);
-          }
-
-          if (remainingValues.length === 0) {
-            remainingValues = fullValues.slice();
           }
 
           return {
@@ -1677,8 +1815,19 @@
             );
           }
 
-          const index = getRandomIndex(remainingValues.length);
+          const startsNewCycle = remainingValues.length === 0;
+          const selectionPool = startsNewCycle
+            ? fullValues
+            : remainingValues;
+          const index = getRandomIndex(selectionPool.length);
+
+          if (startsNewCycle) {
+            remainingValues = fullValues.slice();
+            selectedValues = [];
+          }
+
           const [selected] = remainingValues.splice(index, 1);
+          selectedValues.push(selected);
 
           return {
             ok: true,
@@ -2000,6 +2149,7 @@
           initialize,
 
           onDelayInput() {
+            AppView.resizeDelayInput();
             settings.delays = AppView.getDelayValue();
             SettingsStore.saveDelays(settings.delays);
             AppView.clearDelayError();
@@ -2009,6 +2159,10 @@
               resetResult.cycle,
               UI_TEXT.cycle.changed
             );
+          },
+
+          onViewportResize() {
+            AppView.resizeDelayInput();
           },
 
           onGenerate() {
@@ -2153,6 +2307,7 @@
         } = dom;
 
         delayInput.addEventListener("input", controller.onDelayInput);
+        window.addEventListener("resize", controller.onViewportResize);
         generateButton.addEventListener("click", controller.onGenerate);
         resetCycleButton.addEventListener(
           "click",
