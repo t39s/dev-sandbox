@@ -740,6 +740,7 @@
 
     .profile-open-button,
     .profile-save-as-button,
+    .profile-delete-button,
     .profile-save-cancel-button,
     .profile-save-confirm-button {
       min-height: 56px;
@@ -748,10 +749,16 @@
     }
 
     .profile-save-as-button,
+    .profile-delete-button,
     .profile-save-cancel-button {
       background: transparent;
       border: 1px solid currentColor;
       opacity: 0.88;
+    }
+
+    .profile-delete-button {
+      grid-column: 1 / -1;
+      color: #ffb4ab;
     }
 
     .profile-save-form {
@@ -782,6 +789,7 @@
 
     .profile-open-button:disabled,
     .profile-save-as-button:disabled,
+    .profile-delete-button:disabled,
     .profile-save-cancel-button:disabled,
     .profile-save-confirm-button:disabled,
     .profile-name-input:disabled,
@@ -941,6 +949,13 @@
                 aria-expanded="false"
               >
                 Сохранить как новый
+              </button>
+              <button
+                class="profile-delete-button"
+                id="profileDeleteButton"
+                type="button"
+              >
+                Удалить набор
               </button>
             </div>
 
@@ -1182,7 +1197,7 @@
       "use strict";
 
       const APP_CONFIG = Object.freeze({
-        version: "0.10.0",
+        version: "0.11.0",
         defaults: Object.freeze({
           delays: "2s, 5s, 10s, 2m30s",
           signal: "steady",
@@ -1245,12 +1260,22 @@
           openTitle: "Открыть набор настроек?",
           openDescription: "Текущий цикл и история выбранных пауз будут сброшены.",
           openConfirm: "Открыть",
+          deleteTitle: "Удалить набор настроек?",
+          deleteDescriptionPrefix: "Набор «",
+          deleteDescriptionSuffix: "» будет удалён без возможности восстановления.",
+          deleteConfirm: "Удалить",
           created: "Новый набор сохранён и открыт",
           opened: "Набор открыт",
+          deleted: "Набор удалён",
+          alreadyDeleted: "Набор уже удалён в другом окне",
+          deleteConflict: "Набор изменён в другом окне и не удалён",
+          deleteFailed: "Не удалось удалить набор",
           idleRequired: "Остановите таймер или проверку сигнала, чтобы работать с наборами",
           editingRequired: "Завершите редактирование списка пауз, чтобы работать с наборами",
           externalChange: "Текущий набор изменён в другой вкладке. Откройте его заново или сохраните текущие настройки как новый набор",
+          externalDeleted: "Текущий набор удалён в другом окне. Откройте другой набор или сохраните текущие настройки как новый",
           saveConflict: "Изменения не сохранены: набор был изменён в другой вкладке",
+          saveDeleted: "Изменения не сохранены: набор был удалён в другом окне",
           emptyName: "Введите название набора",
           duplicateName: "Набор с таким названием уже существует",
           saveFailed: "Не удалось сохранить набор"
@@ -1370,6 +1395,16 @@
             return true;
           } catch (error) {
             console.warn(`Не удалось сохранить настройку ${key}`, error);
+            return false;
+          }
+        }
+
+        function removeLocal(key) {
+          try {
+            localStorage.removeItem(key);
+            return true;
+          } catch (error) {
+            console.warn(`Не удалось удалить настройку ${key}`, error);
             return false;
           }
         }
@@ -1582,7 +1617,14 @@
         function saveProfileSettings(profile, settingsPatch) {
           const persisted = readProfile(profile.id);
 
-          if (!persisted || persisted.revision !== profile.revision) {
+          if (!persisted) {
+            return {
+              ok: false,
+              reason: "deleted"
+            };
+          }
+
+          if (persisted.revision !== profile.revision) {
             return {
               ok: false,
               reason: "conflict"
@@ -1612,12 +1654,43 @@
           };
         }
 
+        function deleteProfile(profileId, expectedRevision) {
+          const persisted = readProfile(profileId);
+
+          if (!persisted) {
+            return {
+              ok: false,
+              reason: "not-found"
+            };
+          }
+
+          if (persisted.revision !== expectedRevision) {
+            return {
+              ok: false,
+              reason: "conflict"
+            };
+          }
+
+          if (!removeLocal(getProfileKey(profileId))) {
+            return {
+              ok: false,
+              reason: "remove-failed"
+            };
+          }
+
+          return {
+            ok: true,
+            profile: persisted
+          };
+        }
+
         return Object.freeze({
           initialize,
           listProfiles,
           readProfile,
           createProfile,
           saveProfileSettings,
+          deleteProfile,
           setActiveProfile,
           getProfileKey
         });
@@ -1901,6 +1974,7 @@
           "profileSelect",
           "profileOpenButton",
           "profileSaveAsButton",
+          "profileDeleteButton",
           "profileSaveForm",
           "profileNameInput",
           "profileNameMessage",
@@ -1984,6 +2058,7 @@
           profileSelect,
           profileOpenButton,
           profileSaveAsButton,
+          profileDeleteButton,
           profileSaveForm,
           profileNameInput,
           profileNameMessage,
@@ -2025,7 +2100,7 @@
         let settingsFocusReturnTarget = settingsToggle;
         let profileOperationsIdle = true;
         let activeProfileId = "";
-        let profileConflict = false;
+        let profileExternalState = null;
 
         function renderCycleActionsState() {
           button.disabled = delayEditingActive;
@@ -2044,9 +2119,17 @@
             operationsBlocked ||
             saveFormOpen ||
             !selectedProfileId ||
-            (selectedProfileId === activeProfileId && !profileConflict);
+            (
+              selectedProfileId === activeProfileId &&
+              profileExternalState === null
+            );
           profileSaveAsButton.disabled =
             operationsBlocked || saveFormOpen;
+          profileDeleteButton.disabled =
+            operationsBlocked ||
+            saveFormOpen ||
+            !selectedProfileId ||
+            selectedProfileId === activeProfileId;
           profileNameInput.disabled = operationsBlocked;
           profileSaveCancelButton.disabled = operationsBlocked;
           profileSaveConfirmButton.disabled = operationsBlocked;
@@ -2098,9 +2181,11 @@
           const activeProfileChanged =
             activeProfileId && activeProfileId !== activeProfile.id;
           const selection =
-            !activeProfileChanged && availableIds.has(previousSelection)
+              !activeProfileChanged && availableIds.has(previousSelection)
               ? previousSelection
-              : activeProfile.id;
+              : availableIds.has(activeProfile.id)
+                ? activeProfile.id
+                : profiles[0]?.id || "";
           const optionElements = profiles.map(profile => {
             const option = profileSelect.ownerDocument.createElement("option");
             option.value = profile.id;
@@ -2112,7 +2197,7 @@
           profileSelect.value = selection;
           activeProfileId = activeProfile.id;
           profileCurrentName.textContent = activeProfile.name;
-          profileConflict = options.conflict === true;
+          profileExternalState = options.externalState || null;
           renderProfileActionsState();
         }
 
@@ -2124,12 +2209,15 @@
             setProfileMessage(UI_TEXT.profile.idleRequired, true);
           } else if (delayEditingActive) {
             setProfileMessage(UI_TEXT.profile.editingRequired, true);
-          } else if (profileConflict) {
+          } else if (profileExternalState === "deleted") {
+            setProfileMessage(UI_TEXT.profile.externalDeleted, true);
+          } else if (profileExternalState === "changed") {
             setProfileMessage(UI_TEXT.profile.externalChange, true);
           } else if ([
             UI_TEXT.profile.idleRequired,
             UI_TEXT.profile.editingRequired,
-            UI_TEXT.profile.externalChange
+            UI_TEXT.profile.externalChange,
+            UI_TEXT.profile.externalDeleted
           ].includes(profileMessage.textContent)) {
             setProfileMessage("");
           }
@@ -2203,6 +2291,10 @@
 
         function focusProfileOpenButton() {
           profileOpenButton.focus();
+        }
+
+        function focusProfileSelect() {
+          profileSelect.focus();
         }
 
         function renderVersion() {
@@ -2287,7 +2379,9 @@
             return;
           }
 
-          if (profileConflict) {
+          if (profileExternalState === "deleted") {
+            setProfileMessage(UI_TEXT.profile.externalDeleted, true);
+          } else if (profileExternalState === "changed") {
             setProfileMessage(UI_TEXT.profile.externalChange, true);
           } else if (
             profileMessage.textContent === UI_TEXT.profile.editingRequired
@@ -2487,6 +2581,20 @@
           });
         }
 
+        function openProfileDeleteConfirmation(profileName) {
+          if (profileDeleteButton.disabled) {
+            return false;
+          }
+
+          return openConfirmation({
+            title: UI_TEXT.profile.deleteTitle,
+            description:
+              `${UI_TEXT.profile.deleteDescriptionPrefix}${profileName}${UI_TEXT.profile.deleteDescriptionSuffix}`,
+            confirmText: UI_TEXT.profile.deleteConfirm,
+            focusTarget: profileDeleteButton
+          });
+        }
+
         function closeResetCycleConfirmation(options = {}) {
           if (!isResetCycleConfirmationOpen()) {
             return false;
@@ -2630,6 +2738,7 @@
           [
             profileOpenButton,
             profileSaveAsButton,
+            profileDeleteButton,
             profileSaveCancelButton,
             profileSaveConfirmButton,
             editDelaysButton,
@@ -2658,6 +2767,7 @@
           clearProfileNameError,
           setProfileMessage,
           focusProfileOpenButton,
+          focusProfileSelect,
           renderVersion,
           renderState,
           resizeDelayInput,
@@ -2683,6 +2793,7 @@
           openResetCycleConfirmation,
           openApplyDelaysConfirmation,
           openProfileConfirmation,
+          openProfileDeleteConfirmation,
           closeResetCycleConfirmation,
           trapResetCycleDialogFocus,
           focusGenerateButton,
@@ -3014,7 +3125,7 @@
         let settings = {
           ...activeProfile.settings
         };
-        let profileConflict = false;
+        let profileExternalState = null;
         const delayCycle = createDelayCycle(
           RandomSource.getIndex
         );
@@ -3024,7 +3135,14 @@
         let draftValidation = null;
         let pendingConfirmationAction = null;
         let pendingProfileId = null;
+        let pendingProfileRevision = null;
         let isDelayEditing = false;
+
+        function clearPendingConfirmation() {
+          pendingConfirmationAction = null;
+          pendingProfileId = null;
+          pendingProfileRevision = null;
+        }
 
         function beginOperation() {
           operationSequence += 1;
@@ -3045,18 +3163,20 @@
             profile => profile.id === activeProfile.id
           );
 
-          if (
-            persistedActiveProfile &&
-            persistedActiveProfile.revision !== activeProfile.revision
-          ) {
-            profileConflict = true;
+          if (persistedActiveProfile) {
+            profileExternalState =
+              persistedActiveProfile.revision !== activeProfile.revision
+                ? "changed"
+                : null;
           }
 
           profiles = persistedProfiles.length > 0
             ? persistedProfiles
-            : [activeProfile];
+            : profileExternalState === "deleted"
+              ? []
+              : [activeProfile];
           AppView.renderProfiles(profiles, activeProfile, {
-            conflict: profileConflict
+            externalState: profileExternalState
           });
         }
 
@@ -3068,9 +3188,16 @@
 
           if (!result.ok) {
             if (result.reason === "conflict") {
-              profileConflict = true;
+              profileExternalState = "changed";
               AppView.setProfileMessage(
                 UI_TEXT.profile.saveConflict,
+                true
+              );
+              refreshProfiles();
+            } else if (result.reason === "deleted") {
+              profileExternalState = "deleted";
+              AppView.setProfileMessage(
+                UI_TEXT.profile.saveDeleted,
                 true
               );
               refreshProfiles();
@@ -3090,7 +3217,7 @@
               ? activeProfile
               : profile
           );
-          profileConflict = false;
+          profileExternalState = null;
           return true;
         }
 
@@ -3111,7 +3238,7 @@
           settings = {
             ...profile.settings
           };
-          profileConflict = false;
+          profileExternalState = null;
           ProfileStore.setActiveProfile(profile.id);
 
           let appliedResult = parseDelayList(settings.delays);
@@ -3187,12 +3314,60 @@
           }
 
           activeProfile = profile;
-          profileConflict = false;
+          profileExternalState = null;
           ProfileStore.setActiveProfile(profile.id);
           refreshProfiles();
           AppView.closeProfileSaveForm();
           AppView.setProfileMessage(UI_TEXT.profile.created);
           vibrateFeedback();
+        }
+
+        function deleteProfile(profileId, expectedRevision) {
+          if (
+            !profileId ||
+            profileId === activeProfile.id ||
+            !Number.isSafeInteger(expectedRevision)
+          ) {
+            refreshProfiles();
+            AppView.setProfileMessage(
+              UI_TEXT.profile.deleteFailed,
+              true
+            );
+            AppView.focusProfileSelect();
+            return;
+          }
+
+          let result;
+
+          try {
+            result = ProfileStore.deleteProfile(
+              profileId,
+              expectedRevision
+            );
+          } catch (error) {
+            console.error("Не удалось удалить набор настроек", error);
+            result = {
+              ok: false,
+              reason: "remove-failed"
+            };
+          }
+
+          refreshProfiles();
+          AppView.focusProfileSelect();
+
+          if (result.ok) {
+            AppView.setProfileMessage(UI_TEXT.profile.deleted);
+            vibrateFeedback();
+            return;
+          }
+
+          const message = result.reason === "not-found"
+            ? UI_TEXT.profile.alreadyDeleted
+            : result.reason === "conflict"
+              ? UI_TEXT.profile.deleteConflict
+              : UI_TEXT.profile.deleteFailed;
+
+          AppView.setProfileMessage(message, true);
         }
 
         function transitionTo(nextMode, options = {}) {
@@ -3545,7 +3720,7 @@
             delays: initialDraftText
           });
           AppView.renderProfiles(profiles, activeProfile, {
-            conflict: false
+            externalState: null
           });
           const initializedCycle = delayCycle.reset(settings.delays);
           AppView.renderCycle(initializedCycle.cycle);
@@ -3594,6 +3769,42 @@
             if (AppView.openProfileConfirmation()) {
               pendingConfirmationAction = "open-profile";
               pendingProfileId = profileId;
+            }
+          },
+
+          onProfileDeleteRequest() {
+            if (
+              state.mode !== AppMode.IDLE ||
+              isDelayEditing ||
+              AppView.isProfileSaveFormOpen()
+            ) {
+              return;
+            }
+
+            const profileId = AppView.getSelectedProfileId();
+
+            if (!profileId || profileId === activeProfile.id) {
+              return;
+            }
+
+            const profile = ProfileStore.readProfile(profileId);
+
+            if (!profile) {
+              refreshProfiles();
+              AppView.setProfileMessage(
+                UI_TEXT.profile.alreadyDeleted,
+                true
+              );
+              AppView.focusProfileSelect();
+              return;
+            }
+
+            if (
+              AppView.openProfileDeleteConfirmation(profile.name)
+            ) {
+              pendingConfirmationAction = "delete-profile";
+              pendingProfileId = profile.id;
+              pendingProfileRevision = profile.revision;
             }
           },
 
@@ -3735,15 +3946,13 @@
           },
 
           onResetCycleCancel() {
-            pendingConfirmationAction = null;
-            pendingProfileId = null;
+            clearPendingConfirmation();
             AppView.closeResetCycleConfirmation();
           },
 
           onResetCycleDialogBackdrop(event) {
             if (event.target === event.currentTarget) {
-              pendingConfirmationAction = null;
-              pendingProfileId = null;
+              clearPendingConfirmation();
               AppView.closeResetCycleConfirmation();
             }
           },
@@ -3751,8 +3960,7 @@
           onResetCycleDialogKeydown(event) {
             if (event.key === "Escape") {
               event.preventDefault();
-              pendingConfirmationAction = null;
-              pendingProfileId = null;
+              clearPendingConfirmation();
               AppView.closeResetCycleConfirmation();
               return;
             }
@@ -3763,8 +3971,8 @@
           onResetCycleConfirm() {
             const action = pendingConfirmationAction;
             const profileId = pendingProfileId;
-            pendingConfirmationAction = null;
-            pendingProfileId = null;
+            const profileRevision = pendingProfileRevision;
+            clearPendingConfirmation();
 
             if (!AppView.closeResetCycleConfirmation({
               restoreFocus: false
@@ -3800,6 +4008,11 @@
 
               openProfile(profile);
               AppView.focusProfileOpenButton();
+              return;
+            }
+
+            if (action === "delete-profile") {
+              deleteProfile(profileId, profileRevision);
               return;
             }
 
@@ -3915,8 +4128,7 @@
 
             if (AppView.isResetCycleConfirmationOpen()) {
               event.preventDefault();
-              pendingConfirmationAction = null;
-              pendingProfileId = null;
+              clearPendingConfirmation();
               AppView.closeResetCycleConfirmation();
               return;
             }
@@ -3946,12 +4158,11 @@
             if (event.key === ProfileStore.getProfileKey(activeProfile.id)) {
               const persisted = ProfileStore.readProfile(activeProfile.id);
 
-              if (
-                !persisted ||
-                persisted.revision !== activeProfile.revision
-              ) {
-                profileConflict = true;
-              }
+              profileExternalState = !persisted
+                ? "deleted"
+                : persisted.revision !== activeProfile.revision
+                  ? "changed"
+                  : null;
             }
 
             refreshProfiles();
@@ -3979,6 +4190,7 @@
           profileSelect,
           profileOpenButton,
           profileSaveAsButton,
+          profileDeleteButton,
           profileNameInput,
           profileSaveCancelButton,
           profileSaveConfirmButton,
@@ -4011,6 +4223,10 @@
         profileSaveAsButton.addEventListener(
           "click",
           controller.onProfileSaveAsRequest
+        );
+        profileDeleteButton.addEventListener(
+          "click",
+          controller.onProfileDeleteRequest
         );
         profileNameInput.addEventListener(
           "input",
