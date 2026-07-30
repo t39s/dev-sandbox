@@ -756,8 +756,11 @@
       opacity: 0.88;
     }
 
-    .profile-delete-button {
+    .profile-open-button {
       grid-column: 1 / -1;
+    }
+
+    .profile-delete-button {
       color: #ffb4ab;
     }
 
@@ -997,6 +1000,46 @@
             ></p>
           </section>
 
+          <section class="settings-section" aria-labelledby="signalSectionTitle">
+            <h3 class="settings-section-title" id="signalSectionTitle">Сигнал</h3>
+
+            <div class="control-group">
+              <label for="signalSelect">Тип сигнала</label>
+              <select id="signalSelect">
+                <option value="steady">Ровный тон</option>
+                <option value="low">Низкий гул</option>
+                <option value="dual">Двойной тон</option>
+                <option value="siren">Сирена</option>
+                <option value="pulse">Пульс</option>
+              </select>
+            </div>
+
+            <div class="control-group">
+              <div class="volume-row">
+                <label for="volumeControl">Громкость</label>
+                <output id="volumeValue" for="volumeControl"></output>
+              </div>
+              <input
+                id="volumeControl"
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+              >
+            </div>
+
+            <button
+              class="signal-button"
+              id="signalButton"
+              type="button"
+              aria-pressed="false"
+            >
+              Проверить сигнал
+            </button>
+
+            <span id="testStatus" aria-live="polite" hidden></span>
+          </section>
+
           <section class="settings-section" aria-labelledby="pauseSectionTitle">
             <div class="settings-section-heading">
               <h3 class="settings-section-title" id="pauseSectionTitle">Паузы</h3>
@@ -1099,46 +1142,6 @@
             ></p>
           </section>
 
-          <section class="settings-section" aria-labelledby="signalSectionTitle">
-            <h3 class="settings-section-title" id="signalSectionTitle">Сигнал</h3>
-
-            <div class="control-group">
-              <label for="signalSelect">Тип сигнала</label>
-              <select id="signalSelect">
-                <option value="steady">Ровный тон</option>
-                <option value="low">Низкий гул</option>
-                <option value="dual">Двойной тон</option>
-                <option value="siren">Сирена</option>
-                <option value="pulse">Пульс</option>
-              </select>
-            </div>
-
-            <div class="control-group">
-              <div class="volume-row">
-                <label for="volumeControl">Громкость</label>
-                <output id="volumeValue" for="volumeControl"></output>
-              </div>
-              <input
-                id="volumeControl"
-                type="range"
-                min="0"
-                max="100"
-                step="1"
-              >
-            </div>
-
-            <button
-              class="signal-button"
-              id="signalButton"
-              type="button"
-              aria-pressed="false"
-            >
-              Проверить сигнал
-            </button>
-
-            <span id="testStatus" aria-live="polite" hidden></span>
-          </section>
-
           <footer class="settings-section settings-version-section version-label"></footer>
         </div>
       </section>
@@ -1197,7 +1200,7 @@
       "use strict";
 
       const APP_CONFIG = Object.freeze({
-        version: "0.11.0",
+        version: "0.11.3",
         defaults: Object.freeze({
           delays: "2s, 5s, 10s, 2m30s",
           signal: "steady",
@@ -1264,21 +1267,23 @@
           deleteDescriptionPrefix: "Набор «",
           deleteDescriptionSuffix: "» будет удалён без возможности восстановления.",
           deleteConfirm: "Удалить",
-          created: "Новый набор сохранён и открыт",
-          opened: "Набор открыт",
-          deleted: "Набор удалён",
-          alreadyDeleted: "Набор уже удалён в другом окне",
-          deleteConflict: "Набор изменён в другом окне и не удалён",
-          deleteFailed: "Не удалось удалить набор",
-          idleRequired: "Остановите таймер или проверку сигнала, чтобы работать с наборами",
-          editingRequired: "Завершите редактирование списка пауз, чтобы работать с наборами",
-          externalChange: "Текущий набор изменён в другой вкладке. Откройте его заново или сохраните текущие настройки как новый набор",
-          externalDeleted: "Текущий набор удалён в другом окне. Откройте другой набор или сохраните текущие настройки как новый",
-          saveConflict: "Изменения не сохранены: набор был изменён в другой вкладке",
-          saveDeleted: "Изменения не сохранены: набор был удалён в другом окне",
+          created: "Набор «{name}» сохранён и открыт",
+          opened: "Набор «{name}» открыт",
+          deleted: "Набор «{name}» удалён",
+          alreadyDeleted: "Набор «{name}» уже удалён в другом окне",
+          deleteConflict: "Набор «{name}» изменён в другом окне и не удалён",
+          deleteFailed: "Не удалось удалить набор «{name}»",
+          idleRequired: "Набор «{name}»: остановите таймер или проверку сигнала, чтобы работать с наборами",
+          editingRequired: "Набор «{name}»: завершите редактирование списка пауз, чтобы работать с наборами",
+          externalChange: "Набор «{name}» изменён в другой вкладке. Откройте его заново или сохраните текущие настройки как новый набор",
+          externalDeleted: "Набор «{name}» удалён в другом окне. Откройте другой набор или сохраните текущие настройки как новый",
+          saveConflict: "Изменения набора «{name}» не сохранены: он был изменён в другой вкладке",
+          saveDeleted: "Изменения набора «{name}» не сохранены: он был удалён в другом окне",
+          openFailed: "Не удалось открыть набор «{name}»",
           emptyName: "Введите название набора",
           duplicateName: "Набор с таким названием уже существует",
-          saveFailed: "Не удалось сохранить набор"
+          createFailed: "Не удалось сохранить набор",
+          saveFailed: "Не удалось сохранить набор «{name}»"
         }),
         confirmation: Object.freeze({
           cancel: "Отмена",
@@ -2100,7 +2105,9 @@
         let settingsFocusReturnTarget = settingsToggle;
         let profileOperationsIdle = true;
         let activeProfileId = "";
+        let activeProfileName = "";
         let profileExternalState = null;
+        let profileMessageTemplate = "";
 
         function renderCycleActionsState() {
           button.disabled = delayEditingActive;
@@ -2196,6 +2203,7 @@
           profileSelect.replaceChildren(...optionElements);
           profileSelect.value = selection;
           activeProfileId = activeProfile.id;
+          activeProfileName = activeProfile.name;
           profileCurrentName.textContent = activeProfile.name;
           profileExternalState = options.externalState || null;
           renderProfileActionsState();
@@ -2218,13 +2226,20 @@
             UI_TEXT.profile.editingRequired,
             UI_TEXT.profile.externalChange,
             UI_TEXT.profile.externalDeleted
-          ].includes(profileMessage.textContent)) {
+          ].includes(profileMessageTemplate)) {
             setProfileMessage("");
           }
         }
 
         function getSelectedProfileId() {
           return profileSelect.value;
+        }
+
+        function getSelectedProfileName() {
+          const selectedOption =
+            profileSelect.options[profileSelect.selectedIndex];
+
+          return selectedOption?.textContent || activeProfileName;
         }
 
         function handleProfileSelectionChange() {
@@ -2284,8 +2299,15 @@
           profileNameMessage.textContent = "";
         }
 
-        function setProfileMessage(message, isWarning = false) {
-          profileMessage.textContent = message;
+        function setProfileMessage(
+          message,
+          isWarning = false,
+          profileName = activeProfileName
+        ) {
+          profileMessageTemplate = message;
+          profileMessage.textContent = message
+            ? message.replace("{name}", profileName)
+            : "";
           profileMessage.classList.toggle("is-warning", isWarning);
         }
 
@@ -2384,7 +2406,7 @@
           } else if (profileExternalState === "changed") {
             setProfileMessage(UI_TEXT.profile.externalChange, true);
           } else if (
-            profileMessage.textContent === UI_TEXT.profile.editingRequired
+            profileMessageTemplate === UI_TEXT.profile.editingRequired
           ) {
             setProfileMessage("");
           }
@@ -2758,6 +2780,7 @@
           renderProfiles,
           renderProfileOperationAvailability,
           getSelectedProfileId,
+          getSelectedProfileName,
           handleProfileSelectionChange,
           openProfileSaveForm,
           closeProfileSaveForm,
@@ -3136,12 +3159,14 @@
         let pendingConfirmationAction = null;
         let pendingProfileId = null;
         let pendingProfileRevision = null;
+        let pendingProfileName = "";
         let isDelayEditing = false;
 
         function clearPendingConfirmation() {
           pendingConfirmationAction = null;
           pendingProfileId = null;
           pendingProfileRevision = null;
+          pendingProfileName = "";
         }
 
         function beginOperation() {
@@ -3191,20 +3216,23 @@
               profileExternalState = "changed";
               AppView.setProfileMessage(
                 UI_TEXT.profile.saveConflict,
-                true
+                true,
+                activeProfile.name
               );
               refreshProfiles();
             } else if (result.reason === "deleted") {
               profileExternalState = "deleted";
               AppView.setProfileMessage(
                 UI_TEXT.profile.saveDeleted,
-                true
+                true,
+                activeProfile.name
               );
               refreshProfiles();
             } else {
               AppView.setProfileMessage(
                 UI_TEXT.profile.saveFailed,
-                true
+                true,
+                activeProfile.name
               );
             }
 
@@ -3264,7 +3292,11 @@
             UI_TEXT.cycle.profileChanged
           );
           refreshProfiles();
-          AppView.setProfileMessage(UI_TEXT.profile.opened);
+          AppView.setProfileMessage(
+            UI_TEXT.profile.opened,
+            false,
+            profile.name
+          );
         }
 
         function saveProfileAsNew() {
@@ -3308,7 +3340,7 @@
 
           if (!profile) {
             AppView.showProfileNameError(
-              UI_TEXT.profile.saveFailed
+              UI_TEXT.profile.createFailed
             );
             return;
           }
@@ -3318,11 +3350,19 @@
           ProfileStore.setActiveProfile(profile.id);
           refreshProfiles();
           AppView.closeProfileSaveForm();
-          AppView.setProfileMessage(UI_TEXT.profile.created);
+          AppView.setProfileMessage(
+            UI_TEXT.profile.created,
+            false,
+            profile.name
+          );
           vibrateFeedback();
         }
 
-        function deleteProfile(profileId, expectedRevision) {
+        function deleteProfile(
+          profileId,
+          expectedRevision,
+          profileName
+        ) {
           if (
             !profileId ||
             profileId === activeProfile.id ||
@@ -3331,7 +3371,8 @@
             refreshProfiles();
             AppView.setProfileMessage(
               UI_TEXT.profile.deleteFailed,
-              true
+              true,
+              profileName
             );
             AppView.focusProfileSelect();
             return;
@@ -3356,7 +3397,11 @@
           AppView.focusProfileSelect();
 
           if (result.ok) {
-            AppView.setProfileMessage(UI_TEXT.profile.deleted);
+            AppView.setProfileMessage(
+              UI_TEXT.profile.deleted,
+              false,
+              profileName
+            );
             vibrateFeedback();
             return;
           }
@@ -3367,7 +3412,7 @@
               ? UI_TEXT.profile.deleteConflict
               : UI_TEXT.profile.deleteFailed;
 
-          AppView.setProfileMessage(message, true);
+          AppView.setProfileMessage(message, true, profileName);
         }
 
         function transitionTo(nextMode, options = {}) {
@@ -3744,6 +3789,7 @@
             }
 
             const profileId = AppView.getSelectedProfileId();
+            const profileName = AppView.getSelectedProfileName();
 
             if (!profileId) {
               return;
@@ -3754,8 +3800,9 @@
             if (!profile) {
               refreshProfiles();
               AppView.setProfileMessage(
-                UI_TEXT.profile.saveFailed,
-                true
+                UI_TEXT.profile.openFailed,
+                true,
+                profileName
               );
               return;
             }
@@ -3769,6 +3816,7 @@
             if (AppView.openProfileConfirmation()) {
               pendingConfirmationAction = "open-profile";
               pendingProfileId = profileId;
+              pendingProfileName = profileName;
             }
           },
 
@@ -3782,6 +3830,7 @@
             }
 
             const profileId = AppView.getSelectedProfileId();
+            const profileName = AppView.getSelectedProfileName();
 
             if (!profileId || profileId === activeProfile.id) {
               return;
@@ -3793,7 +3842,8 @@
               refreshProfiles();
               AppView.setProfileMessage(
                 UI_TEXT.profile.alreadyDeleted,
-                true
+                true,
+                profileName
               );
               AppView.focusProfileSelect();
               return;
@@ -3805,6 +3855,7 @@
               pendingConfirmationAction = "delete-profile";
               pendingProfileId = profile.id;
               pendingProfileRevision = profile.revision;
+              pendingProfileName = profile.name;
             }
           },
 
@@ -3972,6 +4023,7 @@
             const action = pendingConfirmationAction;
             const profileId = pendingProfileId;
             const profileRevision = pendingProfileRevision;
+            const profileName = pendingProfileName;
             clearPendingConfirmation();
 
             if (!AppView.closeResetCycleConfirmation({
@@ -3999,8 +4051,9 @@
               if (!profile) {
                 refreshProfiles();
                 AppView.setProfileMessage(
-                  UI_TEXT.profile.saveFailed,
-                  true
+                  UI_TEXT.profile.openFailed,
+                  true,
+                  profileName
                 );
                 AppView.focusProfileOpenButton();
                 return;
@@ -4012,7 +4065,11 @@
             }
 
             if (action === "delete-profile") {
-              deleteProfile(profileId, profileRevision);
+              deleteProfile(
+                profileId,
+                profileRevision,
+                profileName
+              );
               return;
             }
 
