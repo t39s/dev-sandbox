@@ -17,6 +17,21 @@
       --active-background: #b42318;
       --back-button-background: #123F2D;
       --divider: rgb(255 255 255 / 15%);
+      --danger-foreground: #ffb4ab;
+      --warning-foreground: #ffd9a0;
+      --settings-content-max-width: 420px;
+      --settings-content-inline-space: 20px;
+      --settings-content-bottom-space: 24px;
+      --settings-section-block-space: 28px;
+      --settings-section-gap: 14px;
+      --settings-field-gap: 8px;
+      --settings-action-gap: 10px;
+      --settings-control-min-height: 56px;
+      --settings-select-height: 48px;
+      --settings-following-section-top-space: 56px;
+      --settings-card-padding: 16px;
+      --settings-card-gap: 8px;
+      --settings-card-radius: 14px;
     }
 
     * {
@@ -100,13 +115,7 @@
     .delay-input-group {
       width: 100%;
       display: grid;
-      gap: 8px;
-    }
-
-    .delay-label {
-      font-size: 16px;
-      font-weight: 700;
-      line-height: 1.3;
+      gap: var(--settings-field-gap);
     }
 
     .delay-prompt {
@@ -210,18 +219,21 @@
       border-color: var(--active-background);
     }
 
-    .input-message {
-      min-height: 1.2em;
+    .settings-message {
+      min-height: 1.4em;
       margin: 0;
-      font-size: 0.85rem;
+      font-size: 14px;
+      line-height: 1.4;
       text-align: left;
-      opacity: 0.78;
+      opacity: 0.72;
+    }
+
+    .settings-message.is-warning {
+      opacity: 1;
+      color: var(--warning-foreground);
     }
 
     .delay-actions {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
       margin-top: 2px;
     }
 
@@ -229,51 +241,26 @@
       grid-column: 1 / -1;
     }
 
-    .delay-edit-button,
-    .delay-cancel-button,
-    .cycle-reset-button {
-      min-height: 56px;
-      background: transparent;
-      border: 1px solid currentColor;
-      font-size: 17px;
-      opacity: 0.88;
-    }
-
-    .delay-apply-button {
-      min-height: 56px;
-      background: var(--button-background);
-      border: 1px solid var(--button-background);
-      font-size: 17px;
-      opacity: 1;
-    }
-
-    .cycle-reset-button {
-      border-color: var(--active-background);
-    }
-
-    .delay-edit-button:disabled,
-    .delay-cancel-button:disabled,
-    .delay-apply-button:disabled,
-    .cycle-reset-button:disabled {
-      cursor: not-allowed;
-      opacity: 0.35;
-    }
-
-    .cycle-summary {
+    .settings-state-card {
+      min-width: 0;
       display: grid;
-      gap: 10px;
-      padding: 16px;
+      gap: var(--settings-card-gap);
+      padding: var(--settings-card-padding);
       border: 1px solid color-mix(in srgb, var(--foreground) 18%, transparent);
-      border-radius: 14px;
+      border-radius: var(--settings-card-radius);
       background: color-mix(in srgb, var(--foreground) 3%, transparent);
     }
 
-    .cycle-result-label {
+    .settings-state-card-label {
       margin: 0;
       font-size: 14px;
-      font-weight: 650;
-      text-align: center;
+      line-height: 1.4;
+      font-weight: 600;
       opacity: 0.72;
+    }
+
+    .cycle-result-label {
+      text-align: center;
     }
 
     .cycle-summary .result {
@@ -302,11 +289,6 @@
 
     .cycle-editing-notice[hidden] {
       display: none;
-    }
-
-    .cycle-actions {
-      display: grid;
-      gap: 14px;
     }
 
     .reset-cycle-dialog-overlay {
@@ -360,7 +342,7 @@
     }
 
     .reset-cycle-dialog-button {
-      min-height: 56px;
+      min-height: var(--settings-control-min-height);
       padding: 14px 16px;
       font-size: 17px;
     }
@@ -369,41 +351,36 @@
       background: var(--active-background);
     }
 
-    .signal-button {
-      background: transparent;
-      color: var(--foreground);
-      border: 2px solid currentColor;
-    }
-
     .signal-button.is-active {
       background: var(--active-background);
       color: var(--foreground);
       border-color: var(--active-background);
+      opacity: 1;
     }
 
 
     .control-group {
       width: 100%;
       display: grid;
-      gap: 8px;
+      gap: var(--settings-field-gap);
     }
 
-    .control-label-row {
+    .volume-row {
       display: flex;
       justify-content: space-between;
       gap: 16px;
       align-items: baseline;
     }
 
-    .control-group label,
-    .control-label-row {
+    .settings-field-label,
+    .volume-row {
       font-size: 14px;
       font-weight: 600;
+      line-height: 1.3;
       color: var(--foreground);
     }
 
-    .control-group label,
-    .control-label-row span:first-child {
+    .settings-field-label {
       opacity: 0.72;
     }
 
@@ -413,7 +390,7 @@
 
     select {
       width: 100%;
-      min-height: 56px;
+      height: var(--settings-select-height);
       border: 1px solid currentColor;
       border-radius: 14px;
       padding: 0 16px;
@@ -425,6 +402,7 @@
 
     input[type="range"] {
       width: 100%;
+      height: var(--settings-select-height);
       accent-color: var(--foreground);
     }
 
@@ -573,10 +551,8 @@
       fill: currentColor;
     }
 
+    .home-profile-name,
     .home-version {
-      position: fixed;
-      left: max(16px, env(safe-area-inset-left));
-      bottom: max(16px, env(safe-area-inset-bottom));
       z-index: 2;
       margin: 0;
       font-size: var(--version-font-size);
@@ -585,6 +561,23 @@
       opacity: 0.55;
       pointer-events: none;
       user-select: none;
+    }
+
+    .home-profile-name {
+      position: fixed;
+      top: max(16px, env(safe-area-inset-top));
+      right: max(16px, env(safe-area-inset-right));
+      left: max(16px, env(safe-area-inset-left));
+      overflow: hidden;
+      text-align: center;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .home-version {
+      position: fixed;
+      left: max(16px, env(safe-area-inset-left));
+      bottom: max(16px, env(safe-area-inset-bottom));
     }
 
     .settings-toggle .settings-label {
@@ -625,7 +618,10 @@
       margin: 0;
       padding:
         max(16px, env(safe-area-inset-top))
-        max(20px, calc((100% - 420px) / 2))
+        max(
+          var(--settings-content-inline-space),
+          calc((100% - var(--settings-content-max-width)) / 2)
+        )
         16px;
       box-sizing: border-box;
       display: grid;
@@ -660,24 +656,80 @@
     }
 
     .settings-close {
-      min-height: 44px;
+      min-height: var(--settings-control-min-height);
       width: auto;
-      padding-inline: 18px;
+      padding: 14px 16px;
       background: var(--back-button-background);
       color: var(--foreground);
       border-color: var(--back-button-background);
+      font-size: 17px;
+    }
+
+    .settings-close:focus-visible {
+      outline: none;
+      outline-offset: 0;
     }
 
     .settings-content {
-      width: min(calc(100% - 40px), 420px);
+      width: min(
+        calc(
+          100%
+          - var(--settings-content-inline-space)
+          - var(--settings-content-inline-space)
+        ),
+        var(--settings-content-max-width)
+      );
       margin: 0 auto;
-      padding-bottom: 24px;
+      padding-bottom: var(--settings-content-bottom-space);
+    }
+
+    .settings-content button {
+      min-height: var(--settings-control-min-height);
+      padding: 14px 16px;
+      font-size: 17px;
+    }
+
+    .settings-actions {
+      display: grid;
+      gap: var(--settings-action-gap);
+    }
+
+    .settings-actions-split {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .settings-button-primary {
+      background: var(--button-background);
+      color: var(--foreground);
+      border: 1px solid var(--button-background);
+      opacity: 1;
+    }
+
+    .settings-button-secondary {
+      background: transparent;
+      color: var(--foreground);
+      border: 1px solid currentColor;
+      opacity: 0.88;
+    }
+
+    .settings-button-danger {
+      background: transparent;
+      color: var(--danger-foreground);
+      border: 1px solid currentColor;
+      opacity: 0.88;
+    }
+
+    .settings-content button:disabled,
+    .settings-content input:disabled,
+    .settings-content select:disabled {
+      cursor: not-allowed;
+      opacity: 0.35;
     }
 
     .settings-section {
       display: grid;
-      gap: 14px;
-      padding: 28px 0;
+      gap: var(--settings-section-gap);
+      padding: var(--settings-section-block-space) 0;
       border-bottom: 1px solid var(--divider);
     }
 
@@ -697,23 +749,6 @@
       color: var(--foreground);
     }
 
-    .profile-current {
-      display: grid;
-      gap: 4px;
-      padding: 14px 16px;
-      border: 1px solid color-mix(in srgb, var(--foreground) 18%, transparent);
-      border-radius: 14px;
-      background: color-mix(in srgb, var(--foreground) 3%, transparent);
-    }
-
-    .profile-current-label,
-    .profile-message {
-      margin: 0;
-      font-size: 14px;
-      line-height: 1.4;
-      opacity: 0.72;
-    }
-
     .profile-current-name {
       margin: 0;
       font-size: 19px;
@@ -722,51 +757,17 @@
       overflow-wrap: anywhere;
     }
 
-    .profile-message {
-      min-height: 1.4em;
-    }
-
-    .profile-message.is-warning {
-      opacity: 1;
-      color: #ffd9a0;
-    }
-
-    .profile-actions,
-    .profile-save-actions {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-    }
-
-    .profile-open-button,
-    .profile-save-as-button,
-    .profile-delete-button,
-    .profile-save-cancel-button,
-    .profile-save-confirm-button {
-      min-height: 56px;
-      padding: 14px 12px;
-      font-size: 16px;
-    }
-
-    .profile-save-as-button,
-    .profile-delete-button,
-    .profile-save-cancel-button {
-      background: transparent;
-      border: 1px solid currentColor;
-      opacity: 0.88;
-    }
-
     .profile-open-button {
       grid-column: 1 / -1;
     }
 
-    .profile-delete-button {
-      color: #ffb4ab;
+    .profile-actions {
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
     }
 
     .profile-save-form {
       display: grid;
-      gap: 10px;
+      gap: var(--settings-action-gap);
       padding-top: 4px;
     }
 
@@ -788,17 +789,6 @@
 
     .profile-name-input[aria-invalid="true"] {
       border-color: var(--active-background);
-    }
-
-    .profile-open-button:disabled,
-    .profile-save-as-button:disabled,
-    .profile-delete-button:disabled,
-    .profile-save-cancel-button:disabled,
-    .profile-save-confirm-button:disabled,
-    .profile-name-input:disabled,
-    #profileSelect:disabled {
-      cursor: not-allowed;
-      opacity: 0.35;
     }
 
     .delay-draft-status {
@@ -825,8 +815,15 @@
     }
 
     .settings-version-section {
-      padding: 28px 0 max(8px, env(safe-area-inset-bottom));
+      padding:
+        var(--settings-section-block-space)
+        0
+        max(8px, env(safe-area-inset-bottom));
       border-bottom: 0;
+    }
+
+    .settings-content > .settings-section:not(:first-child) {
+      padding-top: var(--settings-following-section-top-space);
     }
 
 
@@ -866,6 +863,11 @@
   <main id="appMain">
     <section class="app" aria-label="Случайный таймер">
       <section class="home-screen" id="homeScreen" aria-label="Главный экран">
+        <p class="home-profile-name">
+          <span class="visually-hidden">Активный набор настроек: </span>
+          <span id="homeProfileName"></span>
+        </p>
+
         <button
           class="primary-control"
           id="primaryControl"
@@ -926,44 +928,44 @@
           <section class="settings-section" aria-labelledby="profileSectionTitle">
             <h2 class="settings-section-title" id="profileSectionTitle">Набор настроек</h2>
 
-            <div class="profile-current">
-              <p class="profile-current-label">Текущий набор</p>
+            <div class="settings-state-card profile-current">
+              <p class="settings-state-card-label profile-current-label">Текущий набор</p>
               <p class="profile-current-name" id="profileCurrentName"></p>
             </div>
 
             <div class="control-group">
-              <label for="profileSelect">Сохранённые наборы</label>
+              <label class="settings-field-label" for="profileSelect">Сохранённые наборы</label>
               <select id="profileSelect"></select>
             </div>
 
-            <div class="profile-actions">
+            <div class="settings-actions settings-actions-split profile-actions">
               <button
-                class="profile-open-button"
+                class="settings-button-primary profile-open-button"
                 id="profileOpenButton"
                 type="button"
               >
-                Открыть
+                Открыть набор
               </button>
               <button
-                class="profile-save-as-button"
+                class="settings-button-secondary profile-save-as-button"
                 id="profileSaveAsButton"
                 type="button"
                 aria-controls="profileSaveForm"
                 aria-expanded="false"
               >
-                Сохранить как новый
+                Сохранить как…
               </button>
               <button
-                class="profile-delete-button"
+                class="settings-button-danger profile-delete-button"
                 id="profileDeleteButton"
                 type="button"
               >
-                Удалить набор
+                Удалить
               </button>
             </div>
 
             <div class="profile-save-form" id="profileSaveForm" hidden>
-              <label class="delay-label" for="profileNameInput">Название нового набора</label>
+              <label class="settings-field-label" for="profileNameInput">Название нового набора</label>
               <input
                 class="profile-name-input"
                 id="profileNameInput"
@@ -973,17 +975,17 @@
                 spellcheck="false"
                 aria-describedby="profileNameMessage"
               >
-              <p class="input-message" id="profileNameMessage" aria-live="polite"></p>
-              <div class="profile-save-actions">
+              <p class="settings-message" id="profileNameMessage" aria-live="polite"></p>
+              <div class="settings-actions settings-actions-split profile-save-actions">
                 <button
-                  class="profile-save-cancel-button"
+                  class="settings-button-secondary profile-save-cancel-button"
                   id="profileSaveCancelButton"
                   type="button"
                 >
                   Отмена
                 </button>
                 <button
-                  class="profile-save-confirm-button"
+                  class="settings-button-primary profile-save-confirm-button"
                   id="profileSaveConfirmButton"
                   type="button"
                 >
@@ -993,7 +995,7 @@
             </div>
 
             <p
-              class="profile-message"
+              class="settings-message profile-message"
               id="profileMessage"
               aria-live="polite"
               aria-atomic="true"
@@ -1001,10 +1003,10 @@
           </section>
 
           <section class="settings-section" aria-labelledby="signalSectionTitle">
-            <h3 class="settings-section-title" id="signalSectionTitle">Сигнал</h3>
+            <h2 class="settings-section-title" id="signalSectionTitle">Сигнал</h2>
 
             <div class="control-group">
-              <label for="signalSelect">Тип сигнала</label>
+              <label class="settings-field-label" for="signalSelect">Тип сигнала</label>
               <select id="signalSelect">
                 <option value="steady">Ровный тон</option>
                 <option value="low">Низкий гул</option>
@@ -1016,8 +1018,12 @@
 
             <div class="control-group">
               <div class="volume-row">
-                <label for="volumeControl">Громкость</label>
-                <output id="volumeValue" for="volumeControl"></output>
+                <label class="settings-field-label" for="volumeControl">Громкость</label>
+                <output
+                  class="volume-value"
+                  id="volumeValue"
+                  for="volumeControl"
+                ></output>
               </div>
               <input
                 id="volumeControl"
@@ -1029,7 +1035,7 @@
             </div>
 
             <button
-              class="signal-button"
+              class="settings-button-secondary signal-button"
               id="signalButton"
               type="button"
               aria-pressed="false"
@@ -1042,12 +1048,12 @@
 
           <section class="settings-section" aria-labelledby="pauseSectionTitle">
             <div class="settings-section-heading">
-              <h3 class="settings-section-title" id="pauseSectionTitle">Паузы</h3>
+              <h2 class="settings-section-title" id="pauseSectionTitle">Паузы</h2>
               <span class="delay-draft-status" id="delayDraftStatus" hidden>Не сохранено</span>
             </div>
 
             <div class="delay-input-group">
-              <label class="delay-label" id="delayListLabel" for="delayInput">Список пауз</label>
+              <label class="settings-field-label" id="delayListLabel" for="delayInput">Список пауз</label>
               <p class="delay-prompt" id="delayHelp">Через запятую или с новой строки. Пример: 5s*3, 2m 30s.</p>
               <div
                 class="delay-input delay-display"
@@ -1071,14 +1077,14 @@
                 aria-describedby="delayHelp delayMessage"
                 aria-errormessage="delayMessage"
               ></textarea>
-              <p class="input-message" id="delayMessage" aria-live="polite"></p>
+              <p class="settings-message" id="delayMessage" aria-live="polite"></p>
               <details class="delay-format-details">
                 <summary>Формат ввода</summary>
                 <p>Длительность задаётся в минутах и секундах: 2m30s. Множитель *N создаёт N экземпляров; *0 отключает паузу. Допустимый диапазон множителя — от 0 до 999.</p>
               </details>
-              <div class="delay-actions">
+              <div class="settings-actions settings-actions-split delay-actions">
                 <button
-                  class="delay-edit-button"
+                  class="settings-button-secondary delay-edit-button"
                   id="editDelaysButton"
                   type="button"
                   aria-controls="delayInput"
@@ -1086,7 +1092,7 @@
                   Редактировать список
                 </button>
                 <button
-                  class="delay-cancel-button"
+                  class="settings-button-secondary delay-cancel-button"
                   id="cancelDelaysButton"
                   type="button"
                   hidden
@@ -1095,7 +1101,7 @@
                   Отмена
                 </button>
                 <button
-                  class="delay-apply-button"
+                  class="settings-button-primary delay-apply-button"
                   id="applyDelaysButton"
                   type="button"
                   hidden
@@ -1108,10 +1114,10 @@
           </section>
 
           <section class="settings-section" aria-labelledby="cycleSectionTitle">
-            <h3 class="settings-section-title" id="cycleSectionTitle">Текущий цикл</h3>
+            <h2 class="settings-section-title" id="cycleSectionTitle">Текущий цикл</h2>
 
-            <div class="cycle-summary">
-              <p class="cycle-result-label">Последний выбор</p>
+            <div class="settings-state-card cycle-summary">
+              <p class="settings-state-card-label cycle-result-label">Последний выбор</p>
               <output class="result is-empty" id="result">—</output>
 
               <p class="cycle-status" id="selectedCycleStatus"></p>
@@ -1122,10 +1128,10 @@
               Завершите редактирование списка пауз, чтобы продолжить цикл.
             </p>
 
-            <div class="cycle-actions">
-              <button id="generateButton" type="button">Выбрать из оставшихся</button>
+            <div class="settings-actions cycle-actions">
+              <button class="settings-button-primary" id="generateButton" type="button">Выбрать из оставшихся</button>
               <button
-                class="cycle-reset-button"
+                class="settings-button-danger cycle-reset-button"
                 id="resetCycleButton"
                 type="button"
                 disabled
@@ -1200,7 +1206,7 @@
       "use strict";
 
       const APP_CONFIG = Object.freeze({
-        version: "0.11.3",
+        version: "0.11.12",
         defaults: Object.freeze({
           delays: "2s, 5s, 10s, 2m30s",
           signal: "steady",
@@ -1971,6 +1977,7 @@
         const requiredIds = Object.freeze([
           "appMain",
           "homeScreen",
+          "homeProfileName",
           "primaryControl",
           "settingsToggle",
           "settingsClose",
@@ -2055,6 +2062,7 @@
         const {
           appMain,
           homeScreen,
+          homeProfileName,
           primaryControl,
           settingsToggle,
           settingsClose,
@@ -2204,6 +2212,7 @@
           profileSelect.value = selection;
           activeProfileId = activeProfile.id;
           activeProfileName = activeProfile.name;
+          homeProfileName.textContent = activeProfile.name;
           profileCurrentName.textContent = activeProfile.name;
           profileExternalState = options.externalState || null;
           renderProfileActionsState();
