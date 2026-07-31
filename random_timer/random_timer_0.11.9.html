@@ -1,0 +1,4382 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111111">
+  <title>Случайный таймер</title>
+
+  <style>
+    :root {
+      color-scheme: dark;
+      --background: #111111;
+      --foreground: #ffffff;
+      --button-background: #303030;
+      --idle-background: #000000;
+      --waiting-background: #123F2D;
+      --active-background: #b42318;
+      --back-button-background: #123F2D;
+      --divider: rgb(255 255 255 / 15%);
+      --danger-foreground: #ffb4ab;
+      --warning-foreground: #ffd9a0;
+      --settings-content-max-width: 420px;
+      --settings-content-inline-space: 20px;
+      --settings-content-bottom-space: 24px;
+      --settings-section-block-space: 28px;
+      --settings-section-gap: 14px;
+      --settings-field-gap: 8px;
+      --settings-action-gap: 10px;
+      --settings-control-min-height: 56px;
+      --settings-card-padding: 16px;
+      --settings-card-gap: 8px;
+      --settings-card-radius: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      min-height: 100%;
+      margin: 0;
+    }
+
+    body {
+      min-height: 100dvh;
+      overflow: hidden;
+      background: var(--background);
+      color: var(--foreground);
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .result {
+      min-height: 96px;
+      display: grid;
+      place-items: center;
+      font-size: clamp(64px, 22vw, 96px);
+      font-weight: 700;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      user-select: none;
+      will-change: transform, opacity;
+    }
+
+    .result.is-updated {
+      animation: result-feedback 160ms ease-out;
+    }
+
+    .result.is-empty {
+      font-size: 40px;
+      opacity: 0.45;
+    }
+
+    button {
+      width: 100%;
+      min-height: 72px;
+      border: 0;
+      border-radius: 18px;
+      padding: 18px 24px;
+      background: var(--button-background);
+      color: var(--foreground);
+      font: inherit;
+      font-size: 20px;
+      font-weight: 650;
+      cursor: pointer;
+      touch-action: manipulation;
+      user-select: none;
+      will-change: transform;
+    }
+
+    button.is-pressed {
+      animation: button-feedback 140ms ease-out;
+    }
+
+    .visually-hidden {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      padding: 0 !important;
+      margin: -1px !important;
+      overflow: hidden !important;
+      clip: rect(0, 0, 0, 0) !important;
+      white-space: nowrap !important;
+      border: 0 !important;
+    }
+
+    .delay-input-group {
+      width: 100%;
+      display: grid;
+      gap: var(--settings-field-gap);
+    }
+
+    .delay-prompt {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.4;
+      opacity: 0.78;
+    }
+
+    .delay-format-details {
+      border-top: 1px solid color-mix(in srgb, var(--foreground) 18%, transparent);
+      padding-top: 6px;
+    }
+
+    .delay-format-details summary {
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 14px;
+      font-weight: 650;
+      cursor: pointer;
+      user-select: none;
+      list-style: none;
+    }
+
+    .delay-format-details summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .delay-format-details summary::after {
+      content: "▾";
+      font-size: 1.4em;
+      line-height: 1;
+      transform: rotate(-90deg);
+      transition: transform 140ms ease-out;
+    }
+
+    .delay-format-details[open] summary::after {
+      transform: rotate(0deg);
+    }
+
+    .delay-format-details p {
+      margin: 4px 0 0;
+      font-size: 13px;
+      line-height: 1.45;
+      opacity: 0.72;
+    }
+
+    .delay-input {
+      width: 100%;
+      min-height: 48px;
+      box-sizing: border-box;
+      padding: 10px 14px;
+      border: 1px solid color-mix(in srgb, var(--foreground) 35%, transparent);
+      border-radius: 12px;
+      background: transparent;
+      color: var(--foreground);
+      font: inherit;
+      font-size: 20px;
+      font-weight: 650;
+      line-height: 1.35;
+      text-align: left;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      overflow-x: hidden;
+      resize: none;
+    }
+
+    textarea.delay-input {
+      max-height: 280px;
+      overflow-y: auto;
+    }
+
+    .delay-input:focus-visible {
+      outline: 2px solid currentColor;
+      outline-offset: 2px;
+    }
+
+    .delay-input::placeholder {
+      color: var(--foreground);
+      opacity: 0.65;
+    }
+
+    .delay-display {
+      border-color: color-mix(in srgb, var(--foreground) 22%, transparent);
+      background: color-mix(in srgb, var(--foreground) 4%, transparent);
+      cursor: text;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+
+    .delay-display[hidden],
+    .delay-input[hidden] {
+      display: none;
+    }
+
+    .delay-input[aria-invalid="true"] {
+      border-color: var(--active-background);
+    }
+
+    .settings-message {
+      min-height: 1.4em;
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.4;
+      text-align: left;
+      opacity: 0.72;
+    }
+
+    .settings-message.is-warning {
+      opacity: 1;
+      color: var(--warning-foreground);
+    }
+
+    .delay-actions {
+      margin-top: 2px;
+    }
+
+    .delay-edit-button {
+      grid-column: 1 / -1;
+    }
+
+    .settings-state-card {
+      min-width: 0;
+      display: grid;
+      gap: var(--settings-card-gap);
+      padding: var(--settings-card-padding);
+      border: 1px solid color-mix(in srgb, var(--foreground) 18%, transparent);
+      border-radius: var(--settings-card-radius);
+      background: color-mix(in srgb, var(--foreground) 3%, transparent);
+    }
+
+    .settings-state-card-label {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.4;
+      font-weight: 600;
+      opacity: 0.72;
+    }
+
+    .cycle-result-label {
+      text-align: center;
+    }
+
+    .cycle-summary .result {
+      min-height: 82px;
+    }
+
+    .cycle-status {
+      min-height: 1.2em;
+      margin: 0;
+      font-size: 0.9rem;
+      line-height: 1.35;
+      text-align: left;
+      opacity: 0.78;
+    }
+
+    .cycle-editing-notice {
+      margin: 0;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--foreground) 8%, transparent);
+      font-size: 0.85rem;
+      line-height: 1.4;
+      text-align: center;
+      opacity: 0.82;
+    }
+
+    .cycle-editing-notice[hidden] {
+      display: none;
+    }
+
+    .reset-cycle-dialog-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: grid;
+      place-items: center;
+      padding:
+        max(20px, env(safe-area-inset-top))
+        max(20px, env(safe-area-inset-right))
+        max(20px, env(safe-area-inset-bottom))
+        max(20px, env(safe-area-inset-left));
+      background: rgb(0 0 0 / 72%);
+    }
+
+    .reset-cycle-dialog-overlay[hidden] {
+      display: none;
+    }
+
+    .reset-cycle-dialog {
+      width: min(100%, 420px);
+      display: grid;
+      gap: 18px;
+      padding: 24px;
+      border: 1px solid color-mix(in srgb, var(--foreground) 28%, transparent);
+      border-radius: 18px;
+      background: var(--background);
+      box-shadow: 0 18px 48px rgb(0 0 0 / 55%);
+    }
+
+    .reset-cycle-dialog-title {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.25;
+      text-align: center;
+    }
+
+    .reset-cycle-dialog-description {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.45;
+      text-align: center;
+      opacity: 0.78;
+    }
+
+    .reset-cycle-dialog-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .reset-cycle-dialog-button {
+      min-height: var(--settings-control-min-height);
+      padding: 14px 16px;
+      font-size: 17px;
+    }
+
+    .reset-cycle-dialog-confirm {
+      background: var(--active-background);
+    }
+
+    .signal-button.is-active {
+      background: var(--active-background);
+      color: var(--foreground);
+      border-color: var(--active-background);
+      opacity: 1;
+    }
+
+
+    .control-group {
+      width: 100%;
+      display: grid;
+      gap: var(--settings-field-gap);
+    }
+
+    .volume-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: baseline;
+    }
+
+    .settings-field-label,
+    .volume-row {
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.3;
+      color: var(--foreground);
+    }
+
+    .settings-field-label {
+      opacity: 0.72;
+    }
+
+    .volume-value {
+      font-variant-numeric: tabular-nums;
+    }
+
+    select {
+      width: 100%;
+      min-height: var(--settings-control-min-height);
+      border: 1px solid currentColor;
+      border-radius: 14px;
+      padding: 0 16px;
+      background: var(--background);
+      color: var(--foreground);
+      font: inherit;
+      font-size: 17px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--foreground);
+    }
+
+    select:focus-visible,
+    .profile-name-input:focus-visible,
+    input[type="range"]:focus-visible,
+    button:focus-visible {
+      outline: 3px solid currentColor;
+      outline-offset: 4px;
+    }
+
+    @keyframes result-feedback {
+      0% {
+        transform: scale(0.86);
+        opacity: 0.35;
+      }
+
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    @keyframes button-feedback {
+      0% {
+        transform: scale(1);
+      }
+
+      45% {
+        transform: scale(0.96);
+      }
+
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .result.is-updated {
+        animation: result-feedback-reduced 100ms linear;
+      }
+
+      button.is-pressed {
+        animation: button-feedback-reduced 100ms linear;
+      }
+
+      @keyframes result-feedback-reduced {
+        0% {
+          opacity: 0.4;
+        }
+
+        100% {
+          opacity: 1;
+        }
+      }
+
+      @keyframes button-feedback-reduced {
+        0%,
+        100% {
+          opacity: 1;
+        }
+
+        50% {
+          opacity: 0.72;
+        }
+      }
+    }
+  
+    main {
+      width: 100%;
+      min-height: 100dvh;
+      padding: 0;
+      display: block;
+    }
+
+    .app {
+      position: relative;
+      width: 100%;
+      min-height: 100dvh;
+    }
+
+    .home-screen {
+      position: fixed;
+      inset: 0;
+      min-height: 100dvh;
+      font-size: clamp(32px, 10vmin, 88px);
+      --gear-size: 0.72em;
+      --gear-hit-size: 1.44em;
+      --version-font-size: 0.333em;
+    }
+
+    .primary-control {
+      width: 100%;
+      height: 100%;
+      min-height: 100dvh;
+      margin: 0;
+      padding:
+        max(24px, env(safe-area-inset-top))
+        max(24px, env(safe-area-inset-right))
+        max(24px, env(safe-area-inset-bottom))
+        max(24px, env(safe-area-inset-left));
+      border-radius: 0;
+      background: var(--idle-background);
+      color: var(--foreground);
+      font-size: 1em;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .primary-control.is-active {
+      background: var(--active-background);
+      color: var(--foreground);
+      border-color: var(--active-background);
+    }
+
+    .primary-control.is-stopping {
+      background: var(--waiting-background);
+      color: var(--foreground);
+      border-color: var(--waiting-background);
+    }
+
+    .settings-toggle {
+      position: fixed;
+      right: max(16px, env(safe-area-inset-right));
+      bottom: max(16px, env(safe-area-inset-bottom));
+      z-index: 2;
+      width: var(--gear-hit-size);
+      height: var(--gear-hit-size);
+      min-width: var(--gear-hit-size);
+      min-height: var(--gear-hit-size);
+      padding: 0;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: var(--foreground);
+      font: inherit;
+      line-height: 1;
+    }
+
+    .settings-icon {
+      display: block;
+      width: var(--gear-size);
+      height: var(--gear-size);
+      fill: currentColor;
+    }
+
+    .home-profile-name,
+    .home-version {
+      z-index: 2;
+      margin: 0;
+      font-size: var(--version-font-size);
+      line-height: 1.2;
+      color: var(--foreground);
+      opacity: 0.55;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .home-profile-name {
+      position: fixed;
+      top: max(16px, env(safe-area-inset-top));
+      right: max(16px, env(safe-area-inset-right));
+      left: max(16px, env(safe-area-inset-left));
+      overflow: hidden;
+      text-align: center;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .home-version {
+      position: fixed;
+      left: max(16px, env(safe-area-inset-left));
+      bottom: max(16px, env(safe-area-inset-bottom));
+    }
+
+    .settings-toggle .settings-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (orientation: landscape) {
+      .home-screen {
+        font-size: clamp(28px, 10vmin, 72px);
+      }
+    }
+
+    .settings-panel {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      min-height: 100dvh;
+      overflow-y: auto;
+      background: var(--background);
+      color: var(--foreground);
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    .settings-header {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      width: 100%;
+      margin: 0;
+      padding:
+        max(16px, env(safe-area-inset-top))
+        max(
+          var(--settings-content-inline-space),
+          calc((100% - var(--settings-content-max-width)) / 2)
+        )
+        16px;
+      box-sizing: border-box;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 12px;
+      background: var(--background);
+      border-bottom: 1px solid var(--divider);
+    }
+
+    .settings-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4em;
+      min-width: 0;
+      color: var(--foreground);
+      font-size: 24px;
+    }
+
+    .settings-header h1 {
+      margin: 0;
+      font-size: 1em;
+      line-height: 1.2;
+    }
+
+    .settings-title-icon {
+      display: block;
+      flex: 0 0 auto;
+      width: 0.72em;
+      height: 0.72em;
+      fill: currentColor;
+    }
+
+    .settings-close {
+      min-height: 44px;
+      width: auto;
+      padding-inline: 18px;
+      background: var(--back-button-background);
+      color: var(--foreground);
+      border-color: var(--back-button-background);
+    }
+
+    .settings-content {
+      width: min(
+        calc(
+          100%
+          - var(--settings-content-inline-space)
+          - var(--settings-content-inline-space)
+        ),
+        var(--settings-content-max-width)
+      );
+      margin: 0 auto;
+      padding-bottom: var(--settings-content-bottom-space);
+    }
+
+    .settings-content button {
+      min-height: var(--settings-control-min-height);
+      padding: 14px 16px;
+      font-size: 17px;
+    }
+
+    .settings-actions {
+      display: grid;
+      gap: var(--settings-action-gap);
+    }
+
+    .settings-actions-split {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .settings-button-primary {
+      background: var(--button-background);
+      color: var(--foreground);
+      border: 1px solid var(--button-background);
+      opacity: 1;
+    }
+
+    .settings-button-secondary {
+      background: transparent;
+      color: var(--foreground);
+      border: 1px solid currentColor;
+      opacity: 0.88;
+    }
+
+    .settings-button-danger {
+      background: transparent;
+      color: var(--danger-foreground);
+      border: 1px solid currentColor;
+      opacity: 0.88;
+    }
+
+    .settings-content button:disabled,
+    .settings-content input:disabled,
+    .settings-content select:disabled {
+      cursor: not-allowed;
+      opacity: 0.35;
+    }
+
+    .settings-section {
+      display: grid;
+      gap: var(--settings-section-gap);
+      padding: var(--settings-section-block-space) 0;
+      border-bottom: 1px solid var(--divider);
+    }
+
+    .settings-section-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .settings-section-title {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.25;
+      font-weight: 700;
+      color: var(--foreground);
+    }
+
+    .profile-current-name {
+      margin: 0;
+      font-size: 19px;
+      line-height: 1.3;
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+
+    .profile-open-button {
+      grid-column: 1 / -1;
+    }
+
+    .profile-save-form {
+      display: grid;
+      gap: var(--settings-action-gap);
+      padding-top: 4px;
+    }
+
+    .profile-save-form[hidden] {
+      display: none;
+    }
+
+    .profile-name-input {
+      width: 100%;
+      min-height: 52px;
+      border: 1px solid currentColor;
+      border-radius: 12px;
+      padding: 10px 14px;
+      background: transparent;
+      color: var(--foreground);
+      font: inherit;
+      font-size: 17px;
+    }
+
+    .profile-name-input[aria-invalid="true"] {
+      border-color: var(--active-background);
+    }
+
+    .delay-draft-status {
+      flex: 0 0 auto;
+      padding: 4px 8px;
+      border: 1px solid color-mix(in srgb, var(--foreground) 30%, transparent);
+      border-radius: 999px;
+      font-size: 12px;
+      line-height: 1.2;
+      font-weight: 650;
+      opacity: 0.78;
+    }
+
+    .delay-draft-status[hidden] {
+      display: none;
+    }
+
+    @media (max-width: 340px) {
+      .settings-section-heading {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 8px;
+      }
+    }
+
+    .settings-version-section {
+      padding:
+        var(--settings-section-block-space)
+        0
+        max(8px, env(safe-area-inset-bottom));
+      border-bottom: 0;
+    }
+
+
+    .version-label {
+      font-size: 12px;
+      line-height: 1.2;
+      text-align: center;
+      opacity: 0.55;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+  </style>
+</head>
+
+<body>
+  <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute;overflow:hidden">
+    <defs>
+      <symbol id="gear-icon" viewBox="0 0 64 64">
+        <mask id="gear-icon-mask">
+          <rect width="64" height="64" fill="white"></rect>
+          <circle cx="32" cy="32" r="13.2" fill="black"></circle>
+        </mask>
+        <g fill="currentColor" mask="url(#gear-icon-mask)">
+          <rect id="gear-tooth" x="26" y="2" width="12" height="16" rx="4"></rect>
+          <use href="#gear-tooth" transform="rotate(45 32 32)"></use>
+          <use href="#gear-tooth" transform="rotate(90 32 32)"></use>
+          <use href="#gear-tooth" transform="rotate(135 32 32)"></use>
+          <use href="#gear-tooth" transform="rotate(180 32 32)"></use>
+          <use href="#gear-tooth" transform="rotate(225 32 32)"></use>
+          <use href="#gear-tooth" transform="rotate(270 32 32)"></use>
+          <use href="#gear-tooth" transform="rotate(315 32 32)"></use>
+          <circle cx="32" cy="32" r="22"></circle>
+        </g>
+      </symbol>
+    </defs>
+  </svg>
+  <main id="appMain">
+    <section class="app" aria-label="Случайный таймер">
+      <section class="home-screen" id="homeScreen" aria-label="Главный экран">
+        <p class="home-profile-name">
+          <span class="visually-hidden">Активный набор настроек: </span>
+          <span id="homeProfileName"></span>
+        </p>
+
+        <button
+          class="primary-control"
+          id="primaryControl"
+          type="button"
+        >
+          Включить
+        </button>
+
+        <button
+          class="settings-toggle"
+          id="settingsToggle"
+          type="button"
+          aria-label="Открыть настройки"
+          aria-expanded="false"
+          aria-controls="settingsPanel"
+        >
+          <svg
+            class="settings-icon"
+            viewBox="0 0 64 64"
+            aria-hidden="true"
+          >
+            <use href="#gear-icon"></use>
+          </svg>
+          <span class="settings-label">Настройки</span>
+        </button>
+
+        <p class="home-version"></p>
+      </section>
+
+      <section
+        class="settings-panel"
+        id="settingsPanel"
+        aria-labelledby="settingsTitle"
+        hidden
+      >
+        <div class="settings-header">
+          <div class="settings-title">
+            <svg
+              class="settings-title-icon"
+              viewBox="0 0 64 64"
+              aria-hidden="true"
+            >
+              <use href="#gear-icon"></use>
+            </svg>
+            <h1 id="settingsTitle">Настройки</h1>
+          </div>
+          <button
+            class="settings-close"
+            id="settingsClose"
+            type="button"
+            aria-label="Вернуться к таймеру"
+          >
+            Назад
+          </button>
+        </div>
+
+        <div class="settings-content">
+          <section class="settings-section" aria-labelledby="profileSectionTitle">
+            <h2 class="settings-section-title" id="profileSectionTitle">Набор настроек</h2>
+
+            <div class="settings-state-card profile-current">
+              <p class="settings-state-card-label profile-current-label">Текущий набор</p>
+              <p class="profile-current-name" id="profileCurrentName"></p>
+            </div>
+
+            <div class="control-group">
+              <label class="settings-field-label" for="profileSelect">Сохранённые наборы</label>
+              <select id="profileSelect"></select>
+            </div>
+
+            <div class="settings-actions settings-actions-split profile-actions">
+              <button
+                class="settings-button-primary profile-open-button"
+                id="profileOpenButton"
+                type="button"
+              >
+                Открыть
+              </button>
+              <button
+                class="settings-button-secondary profile-save-as-button"
+                id="profileSaveAsButton"
+                type="button"
+                aria-controls="profileSaveForm"
+                aria-expanded="false"
+              >
+                Сохранить как новый
+              </button>
+              <button
+                class="settings-button-danger profile-delete-button"
+                id="profileDeleteButton"
+                type="button"
+              >
+                Удалить набор
+              </button>
+            </div>
+
+            <div class="profile-save-form" id="profileSaveForm" hidden>
+              <label class="settings-field-label" for="profileNameInput">Название нового набора</label>
+              <input
+                class="profile-name-input"
+                id="profileNameInput"
+                type="text"
+                maxlength="60"
+                autocomplete="off"
+                spellcheck="false"
+                aria-describedby="profileNameMessage"
+              >
+              <p class="settings-message" id="profileNameMessage" aria-live="polite"></p>
+              <div class="settings-actions settings-actions-split profile-save-actions">
+                <button
+                  class="settings-button-secondary profile-save-cancel-button"
+                  id="profileSaveCancelButton"
+                  type="button"
+                >
+                  Отмена
+                </button>
+                <button
+                  class="settings-button-primary profile-save-confirm-button"
+                  id="profileSaveConfirmButton"
+                  type="button"
+                >
+                  Сохранить
+                </button>
+              </div>
+            </div>
+
+            <p
+              class="settings-message profile-message"
+              id="profileMessage"
+              aria-live="polite"
+              aria-atomic="true"
+            ></p>
+          </section>
+
+          <section class="settings-section" aria-labelledby="signalSectionTitle">
+            <h2 class="settings-section-title" id="signalSectionTitle">Сигнал</h2>
+
+            <div class="control-group">
+              <label class="settings-field-label" for="signalSelect">Тип сигнала</label>
+              <select id="signalSelect">
+                <option value="steady">Ровный тон</option>
+                <option value="low">Низкий гул</option>
+                <option value="dual">Двойной тон</option>
+                <option value="siren">Сирена</option>
+                <option value="pulse">Пульс</option>
+              </select>
+            </div>
+
+            <div class="control-group">
+              <div class="volume-row">
+                <label class="settings-field-label" for="volumeControl">Громкость</label>
+                <output
+                  class="volume-value"
+                  id="volumeValue"
+                  for="volumeControl"
+                ></output>
+              </div>
+              <input
+                id="volumeControl"
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+              >
+            </div>
+
+            <button
+              class="settings-button-secondary signal-button"
+              id="signalButton"
+              type="button"
+              aria-pressed="false"
+            >
+              Проверить сигнал
+            </button>
+
+            <span id="testStatus" aria-live="polite" hidden></span>
+          </section>
+
+          <section class="settings-section" aria-labelledby="pauseSectionTitle">
+            <div class="settings-section-heading">
+              <h2 class="settings-section-title" id="pauseSectionTitle">Паузы</h2>
+              <span class="delay-draft-status" id="delayDraftStatus" hidden>Не сохранено</span>
+            </div>
+
+            <div class="delay-input-group">
+              <label class="settings-field-label" id="delayListLabel" for="delayInput">Список пауз</label>
+              <p class="delay-prompt" id="delayHelp">Через запятую или с новой строки. Пример: 5s*3, 2m 30s.</p>
+              <div
+                class="delay-input delay-display"
+                id="delayDisplay"
+                role="textbox"
+                aria-readonly="true"
+                tabindex="0"
+                aria-labelledby="delayListLabel"
+                aria-describedby="delayHelp"
+              ></div>
+              <textarea
+                class="delay-input"
+                id="delayInput"
+                rows="1"
+                inputmode="text"
+                autocomplete="off"
+                autocapitalize="off"
+                spellcheck="false"
+                hidden
+                aria-labelledby="delayListLabel"
+                aria-describedby="delayHelp delayMessage"
+                aria-errormessage="delayMessage"
+              ></textarea>
+              <p class="settings-message" id="delayMessage" aria-live="polite"></p>
+              <details class="delay-format-details">
+                <summary>Формат ввода</summary>
+                <p>Длительность задаётся в минутах и секундах: 2m30s. Множитель *N создаёт N экземпляров; *0 отключает паузу. Допустимый диапазон множителя — от 0 до 999.</p>
+              </details>
+              <div class="settings-actions settings-actions-split delay-actions">
+                <button
+                  class="settings-button-secondary delay-edit-button"
+                  id="editDelaysButton"
+                  type="button"
+                  aria-controls="delayInput"
+                >
+                  Редактировать список
+                </button>
+                <button
+                  class="settings-button-secondary delay-cancel-button"
+                  id="cancelDelaysButton"
+                  type="button"
+                  hidden
+                  disabled
+                >
+                  Отмена
+                </button>
+                <button
+                  class="settings-button-primary delay-apply-button"
+                  id="applyDelaysButton"
+                  type="button"
+                  hidden
+                  disabled
+                >
+                  Сохранить
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section class="settings-section" aria-labelledby="cycleSectionTitle">
+            <h2 class="settings-section-title" id="cycleSectionTitle">Текущий цикл</h2>
+
+            <div class="settings-state-card cycle-summary">
+              <p class="settings-state-card-label cycle-result-label">Последний выбор</p>
+              <output class="result is-empty" id="result">—</output>
+
+              <p class="cycle-status" id="selectedCycleStatus"></p>
+              <p class="cycle-status" id="cycleStatus"></p>
+            </div>
+
+            <p class="cycle-editing-notice" id="cycleEditingNotice" hidden>
+              Завершите редактирование списка пауз, чтобы продолжить цикл.
+            </p>
+
+            <div class="settings-actions cycle-actions">
+              <button class="settings-button-primary" id="generateButton" type="button">Выбрать из оставшихся</button>
+              <button
+                class="settings-button-danger cycle-reset-button"
+                id="resetCycleButton"
+                type="button"
+                disabled
+              >
+                Сбросить цикл
+              </button>
+            </div>
+
+            <p
+              class="visually-hidden"
+              id="cycleAnnouncement"
+              aria-live="polite"
+              aria-atomic="true"
+            ></p>
+          </section>
+
+          <footer class="settings-section settings-version-section version-label"></footer>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div
+    class="reset-cycle-dialog-overlay"
+    id="resetCycleDialogOverlay"
+    aria-hidden="true"
+    hidden
+  >
+    <section
+      class="reset-cycle-dialog"
+      id="resetCycleDialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="resetCycleDialogTitle"
+      aria-describedby="resetCycleDialogDescription"
+    >
+      <h2
+        class="reset-cycle-dialog-title"
+        id="resetCycleDialogTitle"
+      >
+        Сбросить цикл?
+      </h2>
+
+      <p
+        class="reset-cycle-dialog-description"
+        id="resetCycleDialogDescription"
+      >
+        Выбранные паузы и состояние текущего цикла будут очищены.
+      </p>
+
+      <div class="reset-cycle-dialog-actions">
+        <button
+          class="reset-cycle-dialog-button"
+          id="resetCycleCancelButton"
+          type="button"
+        >
+          Отмена
+        </button>
+        <button
+          class="reset-cycle-dialog-button reset-cycle-dialog-confirm"
+          id="resetCycleConfirmButton"
+          type="button"
+        >
+          Сбросить
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const APP_CONFIG = Object.freeze({
+        version: "0.11.9",
+        defaults: Object.freeze({
+          delays: "2s, 5s, 10s, 2m30s",
+          signal: "steady",
+          volume: 30
+        }),
+        storageKeys: Object.freeze({
+          delays: "random_timer.delays",
+          signal: "random_timer.signal",
+          volume: "random_timer.volume",
+          profilePrefix: "random_timer.settingsProfile.v1.",
+          activeProfile: "random_timer.activeSettingsProfile.v1"
+        }),
+        profile: Object.freeze({
+          schemaVersion: 1,
+          defaultId: "main",
+          defaultName: "Основной",
+          maximumNameLength: 60
+        }),
+        feedback: Object.freeze({
+          vibrationMilliseconds: 20
+        }),
+        delayValidation: Object.freeze({
+          debounceMilliseconds: 750
+        }),
+        signalTypes: Object.freeze([
+          "steady",
+          "low",
+          "dual",
+          "siren",
+          "pulse"
+        ])
+      });
+
+      const AppMode = Object.freeze({
+        IDLE: "idle",
+        WAITING: "waiting",
+        SIGNALING: "signaling"
+      });
+
+
+      const UI_TEXT = Object.freeze({
+        versionPrefix: "Версия",
+        delayError: Object.freeze({
+          invalidPrefix: "Некорректное значение: ",
+          format: "Проверьте формат пауз",
+          multiplierTooLargePrefix: "Множитель не должен превышать 999: ",
+          emptyEntry: "Обнаружено пустое значение между разделителями",
+          noEnabled: "Все паузы отключены: укажите множитель от *1 до *999 хотя бы для одной паузы"
+        }),
+        delayValidation: Object.freeze({
+          unchanged: "Изменений нет",
+          equivalent: "Список эквивалентен сохранённому",
+          validPrefix: "Корректно: ",
+          validSuffix: ". Изменения не сохранены",
+          applyTitle: "Сохранить новый список пауз?",
+          applyDescription: "Текущий цикл и история выбранных пауз будут сброшены.",
+          applyConfirm: "Сохранить"
+        }),
+        profile: Object.freeze({
+          openTitle: "Открыть набор настроек?",
+          openDescription: "Текущий цикл и история выбранных пауз будут сброшены.",
+          openConfirm: "Открыть",
+          deleteTitle: "Удалить набор настроек?",
+          deleteDescriptionPrefix: "Набор «",
+          deleteDescriptionSuffix: "» будет удалён без возможности восстановления.",
+          deleteConfirm: "Удалить",
+          created: "Набор «{name}» сохранён и открыт",
+          opened: "Набор «{name}» открыт",
+          deleted: "Набор «{name}» удалён",
+          alreadyDeleted: "Набор «{name}» уже удалён в другом окне",
+          deleteConflict: "Набор «{name}» изменён в другом окне и не удалён",
+          deleteFailed: "Не удалось удалить набор «{name}»",
+          idleRequired: "Набор «{name}»: остановите таймер или проверку сигнала, чтобы работать с наборами",
+          editingRequired: "Набор «{name}»: завершите редактирование списка пауз, чтобы работать с наборами",
+          externalChange: "Набор «{name}» изменён в другой вкладке. Откройте его заново или сохраните текущие настройки как новый набор",
+          externalDeleted: "Набор «{name}» удалён в другом окне. Откройте другой набор или сохраните текущие настройки как новый",
+          saveConflict: "Изменения набора «{name}» не сохранены: он был изменён в другой вкладке",
+          saveDeleted: "Изменения набора «{name}» не сохранены: он был удалён в другом окне",
+          openFailed: "Не удалось открыть набор «{name}»",
+          emptyName: "Введите название набора",
+          duplicateName: "Набор с таким названием уже существует",
+          createFailed: "Не удалось сохранить набор",
+          saveFailed: "Не удалось сохранить набор «{name}»"
+        }),
+        confirmation: Object.freeze({
+          cancel: "Отмена",
+          resetTitle: "Сбросить цикл?",
+          resetDescription: "Выбранные паузы и состояние текущего цикла будут очищены.",
+          resetConfirm: "Сбросить"
+        }),
+        status: Object.freeze({
+          cancelled: "Тест отменён",
+          signalEnabled: "Сигнал включён",
+          audioPrepareFailed: "Не удалось подготовить сигнал",
+          signalStartFailed: "Не удалось включить сигнал",
+          countdownPrefix: "Сигнал включится через ",
+          countdownSuffix: " секунд"
+        }),
+        cycle: Object.freeze({
+          selectedPrefix: "Выбрано: ",
+          selectedEmpty: "—",
+          remainingPrefix: "Осталось: ",
+          remainingSeparator: " из ",
+          completed: "Цикл завершён",
+          reset: "Цикл сброшен",
+          changed: "Цикл сброшен: список пауз изменён",
+          profileChanged: "Цикл сброшен: открыт набор настроек",
+          invalid: "Цикл не создан: исправьте список пауз",
+          randomUnavailable: "Не удалось получить случайное число"
+        })
+      });
+
+
+      function createCycleViewModel(cycleState, notice = "") {
+        let detail = "";
+
+        if (cycleState.valid) {
+          detail = cycleState.completed
+            ? UI_TEXT.cycle.completed
+            : `${UI_TEXT.cycle.remainingPrefix}${cycleState.remaining}${UI_TEXT.cycle.remainingSeparator}${cycleState.total}`;
+        }
+
+        const selectedValues = Array.isArray(cycleState.selected)
+          ? cycleState.selected
+          : [];
+        const selectedDetail = selectedValues.length > 0
+          ? selectedValues.join("; ")
+          : UI_TEXT.cycle.selectedEmpty;
+
+        return {
+          selectedText: `${UI_TEXT.cycle.selectedPrefix}${selectedDetail}`,
+          text: [notice, detail].filter(Boolean).join(". "),
+          resetDisabled: !cycleState.hasUsed
+        };
+      }
+
+      const MODE_PRESENTATION = Object.freeze({
+        [AppMode.IDLE]: Object.freeze({
+          primaryText: "Включить",
+          primaryAriaLabel: "Включить случайный таймер",
+          primaryClass: null,
+          signalText: "Проверить сигнал",
+          signalPressed: false
+        }),
+        [AppMode.WAITING]: Object.freeze({
+          primaryText: "Остановить",
+          primaryAriaLabel: "Остановить отсчёт",
+          primaryClass: "is-stopping",
+          signalText: "Проверить сигнал",
+          signalPressed: false
+        }),
+        [AppMode.SIGNALING]: Object.freeze({
+          primaryText: "Выключить",
+          primaryAriaLabel: "Выключить сигнал",
+          primaryClass: "is-active",
+          signalText: "Остановить проверку",
+          signalPressed: true
+        })
+      });
+
+      function createStateViewModel(state) {
+        const modePresentation =
+          MODE_PRESENTATION[state.mode] ?? MODE_PRESENTATION[AppMode.IDLE];
+
+        return {
+          primary: {
+            text: modePresentation.primaryText,
+            ariaLabel: modePresentation.primaryAriaLabel,
+            className: modePresentation.primaryClass
+          },
+          signal: {
+            text: modePresentation.signalText,
+            pressed: modePresentation.signalPressed
+          }
+        };
+      }
+
+      const ALLOWED_MODE_TRANSITIONS = Object.freeze({
+        [AppMode.IDLE]: new Set([AppMode.WAITING, AppMode.SIGNALING]),
+        [AppMode.WAITING]: new Set([AppMode.IDLE, AppMode.SIGNALING]),
+        [AppMode.SIGNALING]: new Set([AppMode.IDLE])
+      });
+
+      const ProfileStore = (() => {
+        function readLocal(key) {
+          try {
+            return localStorage.getItem(key);
+          } catch (error) {
+            console.warn(`Не удалось прочитать настройку ${key}`, error);
+            return null;
+          }
+        }
+
+        function writeLocal(key, value) {
+          try {
+            localStorage.setItem(key, value);
+            return true;
+          } catch (error) {
+            console.warn(`Не удалось сохранить настройку ${key}`, error);
+            return false;
+          }
+        }
+
+        function removeLocal(key) {
+          try {
+            localStorage.removeItem(key);
+            return true;
+          } catch (error) {
+            console.warn(`Не удалось удалить настройку ${key}`, error);
+            return false;
+          }
+        }
+
+        function readSession(key) {
+          try {
+            return sessionStorage.getItem(key);
+          } catch (error) {
+            console.warn(`Не удалось прочитать состояние вкладки ${key}`, error);
+            return null;
+          }
+        }
+
+        function writeSession(key, value) {
+          try {
+            sessionStorage.setItem(key, value);
+            return true;
+          } catch (error) {
+            console.warn(`Не удалось сохранить состояние вкладки ${key}`, error);
+            return false;
+          }
+        }
+
+        function normalizeSettings(value = {}) {
+          const signal = APP_CONFIG.signalTypes.includes(value.signal)
+            ? value.signal
+            : APP_CONFIG.defaults.signal;
+          const numericVolume = Number(value.volume);
+          const volume = Number.isFinite(numericVolume)
+            ? Math.min(100, Math.max(0, numericVolume))
+            : APP_CONFIG.defaults.volume;
+
+          return {
+            delays: typeof value.delays === "string" && value.delays
+              ? value.delays
+              : APP_CONFIG.defaults.delays,
+            signal,
+            volume
+          };
+        }
+
+        function normalizeProfile(value) {
+          if (
+            !value ||
+            value.schemaVersion !== APP_CONFIG.profile.schemaVersion ||
+            typeof value.id !== "string" ||
+            typeof value.name !== "string" ||
+            !Number.isSafeInteger(value.revision) ||
+            value.revision < 1
+          ) {
+            return null;
+          }
+
+          const name = value.name.trim().slice(
+            0,
+            APP_CONFIG.profile.maximumNameLength
+          );
+
+          if (!name) {
+            return null;
+          }
+
+          return {
+            schemaVersion: APP_CONFIG.profile.schemaVersion,
+            id: value.id,
+            name,
+            revision: value.revision,
+            updatedAt: typeof value.updatedAt === "string"
+              ? value.updatedAt
+              : "",
+            settings: normalizeSettings(value.settings)
+          };
+        }
+
+        function getProfileKey(profileId) {
+          return `${APP_CONFIG.storageKeys.profilePrefix}${profileId}`;
+        }
+
+        function readProfile(profileId) {
+          const serialized = readLocal(getProfileKey(profileId));
+
+          if (!serialized) {
+            return null;
+          }
+
+          try {
+            return normalizeProfile(JSON.parse(serialized));
+          } catch (error) {
+            console.warn(`Не удалось разобрать набор настроек ${profileId}`, error);
+            return null;
+          }
+        }
+
+        function listProfiles() {
+          const profiles = [];
+
+          try {
+            for (let index = 0; index < localStorage.length; index += 1) {
+              const key = localStorage.key(index);
+
+              if (!key?.startsWith(APP_CONFIG.storageKeys.profilePrefix)) {
+                continue;
+              }
+
+              const profileId = key.slice(
+                APP_CONFIG.storageKeys.profilePrefix.length
+              );
+              const profile = readProfile(profileId);
+
+              if (profile) {
+                profiles.push(profile);
+              }
+            }
+          } catch (error) {
+            console.warn("Не удалось получить список наборов настроек", error);
+          }
+
+          return profiles.sort((left, right) =>
+            left.name.localeCompare(right.name, "ru", {
+              sensitivity: "base"
+            })
+          );
+        }
+
+        function createProfileId() {
+          const values = new Uint32Array(4);
+          globalThis.crypto.getRandomValues(values);
+          return Array.from(values, value =>
+            value.toString(16).padStart(8, "0")
+          ).join("");
+        }
+
+        function writeProfile(profile) {
+          return writeLocal(
+            getProfileKey(profile.id),
+            JSON.stringify(profile)
+          );
+        }
+
+        function createProfile(name, settings, options = {}) {
+          const profile = {
+            schemaVersion: APP_CONFIG.profile.schemaVersion,
+            id: options.id || createProfileId(),
+            name: name.trim().slice(0, APP_CONFIG.profile.maximumNameLength),
+            revision: 1,
+            updatedAt: new Date().toISOString(),
+            settings: normalizeSettings(settings)
+          };
+
+          if (!profile.name || !writeProfile(profile)) {
+            return null;
+          }
+
+          return profile;
+        }
+
+        function loadLegacySettings() {
+          return normalizeSettings({
+            delays: readLocal(APP_CONFIG.storageKeys.delays),
+            signal: readLocal(APP_CONFIG.storageKeys.signal),
+            volume: readLocal(APP_CONFIG.storageKeys.volume)
+          });
+        }
+
+        function setActiveProfile(profileId) {
+          writeSession(APP_CONFIG.storageKeys.activeProfile, profileId);
+        }
+
+        function initialize() {
+          let profiles = listProfiles();
+
+          if (profiles.length === 0) {
+            const migrated = createProfile(
+              APP_CONFIG.profile.defaultName,
+              loadLegacySettings(),
+              { id: APP_CONFIG.profile.defaultId }
+            );
+
+            if (migrated) {
+              profiles = [migrated];
+            } else {
+              profiles = [{
+                schemaVersion: APP_CONFIG.profile.schemaVersion,
+                id: APP_CONFIG.profile.defaultId,
+                name: APP_CONFIG.profile.defaultName,
+                revision: 1,
+                updatedAt: "",
+                settings: normalizeSettings()
+              }];
+            }
+          }
+
+          const requestedProfileId = readSession(
+            APP_CONFIG.storageKeys.activeProfile
+          );
+          const profile = profiles.find(
+            candidate => candidate.id === requestedProfileId
+          ) || profiles.find(
+            candidate => candidate.id === APP_CONFIG.profile.defaultId
+          ) || profiles[0];
+
+          setActiveProfile(profile.id);
+
+          return {
+            profile,
+            profiles
+          };
+        }
+
+        function saveProfileSettings(profile, settingsPatch) {
+          const persisted = readProfile(profile.id);
+
+          if (!persisted) {
+            return {
+              ok: false,
+              reason: "deleted"
+            };
+          }
+
+          if (persisted.revision !== profile.revision) {
+            return {
+              ok: false,
+              reason: "conflict"
+            };
+          }
+
+          const updated = {
+            ...persisted,
+            revision: persisted.revision + 1,
+            updatedAt: new Date().toISOString(),
+            settings: normalizeSettings({
+              ...persisted.settings,
+              ...settingsPatch
+            })
+          };
+
+          if (!writeProfile(updated)) {
+            return {
+              ok: false,
+              reason: "write-failed"
+            };
+          }
+
+          return {
+            ok: true,
+            profile: updated
+          };
+        }
+
+        function deleteProfile(profileId, expectedRevision) {
+          const persisted = readProfile(profileId);
+
+          if (!persisted) {
+            return {
+              ok: false,
+              reason: "not-found"
+            };
+          }
+
+          if (persisted.revision !== expectedRevision) {
+            return {
+              ok: false,
+              reason: "conflict"
+            };
+          }
+
+          if (!removeLocal(getProfileKey(profileId))) {
+            return {
+              ok: false,
+              reason: "remove-failed"
+            };
+          }
+
+          return {
+            ok: true,
+            profile: persisted
+          };
+        }
+
+        return Object.freeze({
+          initialize,
+          listProfiles,
+          readProfile,
+          createProfile,
+          saveProfileSettings,
+          deleteProfile,
+          setActiveProfile,
+          getProfileKey
+        });
+      })();
+
+      const CountdownController = (() => {
+        let timeoutId = null;
+        let intervalId = null;
+
+        function clear() {
+          if (timeoutId !== null) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
+
+          if (intervalId !== null) {
+            clearInterval(intervalId);
+            intervalId = null;
+          }
+        }
+
+        function start(delaySeconds, callbacks) {
+          clear();
+          let remaining = delaySeconds;
+
+          intervalId = setInterval(() => {
+            remaining -= 1;
+
+            if (remaining > 0) {
+              callbacks.onTick(remaining);
+            }
+          }, 1000);
+
+          timeoutId = setTimeout(() => {
+            clear();
+            callbacks.onElapsed();
+          }, delaySeconds * 1000);
+        }
+
+        return Object.freeze({
+          start,
+          clear
+        });
+      })();
+
+      const AudioSignal = (() => {
+        let audioContext = null;
+        let oscillator = null;
+        let gainNode = null;
+        let modulationOscillator = null;
+        let modulationGain = null;
+        let pulseTimer = null;
+        let dualToneTimer = null;
+        let cleanupTimer = null;
+        let selectedVolume = APP_CONFIG.defaults.volume / 100;
+        let signalLevel = 1;
+        let resourceGeneration = 0;
+
+        function getAudioContextConstructor() {
+          return window.AudioContext || window.webkitAudioContext;
+        }
+
+        async function prepare() {
+          if (!audioContext) {
+            const AudioContextConstructor = getAudioContextConstructor();
+
+            if (!AudioContextConstructor) {
+              throw new Error("Web Audio API недоступен");
+            }
+
+            audioContext = new AudioContextConstructor();
+          }
+
+          if (audioContext.state === "suspended") {
+            await audioContext.resume();
+          }
+        }
+
+        function clearNodes() {
+          if (cleanupTimer !== null) {
+            clearTimeout(cleanupTimer);
+            cleanupTimer = null;
+          }
+
+          if (pulseTimer !== null) {
+            clearInterval(pulseTimer);
+            pulseTimer = null;
+          }
+
+          if (dualToneTimer !== null) {
+            clearInterval(dualToneTimer);
+            dualToneTimer = null;
+          }
+
+          if (modulationOscillator) {
+            try {
+              modulationOscillator.stop();
+            } catch {}
+            modulationOscillator = null;
+          }
+
+          modulationGain = null;
+
+          if (oscillator) {
+            try {
+              oscillator.stop();
+            } catch {}
+            oscillator = null;
+          }
+
+          gainNode = null;
+        }
+
+        function effectiveVolume() {
+          return selectedVolume * signalLevel;
+        }
+
+        function applyVolume(target = effectiveVolume()) {
+          if (!gainNode || !audioContext) {
+            return;
+          }
+
+          const now = audioContext.currentTime;
+          gainNode.gain.cancelScheduledValues(now);
+          gainNode.gain.setTargetAtTime(target, now, 0.015);
+        }
+
+        function createBaseSignal(type, frequency, level = 1) {
+          signalLevel = level;
+          oscillator = audioContext.createOscillator();
+          gainNode = audioContext.createGain();
+
+          oscillator.type = type;
+          oscillator.frequency.value = frequency;
+
+          gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+          gainNode.gain.linearRampToValueAtTime(
+            effectiveVolume(),
+            audioContext.currentTime + 0.05
+          );
+
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+          oscillator.start();
+        }
+
+        function build(type) {
+          clearNodes();
+
+          switch (type) {
+            case "low":
+              createBaseSignal("triangle", 220, 0.75);
+              break;
+
+            case "dual":
+              createBaseSignal("sine", 660, 0.7);
+              dualToneTimer = setInterval(() => {
+                if (!oscillator || !audioContext) {
+                  return;
+                }
+
+                const nextFrequency = oscillator.frequency.value < 800
+                  ? 990
+                  : 660;
+                oscillator.frequency.setTargetAtTime(
+                  nextFrequency,
+                  audioContext.currentTime,
+                  0.015
+                );
+              }, 280);
+              break;
+
+            case "siren":
+              createBaseSignal("sine", 700, 0.65);
+              modulationOscillator = audioContext.createOscillator();
+              modulationGain = audioContext.createGain();
+
+              modulationOscillator.type = "sine";
+              modulationOscillator.frequency.value = 0.8;
+              modulationGain.gain.value = 350;
+
+              modulationOscillator.connect(modulationGain);
+              modulationGain.connect(oscillator.frequency);
+              modulationOscillator.start();
+              break;
+
+            case "pulse":
+              createBaseSignal("sine", 880, 0);
+              signalLevel = 0.8;
+              pulseTimer = setInterval(() => {
+                const now = audioContext.currentTime;
+                gainNode.gain.cancelScheduledValues(now);
+                gainNode.gain.setValueAtTime(0, now);
+                gainNode.gain.linearRampToValueAtTime(
+                  effectiveVolume(),
+                  now + 0.02
+                );
+                gainNode.gain.linearRampToValueAtTime(0, now + 0.22);
+              }, 700);
+
+              {
+                const now = audioContext.currentTime;
+                gainNode.gain.setValueAtTime(0, now);
+                gainNode.gain.linearRampToValueAtTime(
+                  effectiveVolume(),
+                  now + 0.02
+                );
+                gainNode.gain.linearRampToValueAtTime(0, now + 0.22);
+              }
+              break;
+
+            case "steady":
+            default:
+              createBaseSignal("sine", 880, 0.8);
+          }
+        }
+
+        function play(type, volume) {
+          resourceGeneration += 1;
+          selectedVolume = volume;
+          build(type);
+        }
+
+        function rebuild(type, volume) {
+          play(type, volume);
+        }
+
+        function setVolume(volume, type) {
+          selectedVolume = volume;
+
+          if (type !== "pulse") {
+            applyVolume();
+          }
+        }
+
+        function stop() {
+          const stoppedGeneration = ++resourceGeneration;
+
+          if (audioContext && gainNode) {
+            const now = audioContext.currentTime;
+            gainNode.gain.cancelScheduledValues(now);
+            gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+            gainNode.gain.linearRampToValueAtTime(0, now + 0.05);
+          }
+
+          if (cleanupTimer !== null) {
+            clearTimeout(cleanupTimer);
+          }
+
+          cleanupTimer = setTimeout(() => {
+            if (resourceGeneration === stoppedGeneration) {
+              clearNodes();
+            }
+          }, 70);
+        }
+
+        function clearImmediately() {
+          resourceGeneration += 1;
+          clearNodes();
+        }
+
+        return Object.freeze({
+          prepare,
+          play,
+          rebuild,
+          setVolume,
+          stop,
+          clearImmediately
+        });
+      })();
+
+      function createDomBindings(documentRef) {
+        const requiredIds = Object.freeze([
+          "appMain",
+          "homeScreen",
+          "homeProfileName",
+          "primaryControl",
+          "settingsToggle",
+          "settingsClose",
+          "settingsPanel",
+          "profileCurrentName",
+          "profileSelect",
+          "profileOpenButton",
+          "profileSaveAsButton",
+          "profileDeleteButton",
+          "profileSaveForm",
+          "profileNameInput",
+          "profileNameMessage",
+          "profileSaveCancelButton",
+          "profileSaveConfirmButton",
+          "profileMessage",
+          "result",
+          "editDelaysButton",
+          "cancelDelaysButton",
+          "applyDelaysButton",
+          "generateButton",
+          "resetCycleButton",
+          "resetCycleDialogOverlay",
+          "resetCycleDialog",
+          "resetCycleDialogTitle",
+          "resetCycleDialogDescription",
+          "resetCycleCancelButton",
+          "resetCycleConfirmButton",
+          "selectedCycleStatus",
+          "cycleStatus",
+          "cycleEditingNotice",
+          "cycleAnnouncement",
+          "delayDisplay",
+          "delayInput",
+          "delayMessage",
+          "delayDraftStatus",
+          "signalButton",
+          "testStatus",
+          "signalSelect",
+          "volumeControl",
+          "volumeValue"
+        ]);
+
+        const elements = {};
+        const missing = [];
+
+        for (const id of requiredIds) {
+          const element = documentRef.getElementById(id);
+
+          if (element) {
+            elements[id] = element;
+          } else {
+            missing.push(`#${id}`);
+          }
+        }
+
+        const versionElements = Array.from(
+          documentRef.querySelectorAll(".home-version, .version-label")
+        );
+
+        if (versionElements.length === 0) {
+          missing.push(".home-version или .version-label");
+        }
+
+        if (!documentRef.body) {
+          missing.push("document.body");
+        }
+
+        if (missing.length > 0) {
+          throw new Error(
+            `Не удалось инициализировать random_timer: отсутствуют обязательные элементы: ${missing.join(", ")}`
+          );
+        }
+
+        return Object.freeze({
+          ...elements,
+          versionElements: Object.freeze(versionElements),
+          body: documentRef.body
+        });
+      }
+
+      function createAppView(dom) {
+        const {
+          appMain,
+          homeScreen,
+          homeProfileName,
+          primaryControl,
+          settingsToggle,
+          settingsClose,
+          settingsPanel,
+          profileCurrentName,
+          profileSelect,
+          profileOpenButton,
+          profileSaveAsButton,
+          profileDeleteButton,
+          profileSaveForm,
+          profileNameInput,
+          profileNameMessage,
+          profileSaveCancelButton,
+          profileSaveConfirmButton,
+          profileMessage,
+          result,
+          editDelaysButton,
+          cancelDelaysButton,
+          applyDelaysButton,
+          generateButton: button,
+          resetCycleButton,
+          resetCycleDialogOverlay,
+          resetCycleDialog,
+          resetCycleDialogTitle,
+          resetCycleDialogDescription,
+          resetCycleCancelButton,
+          resetCycleConfirmButton,
+          selectedCycleStatus,
+          cycleStatus,
+          cycleEditingNotice,
+          cycleAnnouncement,
+          delayDisplay,
+          delayInput,
+          delayMessage,
+          delayDraftStatus,
+          signalButton,
+          testStatus,
+          signalSelect,
+          volumeControl,
+          volumeValue,
+          versionElements,
+          body
+        } = dom;
+
+
+        let delayEditingActive = false;
+        let cycleResetDisabled = true;
+        let settingsFocusReturnTarget = settingsToggle;
+        let profileOperationsIdle = true;
+        let activeProfileId = "";
+        let activeProfileName = "";
+        let profileExternalState = null;
+        let profileMessageTemplate = "";
+
+        function renderCycleActionsState() {
+          button.disabled = delayEditingActive;
+          resetCycleButton.disabled =
+            delayEditingActive || cycleResetDisabled;
+        }
+
+        function renderProfileActionsState() {
+          const saveFormOpen = !profileSaveForm.hidden;
+          const operationsBlocked =
+            delayEditingActive || !profileOperationsIdle;
+          const selectedProfileId = profileSelect.value;
+
+          profileSelect.disabled = operationsBlocked || saveFormOpen;
+          profileOpenButton.disabled =
+            operationsBlocked ||
+            saveFormOpen ||
+            !selectedProfileId ||
+            (
+              selectedProfileId === activeProfileId &&
+              profileExternalState === null
+            );
+          profileSaveAsButton.disabled =
+            operationsBlocked || saveFormOpen;
+          profileDeleteButton.disabled =
+            operationsBlocked ||
+            saveFormOpen ||
+            !selectedProfileId ||
+            selectedProfileId === activeProfileId;
+          profileNameInput.disabled = operationsBlocked;
+          profileSaveCancelButton.disabled = operationsBlocked;
+          profileSaveConfirmButton.disabled = operationsBlocked;
+        }
+
+        function restartAnimation(element, className) {
+          element.classList.remove(className);
+          void element.offsetWidth;
+          element.classList.add(className);
+        }
+
+        function bindAnimationCleanup(element, className) {
+          element.addEventListener("animationend", () => {
+            element.classList.remove(className);
+          });
+        }
+
+        function resizeDelayInput() {
+          if (settingsPanel.hidden) {
+            return;
+          }
+
+          delayInput.style.height = "auto";
+          const borderHeight =
+            delayInput.offsetHeight - delayInput.clientHeight;
+          const targetHeight = Math.ceil(
+            delayInput.scrollHeight + borderHeight
+          );
+          const maximumHeight = 280;
+
+          delayInput.style.height =
+            `${Math.min(targetHeight, maximumHeight)}px`;
+          delayInput.style.overflowY =
+            targetHeight > maximumHeight ? "auto" : "hidden";
+        }
+
+        function initialize(settings) {
+          delayDisplay.textContent = settings.delays;
+          delayInput.value = settings.delays;
+          resizeDelayInput();
+          signalSelect.value = settings.signal;
+          volumeControl.value = String(settings.volume);
+          updateVolumeLabel();
+        }
+
+        function renderProfiles(profiles, activeProfile, options = {}) {
+          const previousSelection = profileSelect.value;
+          const availableIds = new Set(profiles.map(profile => profile.id));
+          const activeProfileChanged =
+            activeProfileId && activeProfileId !== activeProfile.id;
+          const selection =
+              !activeProfileChanged && availableIds.has(previousSelection)
+              ? previousSelection
+              : availableIds.has(activeProfile.id)
+                ? activeProfile.id
+                : profiles[0]?.id || "";
+          const optionElements = profiles.map(profile => {
+            const option = profileSelect.ownerDocument.createElement("option");
+            option.value = profile.id;
+            option.textContent = profile.name;
+            return option;
+          });
+
+          profileSelect.replaceChildren(...optionElements);
+          profileSelect.value = selection;
+          activeProfileId = activeProfile.id;
+          activeProfileName = activeProfile.name;
+          homeProfileName.textContent = activeProfile.name;
+          profileCurrentName.textContent = activeProfile.name;
+          profileExternalState = options.externalState || null;
+          renderProfileActionsState();
+        }
+
+        function renderProfileOperationAvailability(isIdle) {
+          profileOperationsIdle = isIdle;
+          renderProfileActionsState();
+
+          if (!isIdle) {
+            setProfileMessage(UI_TEXT.profile.idleRequired, true);
+          } else if (delayEditingActive) {
+            setProfileMessage(UI_TEXT.profile.editingRequired, true);
+          } else if (profileExternalState === "deleted") {
+            setProfileMessage(UI_TEXT.profile.externalDeleted, true);
+          } else if (profileExternalState === "changed") {
+            setProfileMessage(UI_TEXT.profile.externalChange, true);
+          } else if ([
+            UI_TEXT.profile.idleRequired,
+            UI_TEXT.profile.editingRequired,
+            UI_TEXT.profile.externalChange,
+            UI_TEXT.profile.externalDeleted
+          ].includes(profileMessageTemplate)) {
+            setProfileMessage("");
+          }
+        }
+
+        function getSelectedProfileId() {
+          return profileSelect.value;
+        }
+
+        function getSelectedProfileName() {
+          const selectedOption =
+            profileSelect.options[profileSelect.selectedIndex];
+
+          return selectedOption?.textContent || activeProfileName;
+        }
+
+        function handleProfileSelectionChange() {
+          renderProfileActionsState();
+        }
+
+        function openProfileSaveForm() {
+          if (profileSaveAsButton.disabled) {
+            return false;
+          }
+
+          profileSaveForm.hidden = false;
+          profileSaveAsButton.setAttribute("aria-expanded", "true");
+          profileNameInput.value = "";
+          profileNameInput.setAttribute("aria-invalid", "false");
+          profileNameMessage.textContent = "";
+          renderProfileActionsState();
+          profileNameInput.focus({ preventScroll: true });
+          return true;
+        }
+
+        function closeProfileSaveForm(options = {}) {
+          if (profileSaveForm.hidden) {
+            return false;
+          }
+
+          profileSaveForm.hidden = true;
+          profileSaveAsButton.setAttribute("aria-expanded", "false");
+          profileNameInput.value = "";
+          profileNameInput.setAttribute("aria-invalid", "false");
+          profileNameMessage.textContent = "";
+          renderProfileActionsState();
+
+          if (options.focus !== false) {
+            profileSaveAsButton.focus();
+          }
+
+          return true;
+        }
+
+        function isProfileSaveFormOpen() {
+          return !profileSaveForm.hidden;
+        }
+
+        function getProfileName() {
+          return profileNameInput.value.trim();
+        }
+
+        function showProfileNameError(message) {
+          profileNameInput.setAttribute("aria-invalid", "true");
+          profileNameMessage.textContent = message;
+          profileNameInput.focus();
+        }
+
+        function clearProfileNameError() {
+          profileNameInput.setAttribute("aria-invalid", "false");
+          profileNameMessage.textContent = "";
+        }
+
+        function setProfileMessage(
+          message,
+          isWarning = false,
+          profileName = activeProfileName
+        ) {
+          profileMessageTemplate = message;
+          profileMessage.textContent = message
+            ? message.replace("{name}", profileName)
+            : "";
+          profileMessage.classList.toggle("is-warning", isWarning);
+        }
+
+        function focusProfileOpenButton() {
+          profileOpenButton.focus();
+        }
+
+        function focusProfileSelect() {
+          profileSelect.focus();
+        }
+
+        function renderVersion() {
+          versionElements.forEach(element => {
+            element.textContent =
+              `${UI_TEXT.versionPrefix} ${APP_CONFIG.version}`;
+          });
+        }
+
+        function renderState(state) {
+          const viewModel = createStateViewModel(state);
+
+          primaryControl.textContent = viewModel.primary.text;
+          primaryControl.setAttribute(
+            "aria-label",
+            viewModel.primary.ariaLabel
+          );
+          primaryControl.classList.toggle(
+            "is-stopping",
+            viewModel.primary.className === "is-stopping"
+          );
+          primaryControl.classList.toggle(
+            "is-active",
+            viewModel.primary.className === "is-active"
+          );
+
+          signalButton.textContent = viewModel.signal.text;
+          signalButton.classList.toggle(
+            "is-active",
+            viewModel.signal.pressed
+          );
+          signalButton.setAttribute(
+            "aria-pressed",
+            String(viewModel.signal.pressed)
+          );
+          renderProfileOperationAvailability(state.mode === AppMode.IDLE);
+        }
+
+        function getDelayValue() {
+          return delayInput.value;
+        }
+
+        function setDelayValue(value) {
+          delayInput.value = value;
+        }
+
+        function setDelayDisplayValue(value) {
+          delayDisplay.textContent = value;
+        }
+
+        function blurDelayInput() {
+          if (document.activeElement === delayInput) {
+            delayInput.blur();
+          }
+        }
+
+        function focusDelayInputForEditing() {
+          delayInput.focus({ preventScroll: true });
+
+          const end = delayInput.value.length;
+          delayInput.setSelectionRange(end, end);
+        }
+
+        function renderDelayEditing(isEditing) {
+          delayEditingActive = isEditing;
+          delayDisplay.hidden = isEditing;
+          delayInput.hidden = !isEditing;
+          editDelaysButton.hidden = isEditing;
+          cancelDelaysButton.hidden = !isEditing;
+          applyDelaysButton.hidden = !isEditing;
+          delayMessage.hidden = !isEditing;
+          delayDraftStatus.hidden = true;
+          cycleEditingNotice.hidden = !isEditing;
+          renderCycleActionsState();
+          renderProfileActionsState();
+
+          if (isEditing) {
+            setProfileMessage(UI_TEXT.profile.editingRequired, true);
+            cancelDelaysButton.disabled = false;
+            applyDelaysButton.disabled = true;
+            resizeDelayInput();
+            return;
+          }
+
+          if (profileExternalState === "deleted") {
+            setProfileMessage(UI_TEXT.profile.externalDeleted, true);
+          } else if (profileExternalState === "changed") {
+            setProfileMessage(UI_TEXT.profile.externalChange, true);
+          } else if (
+            profileMessageTemplate === UI_TEXT.profile.editingRequired
+          ) {
+            setProfileMessage("");
+          }
+
+          blurDelayInput();
+          clearDelayError();
+          delayDraftStatus.hidden = true;
+          cancelDelaysButton.disabled = true;
+          applyDelaysButton.disabled = true;
+        }
+
+        function focusEditDelaysButton() {
+          editDelaysButton.focus();
+        }
+
+        function getSignalType() {
+          return signalSelect.value;
+        }
+
+        function getVolumePercent() {
+          return Number(volumeControl.value);
+        }
+
+        function updateVolumeLabel() {
+          volumeValue.textContent = `${volumeControl.value}%`;
+        }
+
+        function showDelayError(selection) {
+          delayInput.setAttribute("aria-invalid", "true");
+
+          if (selection.errorCode === "multiplier-too-large") {
+            delayMessage.textContent =
+              `${UI_TEXT.delayError.multiplierTooLargePrefix}${selection.invalidToken}`;
+            return;
+          }
+
+          if (selection.errorCode === "empty-entry") {
+            delayMessage.textContent = UI_TEXT.delayError.emptyEntry;
+            return;
+          }
+
+          if (selection.errorCode === "no-enabled-delays") {
+            delayMessage.textContent = UI_TEXT.delayError.noEnabled;
+            return;
+          }
+
+          delayMessage.textContent = selection.invalidToken
+            ? `${UI_TEXT.delayError.invalidPrefix}${selection.invalidToken}`
+            : UI_TEXT.delayError.format;
+        }
+
+        function clearDelayError() {
+          delayInput.setAttribute("aria-invalid", "false");
+          delayMessage.textContent = "";
+        }
+
+        function renderDelayValidation(validation) {
+          cancelDelaysButton.disabled = false;
+          applyDelaysButton.disabled = true;
+
+          if (validation.state === "pending") {
+            clearDelayError();
+            return;
+          }
+
+          const hasUnsavedChanges =
+            validation.state === "valid-changed" ||
+            (validation.state === "invalid" && validation.hasTextChanges);
+          delayDraftStatus.hidden = !delayEditingActive || !hasUnsavedChanges;
+
+          if (validation.state === "invalid") {
+            showDelayError(validation.result);
+            return;
+          }
+
+          delayInput.setAttribute("aria-invalid", "false");
+
+          if (validation.state === "valid-changed") {
+            delayMessage.textContent =
+              `${UI_TEXT.delayValidation.validPrefix}${formatPauseCount(validation.count)}${UI_TEXT.delayValidation.validSuffix}`;
+            applyDelaysButton.disabled = false;
+            return;
+          }
+
+          delayMessage.textContent = validation.hasTextChanges
+            ? UI_TEXT.delayValidation.equivalent
+            : UI_TEXT.delayValidation.unchanged;
+        }
+
+        function focusApplyDelaysButton() {
+          applyDelaysButton.focus();
+        }
+
+        function clearResult() {
+          result.textContent = "—";
+          result.classList.add("is-empty");
+        }
+
+        function showSelectedDelay(selected) {
+          result.textContent = selected.source;
+          result.classList.remove("is-empty");
+          restartAnimation(result, "is-updated");
+        }
+
+        function renderCycle(cycleState, notice = "") {
+          const viewModel = createCycleViewModel(cycleState, notice);
+          selectedCycleStatus.textContent = viewModel.selectedText;
+          cycleStatus.textContent = viewModel.text;
+          cycleResetDisabled = viewModel.resetDisabled;
+          renderCycleActionsState();
+
+          const announcementParts = [];
+
+          if (result.textContent && result.textContent !== "—") {
+            announcementParts.push(
+              `Последний выбор: ${result.textContent}`
+            );
+          }
+
+          announcementParts.push(viewModel.selectedText);
+
+          if (viewModel.text) {
+            announcementParts.push(viewModel.text);
+          }
+
+          cycleAnnouncement.textContent =
+            announcementParts.join(". ");
+        }
+
+        function setStatus(message) {
+          testStatus.textContent = message;
+        }
+
+        let confirmationFocusTarget = resetCycleButton;
+
+        function isResetCycleConfirmationOpen() {
+          return !resetCycleDialogOverlay.hidden;
+        }
+
+        function openConfirmation(options) {
+          if (isResetCycleConfirmationOpen()) {
+            return false;
+          }
+
+          resetCycleDialogTitle.textContent = options.title;
+          resetCycleDialogDescription.textContent = options.description;
+          resetCycleCancelButton.textContent = UI_TEXT.confirmation.cancel;
+          resetCycleConfirmButton.textContent = options.confirmText;
+          confirmationFocusTarget = options.focusTarget;
+
+          resetCycleDialogOverlay.hidden = false;
+          resetCycleDialogOverlay.setAttribute("aria-hidden", "false");
+          appMain.setAttribute("inert", "");
+          resetCycleCancelButton.focus();
+          return true;
+        }
+
+        function openResetCycleConfirmation() {
+          if (resetCycleButton.disabled) {
+            return false;
+          }
+
+          return openConfirmation({
+            title: UI_TEXT.confirmation.resetTitle,
+            description: UI_TEXT.confirmation.resetDescription,
+            confirmText: UI_TEXT.confirmation.resetConfirm,
+            focusTarget: resetCycleButton
+          });
+        }
+
+        function openApplyDelaysConfirmation() {
+          if (applyDelaysButton.disabled) {
+            return false;
+          }
+
+          return openConfirmation({
+            title: UI_TEXT.delayValidation.applyTitle,
+            description: UI_TEXT.delayValidation.applyDescription,
+            confirmText: UI_TEXT.delayValidation.applyConfirm,
+            focusTarget: applyDelaysButton
+          });
+        }
+
+        function openProfileConfirmation() {
+          if (profileOpenButton.disabled) {
+            return false;
+          }
+
+          return openConfirmation({
+            title: UI_TEXT.profile.openTitle,
+            description: UI_TEXT.profile.openDescription,
+            confirmText: UI_TEXT.profile.openConfirm,
+            focusTarget: profileOpenButton
+          });
+        }
+
+        function openProfileDeleteConfirmation(profileName) {
+          if (profileDeleteButton.disabled) {
+            return false;
+          }
+
+          return openConfirmation({
+            title: UI_TEXT.profile.deleteTitle,
+            description:
+              `${UI_TEXT.profile.deleteDescriptionPrefix}${profileName}${UI_TEXT.profile.deleteDescriptionSuffix}`,
+            confirmText: UI_TEXT.profile.deleteConfirm,
+            focusTarget: profileDeleteButton
+          });
+        }
+
+        function closeResetCycleConfirmation(options = {}) {
+          if (!isResetCycleConfirmationOpen()) {
+            return false;
+          }
+
+          const restoreFocus = options.restoreFocus !== false;
+          const focusTarget = options.focusTarget || confirmationFocusTarget;
+
+          resetCycleDialogOverlay.hidden = true;
+          resetCycleDialogOverlay.setAttribute("aria-hidden", "true");
+          appMain.removeAttribute("inert");
+
+          if (restoreFocus && typeof focusTarget.focus === "function") {
+            focusTarget.focus();
+          }
+
+          return true;
+        }
+
+        function trapResetCycleDialogFocus(event) {
+          if (
+            event.key !== "Tab" ||
+            !isResetCycleConfirmationOpen()
+          ) {
+            return false;
+          }
+
+          const focusable = [
+            resetCycleCancelButton,
+            resetCycleConfirmButton
+          ].filter(element => !element.disabled);
+
+          if (focusable.length === 0) {
+            event.preventDefault();
+            resetCycleDialog.focus();
+            return true;
+          }
+
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+          const activeElement = resetCycleDialog.ownerDocument.activeElement;
+          const focusOutsideDialog = !resetCycleDialog.contains(activeElement);
+
+          if (event.shiftKey && (activeElement === first || focusOutsideDialog)) {
+            event.preventDefault();
+            last.focus();
+            return true;
+          }
+
+          if (!event.shiftKey && (activeElement === last || focusOutsideDialog)) {
+            event.preventDefault();
+            first.focus();
+            return true;
+          }
+
+          return false;
+        }
+
+        function focusGenerateButton() {
+          button.focus();
+        }
+
+        function isSettingsOpen() {
+          return !settingsPanel.hidden;
+        }
+
+        function openSettings() {
+          if (isSettingsOpen()) {
+            settingsClose.focus({ preventScroll: true });
+            return;
+          }
+
+          const activeElement = settingsPanel.ownerDocument.activeElement;
+          settingsFocusReturnTarget =
+            activeElement instanceof HTMLElement
+              ? activeElement
+              : settingsToggle;
+
+          settingsPanel.hidden = false;
+          homeScreen.setAttribute("inert", "");
+          settingsToggle.setAttribute("aria-expanded", "true");
+          settingsPanel.scrollTop = 0;
+          body.style.overflow = "hidden";
+          resizeDelayInput();
+          settingsClose.focus({ preventScroll: true });
+        }
+
+        function closeSettings() {
+          if (!isSettingsOpen()) {
+            return false;
+          }
+
+          settingsPanel.hidden = true;
+          homeScreen.removeAttribute("inert");
+          settingsToggle.setAttribute("aria-expanded", "false");
+          body.style.overflow = "";
+
+          const focusTarget =
+            settingsFocusReturnTarget instanceof HTMLElement &&
+            settingsFocusReturnTarget.isConnected &&
+            !settingsFocusReturnTarget.hasAttribute("disabled")
+              ? settingsFocusReturnTarget
+              : settingsToggle;
+
+          focusTarget.focus({ preventScroll: true });
+          return true;
+        }
+
+        function animateGenerate() {
+          restartAnimation(button, "is-pressed");
+        }
+
+        function animateEditDelays() {
+          restartAnimation(editDelaysButton, "is-pressed");
+        }
+
+        function animateCancelDelays() {
+          restartAnimation(cancelDelaysButton, "is-pressed");
+        }
+
+        function animateApplyDelays() {
+          restartAnimation(applyDelaysButton, "is-pressed");
+        }
+
+        function animateResetCycle() {
+          restartAnimation(resetCycleButton, "is-pressed");
+        }
+
+        function animatePrimary() {
+          restartAnimation(primaryControl, "is-pressed");
+        }
+
+        function animateSignal() {
+          restartAnimation(signalButton, "is-pressed");
+        }
+
+
+        function bindAnimationCleanupHandlers() {
+          bindAnimationCleanup(result, "is-updated");
+
+          [
+            profileOpenButton,
+            profileSaveAsButton,
+            profileDeleteButton,
+            profileSaveCancelButton,
+            profileSaveConfirmButton,
+            editDelaysButton,
+            cancelDelaysButton,
+            applyDelaysButton,
+            button,
+            resetCycleButton,
+            signalButton,
+            primaryControl
+          ].forEach(element => {
+            bindAnimationCleanup(element, "is-pressed");
+          });
+        }
+
+        return Object.freeze({
+          initialize,
+          renderProfiles,
+          renderProfileOperationAvailability,
+          getSelectedProfileId,
+          getSelectedProfileName,
+          handleProfileSelectionChange,
+          openProfileSaveForm,
+          closeProfileSaveForm,
+          isProfileSaveFormOpen,
+          getProfileName,
+          showProfileNameError,
+          clearProfileNameError,
+          setProfileMessage,
+          focusProfileOpenButton,
+          focusProfileSelect,
+          renderVersion,
+          renderState,
+          resizeDelayInput,
+          getDelayValue,
+          setDelayValue,
+          setDelayDisplayValue,
+          blurDelayInput,
+          focusDelayInputForEditing,
+          renderDelayEditing,
+          focusEditDelaysButton,
+          getSignalType,
+          getVolumePercent,
+          updateVolumeLabel,
+          showDelayError,
+          clearDelayError,
+          renderDelayValidation,
+          focusApplyDelaysButton,
+          clearResult,
+          showSelectedDelay,
+          renderCycle,
+          setStatus,
+          isResetCycleConfirmationOpen,
+          openResetCycleConfirmation,
+          openApplyDelaysConfirmation,
+          openProfileConfirmation,
+          openProfileDeleteConfirmation,
+          closeResetCycleConfirmation,
+          trapResetCycleDialogFocus,
+          focusGenerateButton,
+          isSettingsOpen,
+          openSettings,
+          closeSettings,
+          animateGenerate,
+          animateEditDelays,
+          animateCancelDelays,
+          animateApplyDelays,
+          animateResetCycle,
+          animatePrimary,
+          animateSignal,
+          bindAnimationCleanupHandlers
+        });
+      }
+
+      function vibrateFeedback() {
+        if ("vibrate" in navigator) {
+          navigator.vibrate(APP_CONFIG.feedback.vibrationMilliseconds);
+        }
+      }
+
+      function parseDelayToken(token) {
+        const normalized = token.trim().toLowerCase();
+        const match = normalized.match(
+          /^(?:(\d+)m)?\s*(?:(\d+)s)?\s*(?:\*(\d+))?$/
+        );
+
+        if (!match || (!match[1] && !match[2])) {
+          return {
+            ok: false,
+            errorCode: "invalid-format"
+          };
+        }
+
+        const minutes = Number(match[1] || 0);
+        const seconds = Number(match[2] || 0);
+        const multiplier = Number(match[3] ?? 1);
+        const totalSeconds = minutes * 60 + seconds;
+
+        if (
+          !Number.isSafeInteger(totalSeconds) ||
+          totalSeconds <= 0 ||
+          !Number.isSafeInteger(multiplier) ||
+          multiplier < 0
+        ) {
+          return {
+            ok: false,
+            errorCode: "invalid-format"
+          };
+        }
+
+        if (multiplier > 999) {
+          return {
+            ok: false,
+            errorCode: "multiplier-too-large"
+          };
+        }
+
+        const source = [
+          match[1] ? `${match[1]}m` : "",
+          match[2] ? `${match[2]}s` : ""
+        ].join("");
+
+        return {
+          ok: true,
+          delay: {
+            source,
+            totalSeconds
+          },
+          multiplier
+        };
+      }
+
+      function tokenizeDelayList(value) {
+        const normalized = value.replace(/\r\n?/g, "\n");
+        const tokens = [];
+
+        for (const line of normalized.split("\n")) {
+          if (line.trim() === "") {
+            continue;
+          }
+
+          const lineTokens = line.split(",");
+
+          if (lineTokens.some(token => token.trim() === "")) {
+            return {
+              ok: false,
+              errorCode: "empty-entry",
+              invalidToken: ""
+            };
+          }
+
+          tokens.push(...lineTokens.map(token => token.trim()));
+        }
+
+        if (tokens.length === 0) {
+          return {
+            ok: false,
+            errorCode: "invalid-format",
+            invalidToken: ""
+          };
+        }
+
+        return {
+          ok: true,
+          tokens
+        };
+      }
+
+      function parseDelayList(value) {
+        const tokenized = tokenizeDelayList(value);
+
+        if (!tokenized.ok) {
+          return tokenized;
+        }
+
+        const parsed = [];
+
+        for (const token of tokenized.tokens) {
+          const tokenResult = parseDelayToken(token);
+
+          if (!tokenResult.ok) {
+            return {
+              ok: false,
+              errorCode: tokenResult.errorCode,
+              invalidToken: token
+            };
+          }
+
+          for (
+            let index = 0;
+            index < tokenResult.multiplier;
+            index += 1
+          ) {
+            parsed.push({ ...tokenResult.delay });
+          }
+        }
+
+        if (parsed.length === 0) {
+          return {
+            ok: false,
+            errorCode: "no-enabled-delays",
+            invalidToken: ""
+          };
+        }
+
+        return {
+          ok: true,
+          values: parsed
+        };
+      }
+
+      function createDelaySignature(values) {
+        return JSON.stringify(
+          values.map(value => value.totalSeconds)
+        );
+      }
+
+      function formatPauseCount(count) {
+        const absolute = Math.abs(count) % 100;
+        const lastDigit = absolute % 10;
+        let noun = "пауз";
+
+        if (absolute < 11 || absolute > 14) {
+          if (lastDigit === 1) {
+            noun = "пауза";
+          } else if (lastDigit >= 2 && lastDigit <= 4) {
+            noun = "паузы";
+          }
+        }
+
+        return `${count} ${noun}`;
+      }
+
+      function createCryptoRandomSource(cryptoApi) {
+        const UINT32_RANGE = 0x100000000;
+
+        function getIndex(length) {
+          if (
+            !Number.isInteger(length) ||
+            length <= 0 ||
+            length > UINT32_RANGE
+          ) {
+            throw new RangeError(
+              "Размер диапазона должен быть целым числом от 1 до 2^32"
+            );
+          }
+
+          if (
+            !cryptoApi ||
+            typeof cryptoApi.getRandomValues !== "function"
+          ) {
+            throw new Error("Web Crypto API недоступен");
+          }
+
+          const acceptedLimit =
+            UINT32_RANGE - (UINT32_RANGE % length);
+          const values = new Uint32Array(1);
+
+          do {
+            cryptoApi.getRandomValues(values);
+          } while (values[0] >= acceptedLimit);
+
+          return values[0] % length;
+        }
+
+        return Object.freeze({
+          getIndex
+        });
+      }
+
+      function createDelayCycle(getRandomIndex) {
+        let sourceValue = null;
+        let fullValues = [];
+        let remainingValues = [];
+        let selectedValues = [];
+
+        function createStatus(valid = true) {
+          return {
+            valid,
+            total: fullValues.length,
+            remaining: remainingValues.length,
+            selected: selectedValues.map(value => value.source),
+            completed:
+              valid &&
+              fullValues.length > 0 &&
+              remainingValues.length === 0,
+            hasUsed:
+              valid &&
+              fullValues.length > 0 &&
+              remainingValues.length < fullValues.length
+          };
+        }
+
+        function reset(value) {
+          const parsed = parseDelayList(value);
+          sourceValue = value;
+
+          if (!parsed.ok) {
+            fullValues = [];
+            remainingValues = [];
+            selectedValues = [];
+
+            return {
+              ...parsed,
+              cycle: createStatus(false)
+            };
+          }
+
+          fullValues = parsed.values.slice();
+          remainingValues = fullValues.slice();
+          selectedValues = [];
+
+          return {
+            ok: true,
+            cycle: createStatus()
+          };
+        }
+
+        function ensureCurrent(value) {
+          if (value !== sourceValue || fullValues.length === 0) {
+            return reset(value);
+          }
+
+          return {
+            ok: true,
+            cycle: createStatus()
+          };
+        }
+
+        function select(value) {
+          const prepared = ensureCurrent(value);
+
+          if (!prepared.ok) {
+            return prepared;
+          }
+
+          if (typeof getRandomIndex !== "function") {
+            throw new TypeError(
+              "Источник случайных индексов не задан"
+            );
+          }
+
+          const startsNewCycle = remainingValues.length === 0;
+          const selectionPool = startsNewCycle
+            ? fullValues
+            : remainingValues;
+          const index = getRandomIndex(selectionPool.length);
+
+          if (startsNewCycle) {
+            remainingValues = fullValues.slice();
+            selectedValues = [];
+          }
+
+          const [selected] = remainingValues.splice(index, 1);
+          selectedValues.push(selected);
+
+          return {
+            ok: true,
+            selected,
+            cycle: createStatus()
+          };
+        }
+
+        function getStatus() {
+          return createStatus(fullValues.length > 0);
+        }
+
+        return Object.freeze({
+          reset,
+          select,
+          getStatus
+        });
+      }
+
+      function createAppController(AppView, RandomSource) {
+        const state = {
+          mode: AppMode.IDLE,
+          activeTestId: null,
+          countdownRemaining: null
+        };
+
+        let operationSequence = 0;
+        const initializedProfiles = ProfileStore.initialize();
+        let activeProfile = initializedProfiles.profile;
+        let profiles = initializedProfiles.profiles;
+        let settings = {
+          ...activeProfile.settings
+        };
+        let profileExternalState = null;
+        const delayCycle = createDelayCycle(
+          RandomSource.getIndex
+        );
+        let appliedDelaySignature = "";
+        let delayValidationTimer = null;
+        let delayValidationRevision = 0;
+        let draftValidation = null;
+        let pendingConfirmationAction = null;
+        let pendingProfileId = null;
+        let pendingProfileRevision = null;
+        let pendingProfileName = "";
+        let isDelayEditing = false;
+
+        function clearPendingConfirmation() {
+          pendingConfirmationAction = null;
+          pendingProfileId = null;
+          pendingProfileRevision = null;
+          pendingProfileName = "";
+        }
+
+        function beginOperation() {
+          operationSequence += 1;
+          return operationSequence;
+        }
+
+        function invalidatePendingOperations() {
+          operationSequence += 1;
+        }
+
+        function isCurrentOperation(operationId) {
+          return operationSequence === operationId;
+        }
+
+        function refreshProfiles() {
+          const persistedProfiles = ProfileStore.listProfiles();
+          const persistedActiveProfile = persistedProfiles.find(
+            profile => profile.id === activeProfile.id
+          );
+
+          if (persistedActiveProfile) {
+            profileExternalState =
+              persistedActiveProfile.revision !== activeProfile.revision
+                ? "changed"
+                : null;
+          }
+
+          profiles = persistedProfiles.length > 0
+            ? persistedProfiles
+            : profileExternalState === "deleted"
+              ? []
+              : [activeProfile];
+          AppView.renderProfiles(profiles, activeProfile, {
+            externalState: profileExternalState
+          });
+        }
+
+        function saveActiveSettings(settingsPatch) {
+          const result = ProfileStore.saveProfileSettings(
+            activeProfile,
+            settingsPatch
+          );
+
+          if (!result.ok) {
+            if (result.reason === "conflict") {
+              profileExternalState = "changed";
+              AppView.setProfileMessage(
+                UI_TEXT.profile.saveConflict,
+                true,
+                activeProfile.name
+              );
+              refreshProfiles();
+            } else if (result.reason === "deleted") {
+              profileExternalState = "deleted";
+              AppView.setProfileMessage(
+                UI_TEXT.profile.saveDeleted,
+                true,
+                activeProfile.name
+              );
+              refreshProfiles();
+            } else {
+              AppView.setProfileMessage(
+                UI_TEXT.profile.saveFailed,
+                true,
+                activeProfile.name
+              );
+            }
+
+            return false;
+          }
+
+          activeProfile = result.profile;
+          profiles = profiles.map(profile =>
+            profile.id === activeProfile.id
+              ? activeProfile
+              : profile
+          );
+          profileExternalState = null;
+          return true;
+        }
+
+        function createDraftValidation(appliedResult) {
+          return {
+            state: "valid-unchanged",
+            value: settings.delays,
+            result: appliedResult,
+            signature: appliedDelaySignature,
+            count: appliedResult.values.length,
+            hasTextChanges: false
+          };
+        }
+
+        function openProfile(profile) {
+          cancelScheduledDelayValidation();
+          activeProfile = profile;
+          settings = {
+            ...profile.settings
+          };
+          profileExternalState = null;
+          ProfileStore.setActiveProfile(profile.id);
+
+          let appliedResult = parseDelayList(settings.delays);
+
+          if (!appliedResult.ok) {
+            settings.delays = APP_CONFIG.defaults.delays;
+            appliedResult = parseDelayList(settings.delays);
+            saveActiveSettings({
+              delays: settings.delays
+            });
+          }
+
+          appliedDelaySignature = createDelaySignature(
+            appliedResult.values
+          );
+          draftValidation = createDraftValidation(appliedResult);
+          AppView.initialize(settings);
+          AppView.renderDelayEditing(false);
+          const resetResult = delayCycle.reset(settings.delays);
+          AppView.clearResult();
+          AppView.renderCycle(
+            resetResult.cycle,
+            UI_TEXT.cycle.profileChanged
+          );
+          refreshProfiles();
+          AppView.setProfileMessage(
+            UI_TEXT.profile.opened,
+            false,
+            profile.name
+          );
+        }
+
+        function saveProfileAsNew() {
+          if (
+            state.mode !== AppMode.IDLE ||
+            isDelayEditing ||
+            !AppView.isProfileSaveFormOpen()
+          ) {
+            return;
+          }
+
+          const name = AppView.getProfileName();
+
+          if (!name) {
+            AppView.showProfileNameError(
+              UI_TEXT.profile.emptyName
+            );
+            return;
+          }
+
+          const duplicate = ProfileStore.listProfiles().some(
+            profile => profile.name.localeCompare(name, "ru", {
+              sensitivity: "base"
+            }) === 0
+          );
+
+          if (duplicate) {
+            AppView.showProfileNameError(
+              UI_TEXT.profile.duplicateName
+            );
+            return;
+          }
+
+          let profile = null;
+
+          try {
+            profile = ProfileStore.createProfile(name, settings);
+          } catch (error) {
+            console.error("Не удалось создать набор настроек", error);
+          }
+
+          if (!profile) {
+            AppView.showProfileNameError(
+              UI_TEXT.profile.createFailed
+            );
+            return;
+          }
+
+          activeProfile = profile;
+          profileExternalState = null;
+          ProfileStore.setActiveProfile(profile.id);
+          refreshProfiles();
+          AppView.closeProfileSaveForm();
+          AppView.setProfileMessage(
+            UI_TEXT.profile.created,
+            false,
+            profile.name
+          );
+          vibrateFeedback();
+        }
+
+        function deleteProfile(
+          profileId,
+          expectedRevision,
+          profileName
+        ) {
+          if (
+            !profileId ||
+            profileId === activeProfile.id ||
+            !Number.isSafeInteger(expectedRevision)
+          ) {
+            refreshProfiles();
+            AppView.setProfileMessage(
+              UI_TEXT.profile.deleteFailed,
+              true,
+              profileName
+            );
+            AppView.focusProfileSelect();
+            return;
+          }
+
+          let result;
+
+          try {
+            result = ProfileStore.deleteProfile(
+              profileId,
+              expectedRevision
+            );
+          } catch (error) {
+            console.error("Не удалось удалить набор настроек", error);
+            result = {
+              ok: false,
+              reason: "remove-failed"
+            };
+          }
+
+          refreshProfiles();
+          AppView.focusProfileSelect();
+
+          if (result.ok) {
+            AppView.setProfileMessage(
+              UI_TEXT.profile.deleted,
+              false,
+              profileName
+            );
+            vibrateFeedback();
+            return;
+          }
+
+          const message = result.reason === "not-found"
+            ? UI_TEXT.profile.alreadyDeleted
+            : result.reason === "conflict"
+              ? UI_TEXT.profile.deleteConflict
+              : UI_TEXT.profile.deleteFailed;
+
+          AppView.setProfileMessage(message, true, profileName);
+        }
+
+        function transitionTo(nextMode, options = {}) {
+          const previousMode = state.mode;
+
+          if (previousMode !== nextMode) {
+            const allowedTransitions = ALLOWED_MODE_TRANSITIONS[previousMode];
+
+            if (!allowedTransitions?.has(nextMode)) {
+              throw new Error(
+                `Недопустимый переход состояния: ${previousMode} → ${nextMode}`
+              );
+            }
+          }
+
+          state.mode = nextMode;
+
+          if (nextMode === AppMode.WAITING) {
+            state.activeTestId = Object.prototype.hasOwnProperty.call(
+              options,
+              "activeTestId"
+            )
+              ? options.activeTestId
+              : state.activeTestId;
+
+            state.countdownRemaining =
+              Object.prototype.hasOwnProperty.call(
+                options,
+                "countdownRemaining"
+              )
+                ? options.countdownRemaining
+                : state.countdownRemaining;
+          } else {
+            state.activeTestId = null;
+            state.countdownRemaining = null;
+          }
+
+          AppView.renderState(state);
+        }
+
+        function updateCountdown(remaining) {
+          if (state.mode !== AppMode.WAITING) {
+            return;
+          }
+
+          state.countdownRemaining = remaining;
+          AppView.renderState(state);
+          AppView.setStatus(
+            `${UI_TEXT.status.countdownPrefix}${remaining}${UI_TEXT.status.countdownSuffix}`
+          );
+        }
+
+        function cancelTest() {
+          invalidatePendingOperations();
+          CountdownController.clear();
+
+          if (state.mode === AppMode.WAITING) {
+            transitionTo(AppMode.IDLE);
+          }
+
+          AppView.setStatus(UI_TEXT.status.cancelled);
+        }
+
+        async function startTest(delaySeconds, testId = null) {
+          if (state.mode === AppMode.SIGNALING) {
+            return false;
+          }
+
+          if (state.mode === AppMode.WAITING) {
+            cancelTest();
+          }
+
+          CountdownController.clear();
+          const operationId = beginOperation();
+
+          transitionTo(AppMode.WAITING, {
+            activeTestId: testId,
+            countdownRemaining: delaySeconds
+          });
+          AppView.setStatus(
+            `${UI_TEXT.status.countdownPrefix}${delaySeconds}${UI_TEXT.status.countdownSuffix}`
+          );
+
+          try {
+            await AudioSignal.prepare();
+          } catch (error) {
+            if (isCurrentOperation(operationId)) {
+              CountdownController.clear();
+              transitionTo(AppMode.IDLE);
+              AppView.setStatus(UI_TEXT.status.audioPrepareFailed);
+            }
+
+            console.error("Не удалось подготовить аудио", error);
+            return false;
+          }
+
+          if (
+            !isCurrentOperation(operationId) ||
+            state.mode !== AppMode.WAITING
+          ) {
+            return false;
+          }
+
+          CountdownController.start(delaySeconds, {
+            onTick(remaining) {
+              if (
+                !isCurrentOperation(operationId) ||
+                state.mode !== AppMode.WAITING
+              ) {
+                CountdownController.clear();
+                return;
+              }
+
+              updateCountdown(remaining);
+            },
+
+            async onElapsed() {
+              if (
+                !isCurrentOperation(operationId) ||
+                state.mode !== AppMode.WAITING
+              ) {
+                return;
+              }
+
+              const started = await startSignal();
+
+              if (started) {
+                AppView.setStatus(UI_TEXT.status.signalEnabled);
+              }
+            }
+          });
+
+          return true;
+        }
+
+        async function startSignal() {
+          if (state.mode === AppMode.SIGNALING) {
+            return true;
+          }
+
+          const operationId = beginOperation();
+
+          try {
+            await AudioSignal.prepare();
+
+            if (!isCurrentOperation(operationId)) {
+              return false;
+            }
+
+            AudioSignal.play(settings.signal, settings.volume / 100);
+            transitionTo(AppMode.SIGNALING);
+            return true;
+          } catch (error) {
+            if (isCurrentOperation(operationId)) {
+              CountdownController.clear();
+              AudioSignal.clearImmediately();
+
+              if (state.mode !== AppMode.IDLE) {
+                transitionTo(AppMode.IDLE);
+              } else {
+                AppView.renderState(state);
+              }
+
+              AppView.setStatus(UI_TEXT.status.signalStartFailed);
+            }
+
+            console.error("Не удалось включить сигнал", error);
+            return false;
+          }
+        }
+
+        function stopSignal() {
+          invalidatePendingOperations();
+          AudioSignal.stop();
+
+          if (state.mode === AppMode.SIGNALING) {
+            transitionTo(AppMode.IDLE);
+          }
+        }
+
+        function cancelScheduledDelayValidation() {
+          delayValidationRevision += 1;
+
+          if (delayValidationTimer !== null) {
+            clearTimeout(delayValidationTimer);
+            delayValidationTimer = null;
+          }
+        }
+
+        function validateDelayDraft(value = AppView.getDelayValue()) {
+          const hasTextChanges = value !== settings.delays;
+          const result = parseDelayList(value);
+
+          if (!result.ok) {
+            draftValidation = {
+              state: "invalid",
+              value,
+              result,
+              hasTextChanges
+            };
+            AppView.renderDelayValidation(draftValidation);
+            return draftValidation;
+          }
+
+          const signature = createDelaySignature(result.values);
+          const stateName = signature === appliedDelaySignature
+            ? "valid-unchanged"
+            : "valid-changed";
+
+          draftValidation = {
+            state: stateName,
+            value,
+            result,
+            signature,
+            count: result.values.length,
+            hasTextChanges
+          };
+          AppView.renderDelayValidation(draftValidation);
+          return draftValidation;
+        }
+
+        function scheduleDelayDraftValidation() {
+          cancelScheduledDelayValidation();
+          const revision = delayValidationRevision;
+          const value = AppView.getDelayValue();
+
+          AppView.renderDelayValidation({
+            state: "pending",
+            hasTextChanges: value !== settings.delays
+          });
+
+          delayValidationTimer = setTimeout(() => {
+            delayValidationTimer = null;
+
+            if (
+              revision !== delayValidationRevision ||
+              AppView.getDelayValue() !== value
+            ) {
+              return;
+            }
+
+            validateDelayDraft(value);
+          }, APP_CONFIG.delayValidation.debounceMilliseconds);
+        }
+
+        function finishDelayEditing(options = {}) {
+          isDelayEditing = false;
+          AppView.renderDelayEditing(false);
+
+          if (options.focus !== false) {
+            AppView.focusEditDelaysButton();
+          }
+        }
+
+        function applyValidatedDelayDraft(validation) {
+          settings.delays = validation.value;
+          appliedDelaySignature = validation.signature;
+          AppView.setDelayDisplayValue(settings.delays);
+          saveActiveSettings({
+            delays: settings.delays
+          });
+
+          const resetResult = delayCycle.reset(settings.delays);
+          AppView.clearResult();
+          AppView.renderCycle(
+            resetResult.cycle,
+            UI_TEXT.cycle.changed
+          );
+
+          draftValidation = {
+            ...validation,
+            state: "valid-unchanged",
+            hasTextChanges: false
+          };
+          AppView.renderDelayValidation(draftValidation);
+          AppView.animateApplyDelays();
+          finishDelayEditing();
+          vibrateFeedback();
+        }
+
+        function selectDelay(options = {}) {
+          let selection;
+
+          try {
+            selection = delayCycle.select(settings.delays);
+          } catch (error) {
+            AppView.renderCycle(
+              delayCycle.getStatus(),
+              UI_TEXT.cycle.randomUnavailable
+            );
+
+            if (options.clearResultOnError) {
+              AppView.clearResult();
+            }
+
+            if (options.openSettingsOnError) {
+              AppView.openSettings();
+            }
+
+            console.error(
+              "Не удалось получить случайный индекс",
+              error
+            );
+            return null;
+          }
+
+          if (!selection.ok) {
+            AppView.showDelayError(selection);
+            AppView.renderCycle(
+              selection.cycle,
+              UI_TEXT.cycle.invalid
+            );
+
+            if (options.clearResultOnError) {
+              AppView.clearResult();
+            }
+
+            if (options.openSettingsOnError) {
+              AppView.openSettings();
+            }
+
+            return null;
+          }
+
+          AppView.showSelectedDelay(selection.selected);
+          AppView.renderCycle(selection.cycle);
+          return selection.selected;
+        }
+
+        function initialize() {
+          const loadedDelayText = settings.delays;
+          let appliedResult = parseDelayList(loadedDelayText);
+
+          if (!appliedResult.ok) {
+            settings.delays = APP_CONFIG.defaults.delays;
+            appliedResult = parseDelayList(settings.delays);
+            saveActiveSettings({
+              delays: settings.delays
+            });
+          }
+
+          const initialDraftText = settings.delays;
+
+          appliedDelaySignature = createDelaySignature(
+            appliedResult.values
+          );
+
+          AppView.initialize({
+            ...settings,
+            delays: initialDraftText
+          });
+          AppView.renderProfiles(profiles, activeProfile, {
+            externalState: null
+          });
+          const initializedCycle = delayCycle.reset(settings.delays);
+          AppView.renderCycle(initializedCycle.cycle);
+          AppView.renderVersion();
+          AppView.renderState(state);
+          AppView.bindAnimationCleanupHandlers();
+          AppView.renderDelayEditing(false);
+          draftValidation = createDraftValidation(appliedResult);
+        }
+
+        return Object.freeze({
+          initialize,
+
+          onProfileSelectionChange() {
+            AppView.handleProfileSelectionChange();
+          },
+
+          onProfileOpenRequest() {
+            if (state.mode !== AppMode.IDLE || isDelayEditing) {
+              return;
+            }
+
+            const profileId = AppView.getSelectedProfileId();
+            const profileName = AppView.getSelectedProfileName();
+
+            if (!profileId) {
+              return;
+            }
+
+            const profile = ProfileStore.readProfile(profileId);
+
+            if (!profile) {
+              refreshProfiles();
+              AppView.setProfileMessage(
+                UI_TEXT.profile.openFailed,
+                true,
+                profileName
+              );
+              return;
+            }
+
+            if (!delayCycle.getStatus().hasUsed) {
+              openProfile(profile);
+              AppView.focusProfileOpenButton();
+              return;
+            }
+
+            if (AppView.openProfileConfirmation()) {
+              pendingConfirmationAction = "open-profile";
+              pendingProfileId = profileId;
+              pendingProfileName = profileName;
+            }
+          },
+
+          onProfileDeleteRequest() {
+            if (
+              state.mode !== AppMode.IDLE ||
+              isDelayEditing ||
+              AppView.isProfileSaveFormOpen()
+            ) {
+              return;
+            }
+
+            const profileId = AppView.getSelectedProfileId();
+            const profileName = AppView.getSelectedProfileName();
+
+            if (!profileId || profileId === activeProfile.id) {
+              return;
+            }
+
+            const profile = ProfileStore.readProfile(profileId);
+
+            if (!profile) {
+              refreshProfiles();
+              AppView.setProfileMessage(
+                UI_TEXT.profile.alreadyDeleted,
+                true,
+                profileName
+              );
+              AppView.focusProfileSelect();
+              return;
+            }
+
+            if (
+              AppView.openProfileDeleteConfirmation(profile.name)
+            ) {
+              pendingConfirmationAction = "delete-profile";
+              pendingProfileId = profile.id;
+              pendingProfileRevision = profile.revision;
+              pendingProfileName = profile.name;
+            }
+          },
+
+          onProfileSaveAsRequest() {
+            if (state.mode !== AppMode.IDLE || isDelayEditing) {
+              return;
+            }
+
+            AppView.openProfileSaveForm();
+          },
+
+          onProfileSaveCancel() {
+            AppView.closeProfileSaveForm();
+          },
+
+          onProfileNameInput() {
+            AppView.clearProfileNameError();
+          },
+
+          onProfileNameKeydown(event) {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              saveProfileAsNew();
+            }
+          },
+
+          onProfileSaveConfirm() {
+            saveProfileAsNew();
+          },
+
+          onEditDelays() {
+            if (isDelayEditing) {
+              return;
+            }
+
+            isDelayEditing = true;
+            AppView.renderDelayEditing(true);
+            validateDelayDraft();
+            AppView.animateEditDelays();
+            AppView.focusDelayInputForEditing();
+          },
+
+          onDelayInput(event) {
+            if (!isDelayEditing) {
+              return;
+            }
+
+            AppView.resizeDelayInput();
+
+            if (event?.inputType === "insertFromPaste") {
+              cancelScheduledDelayValidation();
+              validateDelayDraft();
+              return;
+            }
+
+            scheduleDelayDraftValidation();
+          },
+
+          onDelayBlur() {
+            if (!isDelayEditing) {
+              return;
+            }
+
+            cancelScheduledDelayValidation();
+            validateDelayDraft();
+          },
+
+          onCancelDelayDraft() {
+            if (!isDelayEditing) {
+              return;
+            }
+
+            cancelScheduledDelayValidation();
+            AppView.setDelayValue(settings.delays);
+            AppView.setDelayDisplayValue(settings.delays);
+            draftValidation = {
+              state: "valid-unchanged",
+              value: settings.delays,
+              result: parseDelayList(settings.delays),
+              signature: appliedDelaySignature,
+              hasTextChanges: false
+            };
+            AppView.resizeDelayInput();
+            AppView.animateCancelDelays();
+            finishDelayEditing();
+          },
+
+          onApplyDelaysRequest() {
+            if (!isDelayEditing) {
+              return;
+            }
+
+            cancelScheduledDelayValidation();
+            const validation = validateDelayDraft();
+
+            if (validation.state !== "valid-changed") {
+              return;
+            }
+
+            if (!delayCycle.getStatus().hasUsed) {
+              applyValidatedDelayDraft(validation);
+              return;
+            }
+
+            if (AppView.openApplyDelaysConfirmation()) {
+              pendingConfirmationAction = "apply-delays";
+            }
+          },
+
+          onViewportResize() {
+            AppView.resizeDelayInput();
+          },
+
+          onGenerate() {
+            if (isDelayEditing) {
+              return;
+            }
+
+            const selected = selectDelay({
+              clearResultOnError: true
+            });
+
+            if (!selected) {
+              return;
+            }
+
+            AppView.animateGenerate();
+            vibrateFeedback();
+          },
+
+          onResetCycleRequest() {
+            if (isDelayEditing) {
+              return;
+            }
+
+            if (AppView.openResetCycleConfirmation()) {
+              pendingConfirmationAction = "reset-cycle";
+            }
+          },
+
+          onResetCycleCancel() {
+            clearPendingConfirmation();
+            AppView.closeResetCycleConfirmation();
+          },
+
+          onResetCycleDialogBackdrop(event) {
+            if (event.target === event.currentTarget) {
+              clearPendingConfirmation();
+              AppView.closeResetCycleConfirmation();
+            }
+          },
+
+          onResetCycleDialogKeydown(event) {
+            if (event.key === "Escape") {
+              event.preventDefault();
+              clearPendingConfirmation();
+              AppView.closeResetCycleConfirmation();
+              return;
+            }
+
+            AppView.trapResetCycleDialogFocus(event);
+          },
+
+          onResetCycleConfirm() {
+            const action = pendingConfirmationAction;
+            const profileId = pendingProfileId;
+            const profileRevision = pendingProfileRevision;
+            const profileName = pendingProfileName;
+            clearPendingConfirmation();
+
+            if (!AppView.closeResetCycleConfirmation({
+              restoreFocus: false
+            })) {
+              return;
+            }
+
+            if (action === "apply-delays") {
+              cancelScheduledDelayValidation();
+              const validation = validateDelayDraft();
+
+              if (validation.state !== "valid-changed") {
+                AppView.focusApplyDelaysButton();
+                return;
+              }
+
+              applyValidatedDelayDraft(validation);
+              return;
+            }
+
+            if (action === "open-profile") {
+              const profile = ProfileStore.readProfile(profileId);
+
+              if (!profile) {
+                refreshProfiles();
+                AppView.setProfileMessage(
+                  UI_TEXT.profile.openFailed,
+                  true,
+                  profileName
+                );
+                AppView.focusProfileOpenButton();
+                return;
+              }
+
+              openProfile(profile);
+              AppView.focusProfileOpenButton();
+              return;
+            }
+
+            if (action === "delete-profile") {
+              deleteProfile(
+                profileId,
+                profileRevision,
+                profileName
+              );
+              return;
+            }
+
+            if (action !== "reset-cycle") {
+              return;
+            }
+
+            const resetResult = delayCycle.reset(settings.delays);
+
+            AppView.renderCycle(
+              resetResult.cycle,
+              resetResult.ok
+                ? UI_TEXT.cycle.reset
+                : UI_TEXT.cycle.invalid
+            );
+            AppView.animateResetCycle();
+            AppView.focusGenerateButton();
+
+            if (!resetResult.ok) {
+              return;
+            }
+
+            vibrateFeedback();
+          },
+
+          async onPrimaryControl() {
+            AppView.animatePrimary();
+
+            switch (state.mode) {
+              case AppMode.SIGNALING:
+                stopSignal();
+                vibrateFeedback();
+                break;
+
+              case AppMode.WAITING:
+                cancelTest();
+                vibrateFeedback();
+                break;
+
+              case AppMode.IDLE:
+              default: {
+                const selected = selectDelay({
+                  openSettingsOnError: true
+                });
+
+                if (!selected) {
+                  return;
+                }
+
+                const started = await startTest(selected.totalSeconds);
+
+                if (started) {
+                  vibrateFeedback();
+                }
+              }
+            }
+          },
+
+          async onSignalButton() {
+            AppView.animateSignal();
+
+            if (state.mode === AppMode.SIGNALING) {
+              stopSignal();
+              vibrateFeedback();
+              return;
+            }
+
+            if (state.mode === AppMode.WAITING) {
+              cancelTest();
+            }
+
+            const started = await startSignal();
+
+            if (started) {
+              vibrateFeedback();
+            }
+          },
+
+
+          onSignalTypeChange() {
+            settings.signal = AppView.getSignalType();
+            saveActiveSettings({
+              signal: settings.signal
+            });
+
+            if (state.mode === AppMode.SIGNALING) {
+              AudioSignal.rebuild(
+                settings.signal,
+                settings.volume / 100
+              );
+            }
+          },
+
+          onVolumeInput() {
+            settings.volume = AppView.getVolumePercent();
+            AppView.updateVolumeLabel();
+            saveActiveSettings({
+              volume: settings.volume
+            });
+
+            if (state.mode === AppMode.SIGNALING) {
+              AudioSignal.setVolume(
+                settings.volume / 100,
+                settings.signal
+              );
+            }
+          },
+
+          onDocumentKeydown(event) {
+            if (event.key !== "Escape" || event.defaultPrevented) {
+              return;
+            }
+
+            if (AppView.isResetCycleConfirmationOpen()) {
+              event.preventDefault();
+              clearPendingConfirmation();
+              AppView.closeResetCycleConfirmation();
+              return;
+            }
+
+            if (!AppView.isSettingsOpen() || isDelayEditing) {
+              return;
+            }
+
+            if (AppView.isProfileSaveFormOpen()) {
+              event.preventDefault();
+              AppView.closeProfileSaveForm();
+              return;
+            }
+
+            event.preventDefault();
+            AppView.closeSettings();
+          },
+
+          onStorage(event) {
+            if (
+              event.storageArea !== localStorage ||
+              !event.key?.startsWith(APP_CONFIG.storageKeys.profilePrefix)
+            ) {
+              return;
+            }
+
+            if (event.key === ProfileStore.getProfileKey(activeProfile.id)) {
+              const persisted = ProfileStore.readProfile(activeProfile.id);
+
+              profileExternalState = !persisted
+                ? "deleted"
+                : persisted.revision !== activeProfile.revision
+                  ? "changed"
+                  : null;
+            }
+
+            refreshProfiles();
+            AppView.renderProfileOperationAvailability(
+              state.mode === AppMode.IDLE
+            );
+          },
+
+          openSettings() {
+            refreshProfiles();
+            AppView.openSettings();
+          },
+
+          closeSettings() {
+            AppView.closeProfileSaveForm({
+              focus: false
+            });
+            AppView.closeSettings();
+          }
+        });
+      }
+
+      function bindEvents(dom, controller) {
+        const {
+          profileSelect,
+          profileOpenButton,
+          profileSaveAsButton,
+          profileDeleteButton,
+          profileNameInput,
+          profileSaveCancelButton,
+          profileSaveConfirmButton,
+          delayInput,
+          editDelaysButton,
+          cancelDelaysButton,
+          applyDelaysButton,
+          generateButton,
+          resetCycleButton,
+          resetCycleDialogOverlay,
+          resetCycleDialog,
+          resetCycleCancelButton,
+          resetCycleConfirmButton,
+          primaryControl,
+          signalButton,
+          signalSelect,
+          volumeControl,
+          settingsToggle,
+          settingsClose
+        } = dom;
+
+        profileSelect.addEventListener(
+          "change",
+          controller.onProfileSelectionChange
+        );
+        profileOpenButton.addEventListener(
+          "click",
+          controller.onProfileOpenRequest
+        );
+        profileSaveAsButton.addEventListener(
+          "click",
+          controller.onProfileSaveAsRequest
+        );
+        profileDeleteButton.addEventListener(
+          "click",
+          controller.onProfileDeleteRequest
+        );
+        profileNameInput.addEventListener(
+          "input",
+          controller.onProfileNameInput
+        );
+        profileNameInput.addEventListener(
+          "keydown",
+          controller.onProfileNameKeydown
+        );
+        profileSaveCancelButton.addEventListener(
+          "click",
+          controller.onProfileSaveCancel
+        );
+        profileSaveConfirmButton.addEventListener(
+          "click",
+          controller.onProfileSaveConfirm
+        );
+        editDelaysButton.addEventListener(
+          "click",
+          controller.onEditDelays
+        );
+        delayInput.addEventListener("input", controller.onDelayInput);
+        delayInput.addEventListener("blur", controller.onDelayBlur);
+        cancelDelaysButton.addEventListener(
+          "click",
+          controller.onCancelDelayDraft
+        );
+        applyDelaysButton.addEventListener(
+          "click",
+          controller.onApplyDelaysRequest
+        );
+        window.addEventListener("resize", controller.onViewportResize);
+        generateButton.addEventListener("click", controller.onGenerate);
+        resetCycleButton.addEventListener(
+          "click",
+          controller.onResetCycleRequest
+        );
+        resetCycleCancelButton.addEventListener(
+          "click",
+          controller.onResetCycleCancel
+        );
+        resetCycleConfirmButton.addEventListener(
+          "click",
+          controller.onResetCycleConfirm
+        );
+        resetCycleDialogOverlay.addEventListener(
+          "click",
+          controller.onResetCycleDialogBackdrop
+        );
+        resetCycleDialog.addEventListener(
+          "keydown",
+          controller.onResetCycleDialogKeydown
+        );
+        primaryControl.addEventListener(
+          "click",
+          controller.onPrimaryControl
+        );
+        signalButton.addEventListener(
+          "click",
+          controller.onSignalButton
+        );
+        signalSelect.addEventListener(
+          "change",
+          controller.onSignalTypeChange
+        );
+        volumeControl.addEventListener(
+          "input",
+          controller.onVolumeInput
+        );
+        settingsToggle.addEventListener(
+          "click",
+          controller.openSettings
+        );
+        settingsClose.addEventListener(
+          "click",
+          controller.closeSettings
+        );
+        document.addEventListener(
+          "keydown",
+          controller.onDocumentKeydown
+        );
+        window.addEventListener("storage", controller.onStorage);
+      }
+
+      function bootstrap() {
+        const dom = createDomBindings(document);
+        const view = createAppView(dom);
+        const randomSource = createCryptoRandomSource(
+          globalThis.crypto
+        );
+        const controller = createAppController(
+          view,
+          randomSource
+        );
+
+        bindEvents(dom, controller);
+        controller.initialize();
+      }
+
+      bootstrap();
+    })();
+  </script>
+</body>
+</html>
