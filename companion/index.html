@@ -1,0 +1,785 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f3f5f8">
+  <title>ttScore Companion — Text Demo</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #162033;
+      --muted: #667186;
+      --line: #d9dee7;
+      --surface: #fff;
+      --canvas: #f3f5f8;
+      --primary: #2457d6;
+      --companion: #007f75;
+      --success: #138a52;
+      --warning: #cc8000;
+      --error: #c73543;
+      --shadow: 0 12px 38px rgba(25, 36, 55, .08);
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      min-height: 100%;
+      background: var(--canvas);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      min-height: 100%;
+      margin: 0;
+      background:
+        radial-gradient(circle at 12% -8%, rgba(36, 87, 214, .13), transparent 32rem),
+        var(--canvas);
+    }
+
+    button, input, textarea { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+    [hidden] { display: none !important; }
+
+    button:focus-visible,
+    input:focus-visible,
+    textarea:focus-visible,
+    summary:focus-visible {
+      outline: 3px solid rgba(36, 87, 214, .3);
+      outline-offset: 3px;
+    }
+
+    .shell {
+      width: min(calc(100% - 24px), 760px);
+      margin: 0 auto;
+      padding: max(30px, env(safe-area-inset-top)) 0 max(36px, env(safe-area-inset-bottom));
+    }
+
+    .hero { padding: 12px 2px 22px; }
+
+    .eyebrow {
+      margin: 0 0 9px;
+      color: var(--primary);
+      font-size: .72rem;
+      font-weight: 800;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    h1 {
+      margin-bottom: 13px;
+      font-size: clamp(2rem, 8vw, 3.7rem);
+      line-height: .99;
+      letter-spacing: -.045em;
+    }
+
+    .lede {
+      max-width: 650px;
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.52;
+    }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      min-height: 72px;
+      margin-bottom: 20px;
+      padding: 14px 17px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, .86);
+      box-shadow: 0 8px 28px rgba(28, 38, 56, .06);
+      backdrop-filter: blur(14px);
+    }
+
+    .status-copy { display: grid; gap: 4px; min-width: 0; }
+    .status-copy strong { font-size: .95rem; overflow-wrap: anywhere; }
+    .status-copy span { color: var(--muted); font-size: .78rem; overflow-wrap: anywhere; }
+
+    .status-dot {
+      flex: 0 0 auto;
+      width: 13px;
+      height: 13px;
+      border: 3px solid #fff;
+      border-radius: 50%;
+      background: #9da5b3;
+      box-shadow: 0 0 0 1px #9da5b3;
+    }
+
+    .status-dot.working { background: var(--warning); box-shadow: 0 0 0 1px var(--warning); }
+    .status-dot.success { background: var(--success); box-shadow: 0 0 0 1px var(--success); }
+    .status-dot.error { background: var(--error); box-shadow: 0 0 0 1px var(--error); }
+
+    .role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+    .section-title { grid-column: 1 / -1; margin: 6px 0 2px; font-size: 1.08rem; }
+
+    .role-card {
+      min-height: 204px;
+      padding: 23px;
+      border: 1px solid var(--line);
+      border-radius: 23px;
+      color: var(--ink);
+      text-align: left;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      cursor: pointer;
+    }
+
+    .role-card:active { transform: scale(.985); }
+    .role-card strong, .role-card > span:last-child { display: block; }
+    .role-card strong { margin: 36px 0 8px; font-size: 1.55rem; letter-spacing: -.025em; }
+    .role-card > span:last-child { color: var(--muted); font-size: .88rem; line-height: 1.45; }
+
+    .role-tag {
+      display: inline-flex;
+      padding: 6px 9px;
+      border-radius: 999px;
+      color: var(--primary);
+      font-size: .7rem;
+      font-weight: 800;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      background: rgba(36, 87, 214, .09);
+    }
+
+    .role-card.companion .role-tag { color: var(--companion); background: rgba(0, 127, 117, .1); }
+
+    .workspace { display: grid; gap: 15px; }
+
+    .workspace-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 7px 2px 1px;
+    }
+
+    .workspace-heading h2 { margin: 0; font-size: 1.68rem; letter-spacing: -.03em; }
+
+    .text-button {
+      min-height: 44px;
+      padding: 0 7px;
+      border: 0;
+      color: var(--primary);
+      font-weight: 700;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .steps { display: grid; gap: 12px; }
+
+    .step-card {
+      display: grid;
+      grid-template-columns: 35px 1fr;
+      gap: 13px;
+      padding: 19px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: var(--surface);
+      box-shadow: 0 7px 23px rgba(28, 38, 56, .045);
+    }
+
+    .step-number {
+      display: grid;
+      place-items: center;
+      width: 33px;
+      height: 33px;
+      border-radius: 11px;
+      color: var(--primary);
+      font-size: .86rem;
+      font-weight: 800;
+      background: rgba(36, 87, 214, .1);
+    }
+
+    .step-content { min-width: 0; }
+    .step-content h3 { margin-bottom: 6px; font-size: 1.03rem; }
+    .step-content > p { margin-bottom: 13px; color: var(--muted); font-size: .84rem; line-height: 1.45; }
+
+    .action-button,
+    .secondary-button,
+    .send-button {
+      min-height: 48px;
+      border-radius: 14px;
+      font-weight: 750;
+      cursor: pointer;
+    }
+
+    .action-button, .send-button {
+      width: 100%;
+      padding: 0 17px;
+      border: 0;
+      color: #fff;
+      background: var(--primary);
+      box-shadow: 0 8px 19px rgba(36, 87, 214, .2);
+    }
+
+    .secondary-button {
+      width: 100%;
+      padding: 0 14px;
+      border: 1px solid var(--line);
+      color: var(--ink);
+      background: #f7f8fa;
+    }
+
+    button:disabled { cursor: not-allowed; opacity: .42; box-shadow: none; }
+    .action-button:active, .secondary-button:active, .send-button:active { transform: translateY(1px); }
+
+    .code-area, .message-input {
+      display: block;
+      width: 100%;
+      border: 1px solid #cbd2de;
+      border-radius: 13px;
+      color: var(--ink);
+      background: #fafbfc;
+      appearance: none;
+    }
+
+    .code-area {
+      min-height: 96px;
+      margin-bottom: 9px;
+      padding: 12px;
+      resize: vertical;
+      font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+      font-size: 16px;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+
+    .message-input { min-height: 52px; margin-bottom: 9px; padding: 0 14px; font-size: 16px; }
+
+    .notice { min-height: 1.15em; margin: 8px 0 0 !important; color: var(--success) !important; font-weight: 700; }
+    .send-card { border-color: rgba(36, 87, 214, .26); background: linear-gradient(145deg, #fff, #f7f9ff); }
+
+    .received-card {
+      min-height: 180px;
+      padding: 25px;
+      border: 1px solid rgba(0, 127, 117, .25);
+      border-radius: 22px;
+      background: linear-gradient(145deg, #fff, #f1fbf8);
+      box-shadow: 0 13px 34px rgba(0, 78, 72, .08);
+    }
+
+    .received-card .eyebrow { color: var(--companion); }
+    .received-card strong { display: block; margin-top: 34px; font-size: clamp(1.65rem, 7vw, 2.65rem); line-height: 1.08; letter-spacing: -.035em; overflow-wrap: anywhere; }
+
+    .diagnostics { border: 1px solid var(--line); border-radius: 17px; background: rgba(255, 255, 255, .74); }
+    .diagnostics summary { min-height: 50px; padding: 15px 17px; font-weight: 750; cursor: pointer; }
+    .log { max-height: 220px; padding: 0 17px 15px; overflow: auto; color: var(--muted); font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: .72rem; line-height: 1.5; }
+    .log p { margin-bottom: 4px; }
+
+    footer { margin-top: 25px; padding: 0 3px; color: var(--muted); font-size: .77rem; line-height: 1.5; }
+    footer p { margin-bottom: 5px; }
+
+    @media (max-width: 620px) {
+      .role-grid { grid-template-columns: 1fr; }
+      .role-card { min-height: 150px; }
+      .role-card strong { margin-top: 22px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { scroll-behavior: auto !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <p class="eyebrow">ttScore Companion · connectivity spike</p>
+      <h1>Текст с iPhone на iPad</h1>
+      <p class="lede">WebRTC DataChannel без ttScore, звука, сервера, STUN и TURN. iPhone раздаёт Personal Hotspot, iPad подключён к нему.</p>
+    </header>
+
+    <section class="status-bar" aria-live="polite" aria-atomic="true">
+      <span id="statusDot" class="status-dot" aria-hidden="true"></span>
+      <div class="status-copy">
+        <strong id="statusText">Роль не выбрана</strong>
+        <span id="routeText">Маршрут ещё не установлен</span>
+      </div>
+    </section>
+
+    <section id="roleScreen" class="role-grid" aria-labelledby="roleTitle">
+      <h2 id="roleTitle" class="section-title">Выберите это устройство</h2>
+      <button id="choosePrimary" class="role-card" type="button">
+        <span class="role-tag">Primary</span>
+        <strong>Это iPhone</strong>
+        <span>iOS 18 · создаёт сеть и отправляет текст</span>
+      </button>
+      <button id="chooseCompanion" class="role-card companion" type="button">
+        <span class="role-tag">Companion</span>
+        <strong>Это iPad</strong>
+        <span>iPadOS 17 · подключён к iPhone и принимает текст</span>
+      </button>
+    </section>
+
+    <section id="primaryScreen" class="workspace" hidden>
+      <div class="workspace-heading">
+        <div><p class="eyebrow">Primary · iPhone</p><h2>Отправитель</h2></div>
+        <button class="text-button reset-role" type="button">Сменить роль</button>
+      </div>
+
+      <div class="steps">
+        <article class="step-card">
+          <span class="step-number">1</span>
+          <div class="step-content">
+            <h3>Создайте offer</h3>
+            <p>Safari соберёт только прямые ICE-кандидаты доступной сети.</p>
+            <button id="createOffer" class="action-button" type="button">Создать offer</button>
+          </div>
+        </article>
+
+        <article class="step-card">
+          <span class="step-number">2</span>
+          <div class="step-content">
+            <h3>Передайте offer на iPad</h3>
+            <p>Скопируйте код и вставьте его на iPad.</p>
+            <textarea id="primaryLocalCode" class="code-area" readonly placeholder="Здесь появится offer" aria-label="Код offer"></textarea>
+            <button id="copyOffer" class="secondary-button" type="button" disabled>Скопировать offer</button>
+            <p id="primaryCopyNotice" class="notice" aria-live="polite"></p>
+          </div>
+        </article>
+
+        <article class="step-card">
+          <span class="step-number">3</span>
+          <div class="step-content">
+            <h3>Вставьте answer с iPad</h3>
+            <textarea id="primaryRemoteCode" class="code-area" placeholder="Вставьте answer" aria-label="Код answer" autocapitalize="off" autocomplete="off" spellcheck="false"></textarea>
+            <button id="applyAnswer" class="action-button" type="button" disabled>Соединить</button>
+          </div>
+        </article>
+
+        <article class="step-card send-card">
+          <span class="step-number">4</span>
+          <div class="step-content">
+            <h3>Отправьте текст</h3>
+            <input id="messageInput" class="message-input" value="Тестовое сообщение" maxlength="500" aria-label="Текст сообщения">
+            <button id="sendMessage" class="send-button" type="button" disabled>Отправить на iPad</button>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="companionScreen" class="workspace" hidden>
+      <div class="workspace-heading">
+        <div><p class="eyebrow">Companion · iPad</p><h2>Получатель</h2></div>
+        <button class="text-button reset-role" type="button">Сменить роль</button>
+      </div>
+
+      <div class="steps">
+        <article class="step-card">
+          <span class="step-number">1</span>
+          <div class="step-content">
+            <h3>Вставьте offer с iPhone</h3>
+            <textarea id="companionRemoteCode" class="code-area" placeholder="Вставьте offer" aria-label="Код offer" autocapitalize="off" autocomplete="off" spellcheck="false"></textarea>
+            <button id="createAnswer" class="action-button" type="button" disabled>Создать answer</button>
+          </div>
+        </article>
+
+        <article class="step-card">
+          <span class="step-number">2</span>
+          <div class="step-content">
+            <h3>Верните answer на iPhone</h3>
+            <textarea id="companionLocalCode" class="code-area" readonly placeholder="Здесь появится answer" aria-label="Код answer"></textarea>
+            <button id="copyAnswer" class="secondary-button" type="button" disabled>Скопировать answer</button>
+            <p id="companionCopyNotice" class="notice" aria-live="polite"></p>
+          </div>
+        </article>
+
+        <article class="received-card" aria-live="polite" aria-atomic="true">
+          <p class="eyebrow">Полученный текст</p>
+          <strong id="receivedText">Сообщений пока нет</strong>
+        </article>
+      </div>
+    </section>
+
+    <details id="diagnostics" class="diagnostics" hidden>
+      <summary>Диагностика</summary>
+      <div id="log" class="log" role="log"><p>Событий пока нет.</p></div>
+    </details>
+
+    <footer>
+      <p>Критерий успеха: статус «Соединено» и текст с iPhone появляется на iPad.</p>
+      <p>Если прямой маршрут не найден, это результат теста Personal Hotspot.</p>
+      <p>Версия 0.1.0 · Один автономный файл · Данные не отправляются на сервер.</p>
+    </footer>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const MAX_CODE_LENGTH = 100000;
+      const ICE_GATHERING_TIMEOUT_MS = 12000;
+      const CONNECTION_TIMEOUT_MS = 20000;
+
+      const $ = (id) => document.getElementById(id);
+      const els = {
+        statusDot: $("statusDot"),
+        statusText: $("statusText"),
+        routeText: $("routeText"),
+        roleScreen: $("roleScreen"),
+        primaryScreen: $("primaryScreen"),
+        companionScreen: $("companionScreen"),
+        diagnostics: $("diagnostics"),
+        log: $("log"),
+        choosePrimary: $("choosePrimary"),
+        chooseCompanion: $("chooseCompanion"),
+        createOffer: $("createOffer"),
+        primaryLocalCode: $("primaryLocalCode"),
+        copyOffer: $("copyOffer"),
+        primaryCopyNotice: $("primaryCopyNotice"),
+        primaryRemoteCode: $("primaryRemoteCode"),
+        applyAnswer: $("applyAnswer"),
+        messageInput: $("messageInput"),
+        sendMessage: $("sendMessage"),
+        companionRemoteCode: $("companionRemoteCode"),
+        createAnswer: $("createAnswer"),
+        companionLocalCode: $("companionLocalCode"),
+        copyAnswer: $("copyAnswer"),
+        companionCopyNotice: $("companionCopyNotice"),
+        receivedText: $("receivedText")
+      };
+
+      let peer = null;
+      let channel = null;
+      let connectionTimer = null;
+      let logEntries = [];
+
+      function setStatus(text, tone = "idle") {
+        els.statusText.textContent = text;
+        els.statusDot.className = `status-dot${tone === "idle" ? "" : ` ${tone}`}`;
+      }
+
+      function setRoute(text) {
+        els.routeText.textContent = text;
+      }
+
+      function log(message) {
+        const time = new Date().toLocaleTimeString("ru-RU", {
+          hour12: false,
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit"
+        });
+        logEntries.push(`${time} · ${message}`);
+        if (logEntries.length > 60) logEntries = logEntries.slice(-60);
+        els.log.replaceChildren(...logEntries.map((entry) => {
+          const line = document.createElement("p");
+          line.textContent = entry;
+          return line;
+        }));
+      }
+
+      function clearConnectionTimer() {
+        if (connectionTimer !== null) window.clearTimeout(connectionTimer);
+        connectionTimer = null;
+      }
+
+      function closeConnection() {
+        clearConnectionTimer();
+        try { if (channel) channel.close(); } catch (_) {}
+        try { if (peer) peer.close(); } catch (_) {}
+        channel = null;
+        peer = null;
+        els.sendMessage.disabled = true;
+      }
+
+      function resetUi() {
+        closeConnection();
+        logEntries = [];
+        els.log.innerHTML = "<p>Событий пока нет.</p>";
+        els.roleScreen.hidden = false;
+        els.primaryScreen.hidden = true;
+        els.companionScreen.hidden = true;
+        els.diagnostics.hidden = true;
+        els.primaryLocalCode.value = "";
+        els.primaryRemoteCode.value = "";
+        els.companionLocalCode.value = "";
+        els.companionRemoteCode.value = "";
+        els.receivedText.textContent = "Сообщений пока нет";
+        els.copyOffer.disabled = true;
+        els.copyAnswer.disabled = true;
+        els.applyAnswer.disabled = true;
+        els.createAnswer.disabled = true;
+        els.primaryCopyNotice.textContent = "";
+        els.companionCopyNotice.textContent = "";
+        setStatus("Роль не выбрана");
+        setRoute("Маршрут ещё не установлен");
+      }
+
+      function chooseRole(role) {
+        closeConnection();
+        logEntries = [];
+        els.log.innerHTML = "<p>Событий пока нет.</p>";
+        els.roleScreen.hidden = true;
+        els.primaryScreen.hidden = role !== "primary";
+        els.companionScreen.hidden = role !== "companion";
+        els.diagnostics.hidden = false;
+        setStatus(role === "primary" ? "iPhone: готов создать offer" : "iPad: ждёт offer");
+        setRoute("Маршрут ещё не установлен");
+        log(role === "primary" ? "Выбрана роль Primary" : "Выбрана роль Companion");
+      }
+
+      function encodeDescription(description) {
+        const bytes = new TextEncoder().encode(JSON.stringify(description));
+        let binary = "";
+        for (let i = 0; i < bytes.length; i += 1) binary += String.fromCharCode(bytes[i]);
+        return btoa(binary);
+      }
+
+      function decodeDescription(value) {
+        const compact = String(value || "").trim().replace(/\s+/g, "");
+        if (!compact) throw new Error("Код пуст.");
+        if (compact.length > MAX_CODE_LENGTH) throw new Error("Код слишком большой.");
+        let parsed;
+        try {
+          const binary = atob(compact);
+          const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+          parsed = JSON.parse(new TextDecoder().decode(bytes));
+        } catch (_) {
+          throw new Error("Код повреждён или имеет неверный формат.");
+        }
+        if (!parsed || !["offer", "answer"].includes(parsed.type) || typeof parsed.sdp !== "string") {
+          throw new Error("Это не WebRTC offer/answer.");
+        }
+        return { type: parsed.type, sdp: parsed.sdp };
+      }
+
+      function candidateCount(description) {
+        return (description.sdp.match(/^a=candidate:/gm) || []).length;
+      }
+
+      function waitForIceGathering(connection) {
+        if (connection.iceGatheringState === "complete") return Promise.resolve();
+        return new Promise((resolve) => {
+          let finished = false;
+          let timer;
+          const finish = () => {
+            if (finished) return;
+            finished = true;
+            connection.removeEventListener("icegatheringstatechange", check);
+            window.clearTimeout(timer);
+            resolve();
+          };
+          const check = () => {
+            if (connection.iceGatheringState === "complete") finish();
+          };
+          timer = window.setTimeout(() => {
+            log("Истёк тайм-аут сбора ICE-кандидатов");
+            finish();
+          }, ICE_GATHERING_TIMEOUT_MS);
+          connection.addEventListener("icegatheringstatechange", check);
+        });
+      }
+
+      async function inspectRoute() {
+        if (!peer) return;
+        try {
+          const stats = await peer.getStats();
+          let selected = null;
+          stats.forEach((report) => {
+            if (report.type === "candidate-pair" && report.state === "succeeded" && (report.nominated || report.selected)) {
+              selected = report;
+            }
+          });
+          if (!selected) {
+            setRoute("Прямое соединение установлено; выбранная ICE-пара не раскрыта");
+            return;
+          }
+          const local = selected.localCandidateId ? stats.get(selected.localCandidateId) : null;
+          const remote = selected.remoteCandidateId ? stats.get(selected.remoteCandidateId) : null;
+          const protocol = local && local.protocol ? String(local.protocol).toUpperCase() : "ICE";
+          const localType = local && local.candidateType ? local.candidateType : "неизвестно";
+          const remoteType = remote && remote.candidateType ? remote.candidateType : "неизвестно";
+          const route = `${protocol}: ${localType} → ${remoteType}`;
+          setRoute(route);
+          log(`Выбран маршрут ${route}`);
+        } catch (_) {
+          setRoute("Прямое соединение установлено; статистика маршрута недоступна");
+        }
+      }
+
+      function bindChannel(nextChannel) {
+        channel = nextChannel;
+        channel.onopen = () => {
+          clearConnectionTimer();
+          setStatus("Соединено", "success");
+          els.sendMessage.disabled = false;
+          log("DataChannel открыт");
+          inspectRoute();
+        };
+        channel.onclose = () => {
+          clearConnectionTimer();
+          els.sendMessage.disabled = true;
+          setStatus("Соединение закрыто");
+          log("DataChannel закрыт");
+        };
+        channel.onerror = () => {
+          setStatus("Ошибка DataChannel", "error");
+          log("Ошибка DataChannel");
+        };
+        channel.onmessage = (event) => {
+          let text = String(event.data);
+          try {
+            const data = JSON.parse(text);
+            if (data && typeof data.text === "string") text = data.text;
+          } catch (_) {}
+          els.receivedText.textContent = text;
+          log(`Получен текст · ${text.length} симв.`);
+        };
+      }
+
+      function createPeer() {
+        closeConnection();
+        if (!("RTCPeerConnection" in window)) throw new Error("RTCPeerConnection недоступен в этом Safari.");
+        peer = new RTCPeerConnection({ iceServers: [] });
+        peer.onicecandidate = (event) => {
+          if (event.candidate) {
+            const type = event.candidate.type || "candidate";
+            const protocol = event.candidate.protocol || "ICE";
+            log(`Найден ${type}/${protocol}`);
+          }
+        };
+        peer.onicegatheringstatechange = () => log(`ICE gathering: ${peer.iceGatheringState}`);
+        peer.oniceconnectionstatechange = () => {
+          log(`ICE: ${peer.iceConnectionState}`);
+          if (peer.iceConnectionState === "failed") setStatus("Прямой маршрут не найден", "error");
+        };
+        peer.onconnectionstatechange = () => {
+          log(`Соединение: ${peer.connectionState}`);
+          if (peer.connectionState === "failed") setStatus("Соединение не установлено", "error");
+        };
+        return peer;
+      }
+
+      function startConnectionTimeout() {
+        clearConnectionTimer();
+        connectionTimer = window.setTimeout(() => {
+          if (!channel || channel.readyState !== "open") {
+            setStatus("Прямое соединение не установлено за 20 секунд", "error");
+            log("Истёк тайм-аут установки соединения");
+          }
+        }, CONNECTION_TIMEOUT_MS);
+      }
+
+      async function createOffer() {
+        try {
+          setStatus("Создаю offer…", "working");
+          els.primaryLocalCode.value = "";
+          els.copyOffer.disabled = true;
+          const connection = createPeer();
+          bindChannel(connection.createDataChannel("ttscore-text", { ordered: true }));
+          const offer = await connection.createOffer();
+          await connection.setLocalDescription(offer);
+          await waitForIceGathering(connection);
+          if (!connection.localDescription) throw new Error("Safari не создал offer.");
+          const description = { type: connection.localDescription.type, sdp: connection.localDescription.sdp };
+          const count = candidateCount(description);
+          els.primaryLocalCode.value = encodeDescription(description);
+          els.copyOffer.disabled = false;
+          setStatus(count ? "Offer готов — передайте его на iPad" : "Offer создан без ICE-кандидатов", count ? "idle" : "error");
+          log(`Offer создан · кандидатов: ${count}`);
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : "Ошибка создания offer", "error");
+          log("Создание offer завершилось ошибкой");
+        }
+      }
+
+      async function createAnswer() {
+        try {
+          setStatus("Принимаю offer…", "working");
+          els.companionLocalCode.value = "";
+          els.copyAnswer.disabled = true;
+          const offer = decodeDescription(els.companionRemoteCode.value);
+          if (offer.type !== "offer") throw new Error("На iPad нужен код offer.");
+          const connection = createPeer();
+          connection.ondatachannel = (event) => bindChannel(event.channel);
+          await connection.setRemoteDescription(offer);
+          const answer = await connection.createAnswer();
+          await connection.setLocalDescription(answer);
+          await waitForIceGathering(connection);
+          if (!connection.localDescription) throw new Error("Safari не создал answer.");
+          const description = { type: connection.localDescription.type, sdp: connection.localDescription.sdp };
+          const count = candidateCount(description);
+          els.companionLocalCode.value = encodeDescription(description);
+          els.copyAnswer.disabled = false;
+          setStatus(count ? "Answer готов — верните его на iPhone" : "Answer создан без ICE-кандидатов", count ? "idle" : "error");
+          log(`Answer создан · кандидатов: ${count}`);
+          startConnectionTimeout();
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : "Ошибка создания answer", "error");
+          log("Создание answer завершилось ошибкой");
+        }
+      }
+
+      async function applyAnswer() {
+        try {
+          if (!peer) throw new Error("Сначала создайте offer на iPhone.");
+          const answer = decodeDescription(els.primaryRemoteCode.value);
+          if (answer.type !== "answer") throw new Error("На iPhone нужен код answer.");
+          setStatus("Устанавливаю прямое соединение…", "working");
+          await peer.setRemoteDescription(answer);
+          log("Answer применён");
+          startConnectionTimeout();
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : "Ошибка применения answer", "error");
+          log("Применение answer завершилось ошибкой");
+        }
+      }
+
+      async function copyText(value, noticeElement) {
+        if (!value) return;
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(value);
+          } else {
+            const helper = document.createElement("textarea");
+            helper.value = value;
+            helper.style.position = "fixed";
+            helper.style.opacity = "0";
+            document.body.appendChild(helper);
+            helper.focus();
+            helper.select();
+            if (!document.execCommand("copy")) throw new Error("copy failed");
+            helper.remove();
+          }
+          noticeElement.textContent = "Код скопирован";
+        } catch (_) {
+          noticeElement.textContent = "Автокопирование не удалось — выделите код вручную";
+        }
+      }
+
+      function sendMessage() {
+        const text = els.messageInput.value.trim();
+        if (!channel || channel.readyState !== "open" || !text) return;
+        channel.send(JSON.stringify({ text, sentAt: Date.now() }));
+        log(`Отправлен текст · ${text.length} симв.`);
+      }
+
+      els.choosePrimary.addEventListener("click", () => chooseRole("primary"));
+      els.chooseCompanion.addEventListener("click", () => chooseRole("companion"));
+      document.querySelectorAll(".reset-role").forEach((button) => button.addEventListener("click", resetUi));
+      els.createOffer.addEventListener("click", createOffer);
+      els.createAnswer.addEventListener("click", createAnswer);
+      els.applyAnswer.addEventListener("click", applyAnswer);
+      els.copyOffer.addEventListener("click", () => copyText(els.primaryLocalCode.value, els.primaryCopyNotice));
+      els.copyAnswer.addEventListener("click", () => copyText(els.companionLocalCode.value, els.companionCopyNotice));
+      els.sendMessage.addEventListener("click", sendMessage);
+      els.messageInput.addEventListener("input", () => {
+        els.sendMessage.disabled = !channel || channel.readyState !== "open" || !els.messageInput.value.trim();
+      });
+      els.primaryRemoteCode.addEventListener("input", () => { els.applyAnswer.disabled = !els.primaryRemoteCode.value.trim(); });
+      els.companionRemoteCode.addEventListener("input", () => { els.createAnswer.disabled = !els.companionRemoteCode.value.trim(); });
+      window.addEventListener("pagehide", closeConnection);
+
+      resetUi();
+    })();
+  </script>
+</body>
+</html>
