@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Крестики — Нолики</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app">
+    <h1>Крестики — Нолики</h1>
+
+    <fieldset class="mode-picker">
+      <legend class="sr-only">Вариант игры</legend>
+
+      <label class="mode-option">
+        <input type="radio" name="mode" value="classic-3x3" />
+        <span><strong>3×3</strong><small>3 подряд</small></span>
+      </label>
+      <label class="mode-option">
+        <input type="radio" name="mode" value="four-4x4" />
+        <span><strong>4×4</strong><small>4 подряд</small></span>
+      </label>
+      <label class="mode-option">
+        <input type="radio" name="mode" value="three-4x4" />
+        <span><strong>4×4</strong><small>3 подряд</small></span>
+      </label>
+    </fieldset>
+
+    <p id="mode-description" class="mode-description"></p>
+
+    <section id="scoreboard" class="scoreboard" aria-label="Счёт серии"></section>
+
+    <p id="status" class="status" aria-live="polite">Ваш ход (X)</p>
+
+    <section
+      id="board"
+      class="board"
+      aria-label="Игровое поле"
+      aria-busy="false"
+    ></section>
+
+    <div class="actions">
+      <button type="button" id="restart" class="primary">Новая игра</button>
+
+      <div class="reset-control">
+        <button
+          type="button"
+          id="reset-score"
+          class="secondary"
+          aria-controls="reset-score-confirmation"
+          aria-expanded="false"
+        >
+          Сбросить счёт
+        </button>
+
+        <div
+          id="reset-score-confirmation"
+          class="reset-confirmation"
+          role="group"
+          aria-label="Подтверждение сброса счёта"
+          hidden
+        >
+          <span>Сбросить?</span>
+          <button type="button" id="confirm-reset-score" class="danger-compact">Да</button>
+          <button type="button" id="cancel-reset-score" class="secondary-compact">Нет</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="modes.js"></script>
+  <script src="game-model.js"></script>
+  <script src="ai-model.js"></script>
+  <script src="score-model.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
