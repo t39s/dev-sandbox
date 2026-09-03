@@ -13,9 +13,12 @@ export function personalMatchWinPhrase(value) {
 export function activeTeamMatchStatusText(teamMatch) {
   const current = teamMatch.individualMatches.find(match => match.status === "current");
   const requirement = personalMatchWinPhrase(teamMatch.winsToFinish);
+  if (current?.result) {
+    return `Счёт личной встречи № ${current.order} завершён; ожидается подтверждение завершения. Для победы команде нужно выиграть ${requirement}.`;
+  }
   return current
     ? `Идёт личная встреча № ${current.order}. Для победы команде нужно выиграть ${requirement}.`
-    : `Ожидается назначение следующей личной встречи. Для победы команде нужно выиграть ${requirement}.`;
+    : `Пауза между личными встречами. Следующая встреча ожидает начала. Для победы команде нужно выиграть ${requirement}.`;
 }
 
 export function selectPlannedMatch(plannedOrderIds, matchId) {

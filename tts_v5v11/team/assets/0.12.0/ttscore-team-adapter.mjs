@@ -9,7 +9,9 @@ import {
 } from './firebase-source.mjs';
 import {
   assignmentMatchesBinding, bindAssignment, finishedBindingApplied, rebaseBinding,
+  prepareCurrentResultUpdate,
   prepareOperationalLiveUpdate,
+  prepareStart,
   prepareTransition,
   teamAssignment,
   validateBoundState
@@ -72,6 +74,21 @@ export async function readTeamReport(teamMatchId, recordId) {
   const raw = await readFirebaseIndividualMatchReport(teamMatchId, recordId);
   if (!raw) throw new Error('Резервная копия отчёта не найдена в Firebase.');
   return validateTeamReportRecord(raw, { teamMatchId, recordId });
+}
+
+
+export async function publishTeamStarted(teamMatchId, plannedAssignment) {
+  const published = await transactFirebaseTeamMatch(teamMatchId, current => (
+    prepareStart(current, plannedAssignment, new Date().toISOString()).data
+  ));
+  return { teamMatch: published, assignment: teamAssignment(published) };
+}
+
+export async function publishTeamCurrentResult(teamMatchId, binding, ttScoreState, result) {
+  const published = await transactFirebaseTeamMatch(teamMatchId, current => (
+    prepareCurrentResultUpdate(current, binding, ttScoreState, result, new Date().toISOString()).data
+  ));
+  return { teamMatch: published, assignment: teamAssignment(published) };
 }
 
 export async function publishTeamLive(teamMatchId, binding, ttScoreState, liveLinks) {

@@ -71,9 +71,28 @@ export function operationalRevision(raw) {
       playerA: { id: match.playerA.id, name: match.playerA.name },
       playerB: { id: match.playerB.id, name: match.playerB.name },
       status: match.status,
-      result: match.result
+      // A pending final score on current is operational UI state, not assignment identity.
+      result: match.status === 'finished' ? match.result : null
     }))
   });
+}
+
+function assignmentForMatch(team, match, revision, status) {
+  return {
+    version: TEAM_INTEGRATION_CONTRACT_VERSION,
+    status,
+    teamMatchId: team.id,
+    individualMatchId: match.id,
+    order: match.order,
+    matchDate: team.date,
+    bestOf: team.individualMatchBestOf,
+    playerA: { id: match.playerA.id, name: match.playerA.name },
+    playerB: { id: match.playerB.id, name: match.playerB.name },
+    result: match.result ? { gamesA: match.result.gamesA, gamesB: match.result.gamesB } : null,
+    liveReportUrl: status === 'current' ? (team.liveReportUrl ?? null) : null,
+    liveScoreboardUrl: status === 'current' ? (team.liveScoreboardUrl ?? null) : null,
+    revision
+  };
 }
 
 export function teamAssignment(raw) {
@@ -83,22 +102,11 @@ export function teamAssignment(raw) {
     return { version: TEAM_INTEGRATION_CONTRACT_VERSION, status: 'closed', teamMatchId: team.id, revision };
   }
   const current = team.individualMatches.filter(match => match.status === 'current');
-  if (current.length !== 1) throw new Error('Team contract: должна быть ровно одна текущая личная встреча.');
-  const match = current[0];
-  return {
-    version: TEAM_INTEGRATION_CONTRACT_VERSION,
-    status: 'current',
-    teamMatchId: team.id,
-    individualMatchId: match.id,
-    order: match.order,
-    matchDate: team.date,
-    bestOf: team.individualMatchBestOf,
-    playerA: { id: match.playerA.id, name: match.playerA.name },
-    playerB: { id: match.playerB.id, name: match.playerB.name },
-    liveReportUrl: team.liveReportUrl ?? null,
-    liveScoreboardUrl: team.liveScoreboardUrl ?? null,
-    revision
-  };
+  if (current.length > 1) throw new Error('Team contract: допускается не более одной текущей личной встречи.');
+  if (current.length === 1) return assignmentForMatch(team, current[0], revision, 'current');
+  const planned = team.individualMatches.find(match => match.status === 'planned');
+  if (!planned) throw new Error('Team contract: активная командная встреча не содержит следующей planned-встречи.');
+  return assignmentForMatch(team, planned, revision, 'planned');
 }
 
 export function assignmentMatchesBindingIdentity(assignment, binding) {
@@ -191,6 +199,55 @@ export function finishedBindingApplied(raw, binding, result, reportUrl = undefin
   return true;
 }
 
+
+export function prepareStart(raw, plannedAssignment, updatedAt) {
+  const before = prepareTeamMatch(raw);
+  if (before.completed) throw new Error('Командная встреча уже завершена.');
+  const expected = teamAssignment(raw);
+  if (expected.status !== 'planned') throw new Error('Team start: личная встреча уже запущена.');
+  if (!plannedAssignment || plannedAssignment.status !== 'planned'
+      || plannedAssignment.teamMatchId !== expected.teamMatchId
+      || plannedAssignment.individualMatchId !== expected.individualMatchId
+      || plannedAssignment.revision !== expected.revision) {
+    throw new Error('Team start: planned assignment изменился; запуск заблокирован.');
+  }
+  const normalizedUpdatedAt = requiredText(updatedAt, 'updatedAt');
+  if (!Number.isFinite(Date.parse(normalizedUpdatedAt))) throw new Error('updatedAt должен быть корректной датой ISO 8601.');
+  const updated = normalizedRaw(raw, before);
+  updated.liveReportUrl = null;
+  updated.liveScoreboardUrl = null;
+  const target = updated.individualMatches.find(match => match.id === expected.individualMatchId);
+  if (!target || target.status !== 'planned' || target.result !== null) throw new Error('Team start: planned-встреча изменилась; запуск заблокирован.');
+  target.status = 'current';
+  updated.updatedAt = normalizedUpdatedAt;
+  const prepared = prepareTeamMatch(updated);
+  return { data: updated, prepared, assignment: teamAssignment(updated) };
+}
+
+export function prepareCurrentResultUpdate(raw, binding, state, result, updatedAt) {
+  const assignment = assertCurrentBinding(raw, binding, state);
+  const before = prepareTeamMatch(raw);
+  if (before.completed) throw new Error('Командная встреча уже завершена.');
+  const normalizedUpdatedAt = requiredText(updatedAt, 'updatedAt');
+  if (!Number.isFinite(Date.parse(normalizedUpdatedAt))) throw new Error('updatedAt должен быть корректной датой ISO 8601.');
+  let normalizedResult = null;
+  if (result !== null && result !== undefined) {
+    const gamesToWin = (before.individualMatchBestOf + 1) / 2;
+    const gamesA = parseGames(result?.gamesA, 'A', gamesToWin);
+    const gamesB = parseGames(result?.gamesB, 'B', gamesToWin);
+    const valid = (gamesA === gamesToWin && gamesB < gamesToWin) || (gamesB === gamesToWin && gamesA < gamesToWin);
+    if (!valid) throw new Error(`Результат не соответствует формату «Из ${before.individualMatchBestOf} партий».`);
+    normalizedResult = { gamesA, gamesB };
+  }
+  const updated = normalizedRaw(raw, before);
+  const current = updated.individualMatches.find(match => match.id === assignment.individualMatchId);
+  if (!current || current.status !== 'current') throw new Error('Team result: текущая встреча изменилась; обновление заблокировано.');
+  current.result = normalizedResult;
+  updated.updatedAt = normalizedUpdatedAt;
+  const prepared = prepareTeamMatch(updated);
+  return { data: updated, prepared, assignment: teamAssignment(updated) };
+}
+
 export function prepareOperationalLiveUpdate(raw, liveLinks, updatedAt, binding = null, state = null) {
   const beforeRevision = operationalRevision(raw);
   if (binding) assertCurrentBinding(raw, binding, state);
@@ -228,17 +285,8 @@ export function prepareTransition(raw, input, updatedAt, nextLiveLinks = undefin
   }
   updated.updatedAt = normalizedUpdatedAt;
 
-  const afterFinish = prepareTeamMatch(updated);
-  let next = null;
-  if (!afterFinish.completed) {
-    next = afterFinish.individualMatches.find(match => match.status === 'planned') ?? null;
-    if (next) {
-      const rawNext = updated.individualMatches.find(match => match.id === next.id);
-      rawNext.status = 'current';
-      if (nextLiveLinks !== undefined) applyLiveLinks(updated, nextLiveLinks);
-    }
-  }
   const prepared = prepareTeamMatch(updated);
+  const next = prepared.completed ? null : (prepared.individualMatches.find(match => match.status === 'planned') ?? null);
   return {
     data: updated,
     prepared,

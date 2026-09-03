@@ -1,0 +1,12 @@
+.umpire-page { max-width: 760px; }
+.umpire-assignment { display:grid; gap:18px; padding:22px; border:1px solid var(--line); border-radius:18px; background:var(--surface); }
+.umpire-assignment__header { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+.umpire-assignment__header h2 { margin:0; }
+.umpire-assignment__state { display:inline-flex; align-items:center; min-height:32px; padding:5px 10px; border-radius:999px; background:var(--background); font-size:13px; font-weight:700; }
+.umpire-assignment__details { display:grid; gap:12px; margin:0; }
+.umpire-assignment__details div { display:grid; grid-template-columns:minmax(130px,.8fr) minmax(0,1.5fr); gap:12px; }
+.umpire-assignment__details dt { color:var(--muted); }
+.umpire-assignment__details dd { margin:0; font-weight:650; overflow-wrap:anywhere; }
+.umpire-open { width:100%; }
+.umpire-boundary-note { margin-top:24px; }
+@media (max-width:560px) { .umpire-assignment__header{display:grid}.umpire-assignment__details div{grid-template-columns:1fr;gap:3px} }

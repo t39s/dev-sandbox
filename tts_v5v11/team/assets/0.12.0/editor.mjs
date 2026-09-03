@@ -68,8 +68,8 @@ export function prepareEditableSource(raw, filename = null) {
   if (raw?.schemaVersion !== 4) throw new Error("Режим редактирования поддерживает только schemaVersion=4.");
   const prepared = prepareTeamMatch(raw);
   assertCanonicalPlayerIds(prepared);
-  if (!prepared.completed && prepared.individualMatches.filter(match => match.status === "current").length !== 1) {
-    throw new Error("Для редактирования должна быть ровно одна текущая личная встреча.");
+  if (!prepared.completed && prepared.individualMatches.filter(match => match.status === "current").length > 1) {
+    throw new Error("Для редактирования допускается не более одной текущей личной встречи.");
   }
   const expectedFilename = `${prepared.id}.json`;
   if (filename !== null && filename !== expectedFilename) {
