@@ -313,6 +313,9 @@
       display: none;
     }
 
+    .team-arrangement-button { line-height: .85; min-width: 58px; }
+    .team-arrangement-button span { display: block; font-weight: 800; }
+
     .toolbar {
       display: grid;
       grid-template-columns: 0.72fr 1.28fr 1.28fr 0.72fr;
@@ -1921,7 +1924,7 @@
           </div>
         </section>
 
-        <section class="settings-group" aria-labelledby="groupHandicapTitle">
+        <section class="settings-group" id="handicapSettingsGroup" aria-labelledby="groupHandicapTitle">
           <h2 class="settings-group-title" id="groupHandicapTitle">Фора</h2>
           <div class="field">
             <label>Получает фору</label>
@@ -2244,7 +2247,7 @@
     const TEAM_MODE_REQUESTED = PAGE_MODE === "score" && requestedTeamMatchId !== null;
     const TEAM_MATCH_ID = TEAM_MODE_REQUESTED && TEAM_MATCH_ID_PATTERN.test(requestedTeamMatchId || "") ? requestedTeamMatchId : "";
     const IS_TEAM_MODE = TEAM_MODE_REQUESTED;
-    const IS_JUDGE_ROLE = IS_TEAM_MODE && pageParams.get("role") === "judge";
+    const IS_UMPIRE_ROLE = IS_TEAM_MODE && pageParams.get("role") === "umpire";
 
     function localDateValue(date = new Date()) {
       const year = date.getFullYear();
@@ -2339,7 +2342,7 @@
       history: [],
       status: "setup",
       sideChangeAcknowledgedForGame: false,
-      speechEnabled: true,
+      speechEnabled: false,
       speechRate: 1.05
     });
 
@@ -2387,6 +2390,8 @@
     let teamLiveSyncQueued = false;
     let teamReleaseInFlight = false;
     let teamBackupInFlight = false;
+    let teamPrestart = false;
+    let teamStartInFlight = false;
     const liveTabId = createLiveTabId();
     const MAX_UNDO = 50;
     let historyStack = [];
@@ -2445,6 +2450,7 @@
       handicapPlayerButtons: $("handicapPlayerButtons"),
       handicapPlayerSelect: $("handicapPlayerSelect"),
       handicapPointsSelect: $("handicapPointsSelect"),
+      handicapSettingsGroup: $("handicapSettingsGroup"),
       startButton: $("startButton"),
       teamContextPanel: $("teamContextPanel"),
       teamContextSummary: $("teamContextSummary"),
@@ -2607,13 +2613,15 @@
       if (teamContextState === "closed") return "Командная встреча завершена. Нового assignment нет.";
       if (!teamAuthReady) return "Проверка авторизации Team Firebase…";
       if (!teamAuthUser) return "Assignment загружен. Для запуска войдите учётной записью редактора Firebase.";
-      if (teamAssignment?.status === "current") return `Assignment готов. Firebase: ${teamAuthUser.email || teamAuthUser.uid}.`;
+      if (teamAssignment?.status === "current") return `Личная встреча идёт. Firebase: ${teamAuthUser.email || teamAuthUser.uid}.`;
+      if (teamAssignment?.status === "planned") return `Следующая личная встреча ожидает начала. Firebase: ${teamAuthUser.email || teamAuthUser.uid}.`;
       return "Ожидание Team assignment.";
     }
 
     function teamSummaryText() {
-      if (teamAssignment?.status === "current") {
-        return `№ ${teamAssignment.order}: ${teamAssignment.playerA.name} — ${teamAssignment.playerB.name} · ${teamAssignment.matchDate} · из ${teamAssignment.bestOf} партий`;
+      if (teamAssignment?.status === "current" || teamAssignment?.status === "planned") {
+        const prefix = teamAssignment.status === "planned" ? "Следующая" : "Текущая";
+        return `${prefix} · № ${teamAssignment.order}: ${teamAssignment.playerA.name} — ${teamAssignment.playerB.name} · ${teamAssignment.matchDate} · из ${teamAssignment.bestOf} партий`;
       }
       if (teamAssignment?.status === "closed") return `Командная встреча ${teamAssignment.teamMatchId} завершена.`;
       return TEAM_MATCH_ID ? `Командная встреча: ${TEAM_MATCH_ID}` : "Team-контекст недоступен.";
@@ -2621,15 +2629,7 @@
 
     function teamCanStart() {
       if (!IS_TEAM_MODE) return validMatchDate(setupMatchDate);
-      return !!TEAM_MATCH_ID
-        && teamAssignment?.status === "current"
-        && !!teamAuthUser
-        && !teamSession?.pendingRelease
-        && (teamContextState === "ready" || teamContextState === "auth")
-        && setupMatchDate === teamAssignment.matchDate
-        && setupFormat === teamAssignment.bestOf
-        && els.playerAInput.value === teamAssignment.playerA.name
-        && els.playerBInput.value === teamAssignment.playerB.name;
+      return false;
     }
 
     function renderTeamContext() {
@@ -2644,8 +2644,13 @@
       els.teamContextStatus.dataset.state = teamContextState === "ready" ? "ready" : ((teamContextState === "error" || teamContextState === "conflict") ? "error" : teamContextState);
       els.teamAuthForm.hidden = !teamAuthReady || !!teamAuthUser || !TEAM_MATCH_ID;
       els.teamReloadButton.disabled = teamContextState === "loading" || teamReleaseInFlight || teamBackupInFlight;
-      els.teamExitButton.hidden = IS_JUDGE_ROLE;
-      els.teamExitButton.disabled = IS_JUDGE_ROLE || state.status === "match" || !!teamSession?.pendingRelease || teamReleaseInFlight || teamBackupInFlight;
+      els.teamExitButton.hidden = IS_UMPIRE_ROLE;
+      els.teamExitButton.disabled = IS_UMPIRE_ROLE || state.status === "match" || !!teamSession?.pendingRelease || teamReleaseInFlight || teamBackupInFlight;
+      els.openJsonButton.hidden = true;
+      els.handicapSettingsGroup.hidden = true;
+      els.menuButton.classList.add("team-arrangement-button");
+      els.menuButton.innerHTML = "<span>←</span><span>→</span>";
+      els.menuButton.setAttribute("aria-label", "Начальная расстановка");
 
       const locked = true;
       els.matchDateInput.disabled = locked;
@@ -2668,12 +2673,48 @@
     }
 
     function applyTeamAssignmentToSetup(assignment) {
-      if (!IS_TEAM_MODE || state.status !== "setup" || assignment?.status !== "current" || teamSession?.pendingRelease) return;
+      if (!IS_TEAM_MODE || state.status !== "setup" || !["planned", "current"].includes(assignment?.status) || teamSession?.pendingRelease) return;
       setupMatchDate = assignment.matchDate;
       setupFormat = assignment.bestOf;
+      setupHandicapPlayer = "none";
+      setupHandicapPoints = 0;
       els.playerAInput.value = assignment.playerA.name;
       els.playerBInput.value = assignment.playerB.name;
       updateHandicapPlayerNames();
+    }
+
+    function prepareTeamPrestart(assignment) {
+      if (!IS_TEAM_MODE || assignment?.status !== "planned" || teamSession?.pendingRelease) return;
+      historyStack = [];
+      state = defaultState();
+      state.matchDate = assignment.matchDate;
+      state.players = { A: assignment.playerA.name, B: assignment.playerB.name };
+      state.format = assignment.bestOf;
+      state.initialServer = "A";
+      state.initialLeftPlayer = "A";
+      state.currentFirstServer = "A";
+      state.leftPlayer = "A";
+      state.handicap = { enabled: false, player: "A", points: 0 };
+      state.score = { A: 0, B: 0 };
+      state.status = "match";
+      setupMatchDate = assignment.matchDate;
+      setupFormat = assignment.bestOf;
+      setupServer = "A";
+      setupLeft = "A";
+      setupHandicapPlayer = "none";
+      setupHandicapPoints = 0;
+      teamPrestart = true;
+      pendingRestoreState = null;
+      if (!storeTeamSession(emptyTeamSession())) {
+        teamContextState = "error";
+        render();
+        return;
+      }
+      teamContextState = teamAuthUser ? "ready" : "auth";
+      clearSavedState();
+      updateHandicapPlayerNames();
+      render();
+      window.setTimeout(() => { if (teamPrestart && activeModal !== "initialArrangement") showInitialArrangementModal(); }, 0);
     }
 
     async function loadTeamAdapter() {
@@ -2689,28 +2730,71 @@
       teamContextError = "";
 
       if (assignment.status === "closed") {
-        if (teamSession?.pendingRelease) {
-          void attemptPendingTeamRelease();
-          return;
-        }
+        if (teamSession?.pendingRelease) { void attemptPendingTeamRelease(); return; }
+        if (teamReleaseInFlight) return;
         teamContextState = "closed";
         render();
         return;
       }
 
+      if (teamReleaseInFlight) { render(); return; }
+
+      if (assignment.status === "planned") {
+        if (teamStartInFlight && teamPrestart) { render(); return; }
+        if (state.status === "match" && !teamPrestart && teamSession?.binding) {
+          teamContextState = "conflict";
+          teamContextError = "Текущая ttScore-встреча уже связана с другой Team lifecycle-фазой.";
+          render();
+          return;
+        }
+        if (!teamPrestart || state.players?.A !== assignment.playerA.name || state.players?.B !== assignment.playerB.name) {
+          prepareTeamPrestart(assignment);
+        } else {
+          teamContextState = teamAuthUser ? "ready" : "auth";
+          render();
+        }
+        return;
+      }
+
+      if (pendingRestoreState) {
+        const binding = teamSession?.binding;
+        try {
+          if (!binding || teamSession?.teamMatchId !== TEAM_MATCH_ID || !teamBindingMatchesAssignment(binding, assignment)) {
+            throw new Error("Сохранённая ttScore-встреча не соответствует текущему Team assignment.");
+          }
+          teamAdapter?.validateTeamBoundState(binding, pendingRestoreState);
+          teamContextState = teamAuthUser ? "ready" : "auth";
+          render();
+          window.setTimeout(() => { if (pendingRestoreState && activeModal !== "restoreChoice") showRestoreChoice(); }, 0);
+        } catch (error) {
+          teamContextState = "conflict";
+          teamContextError = error instanceof Error ? error.message : String(error);
+          render();
+        }
+        return;
+      }
+
       if (state.status === "match") {
+        if (teamPrestart && teamStartInFlight) {
+          teamContextState = teamAuthUser ? "syncing" : "auth";
+          render();
+          return;
+        }
         const binding = teamSession?.binding;
         if (!binding || teamSession?.teamMatchId !== TEAM_MATCH_ID) {
           teamContextState = "conflict";
-          teamContextError = "У текущей ttScore-встречи нет Team binding для этого teamMatch.";
+          teamContextError = "У текущей ttScore-встречи нет Team binding для этой уже начатой личной встречи.";
         } else if (!teamBindingMatchesAssignment(binding, assignment)) {
           teamContextState = "conflict";
           teamContextError = "Team assignment или его операционная ревизия изменились после запуска ttScore-встречи.";
         } else {
           try {
+            if (state.handicap?.enabled) throw new Error("Фора недоступна в Team-mode.");
             teamAdapter?.validateTeamBoundState(binding, state);
+            teamPrestart = false;
             teamContextState = teamAuthUser ? "ready" : "auth";
             requestTeamLiveSync();
+            if (teamAuthUser) void ensureTeamLivePublication();
           } catch (error) {
             teamContextState = "conflict";
             teamContextError = error instanceof Error ? error.message : String(error);
@@ -2778,7 +2862,7 @@
         teamAuthUnsubscribe = await adapter.observeTeamAuth(user => {
           teamAuthUser = user;
           teamAuthReady = true;
-          if (teamContextState !== "conflict" && teamContextState !== "error" && teamAssignment?.status === "current") {
+          if (teamContextState !== "conflict" && teamContextState !== "error" && ["current", "planned"].includes(teamAssignment?.status)) {
             teamContextState = user ? "ready" : "auth";
           }
           if (user) {
@@ -2919,6 +3003,9 @@
         teamAssignment = result.assignment;
         if (teamAssignment?.status === "current") {
           applyTeamAssignmentToSetup(teamAssignment);
+          teamContextState = teamAuthUser ? "ready" : "auth";
+        } else if (teamAssignment?.status === "planned") {
+          prepareTeamPrestart(teamAssignment);
           teamContextState = teamAuthUser ? "ready" : "auth";
         } else {
           teamContextState = "closed";
@@ -3466,19 +3553,25 @@
       }
     }
 
-    async function startLivePublication() {
-      closeModal();
+    async function startLivePublication({ silent = false } = {}) {
+      if (!silent) closeModal();
       if (state.status !== "match") return;
       if (livePublication && !livePublicationMatchesCurrentMeeting()) {
-        showCopyableLiveError("Live-публикация не запущена", "Сначала удалите прежнюю live-публикацию из меню.");
+        const message = "Сначала нужно закрыть прежнюю live-публикацию.";
+        if (silent && IS_TEAM_MODE) setLivePublishState("error", message);
+        else if (!silent) showCopyableLiveError("Live-публикация не запущена", message);
         return;
       }
       if (!protectedCryptoAvailable()) {
-        showCopyableLiveError("Live-публикация не поддерживается", "Live-отчёт требует HTTPS и поддержки Web Crypto API.");
+        const message = "Live-отчёт требует HTTPS и поддержки Web Crypto API.";
+        if (silent && IS_TEAM_MODE) setLivePublishState("error", message);
+        else if (!silent) showCopyableLiveError("Live-публикация не поддерживается", message);
         return;
       }
       if (!claimLivePublisherLease()) {
-        showCopyableLiveError("Конфликт вкладок", "Эта встреча уже публикуется из другой вкладки.");
+        const message = "Эта встреча уже публикуется из другой вкладки.";
+        if (silent && IS_TEAM_MODE) setLivePublishState("error", message);
+        else if (!silent) showCopyableLiveError("Конфликт вкладок", message);
         return;
       }
       liveStopping = false;
@@ -3507,10 +3600,10 @@
           ? (pendingGameEndsMatch() ? "match" : "game")
           : (state.games.length ? "game" : "state");
         await scheduleLivePublish(initialPublishKind, { immediate: true });
-        if (livePublishState === "live") showLiveShareModal();
+        if (livePublishState === "live" && !silent) showLiveShareModal();
       } catch (error) {
         setLivePublishState("error", error?.message || "Не удалось включить live-публикацию.");
-        showCopyableLiveError("Не удалось включить live-публикацию", livePublishError);
+        if (!silent) showCopyableLiveError("Не удалось включить live-публикацию", livePublishError);
       }
     }
 
@@ -3607,6 +3700,29 @@
       }
       setLivePublishState("starting", "Восстановление live-публикации…");
       await scheduleLivePublish("state", { immediate: true });
+    }
+
+    async function ensureTeamLivePublication() {
+      if (!IS_TEAM_MODE || teamPrestart || state.status !== "match" || teamAssignment?.status !== "current") return false;
+      if (livePublishInFlight || livePublishState === "starting" || livePublishState === "stopping") return false;
+      if (livePublicationMatchesCurrentMeeting()) {
+        if (livePublishState !== "live") await resumeLivePublication();
+        return livePublishState === "live";
+      }
+      if (livePublication) {
+        const stalePublication = clone(livePublication);
+        const stopped = await stopLivePublication({ silent: true });
+        if (!stopped) {
+          // Team-mode has no manual live controls: detach a stale publication and keep best-effort cleanup.
+          try { queueLiveCleanup(stalePublication); } catch (_) {}
+          storeLivePublication(null);
+          releaseLivePublisherLease();
+          liveStopping = false;
+          setLivePublishState("off");
+        }
+      }
+      await startLivePublication({ silent: true });
+      return livePublicationMatchesCurrentMeeting() && livePublishState === "live";
     }
 
     function decodeBase64UrlBytes(value, maximumBytes) {
@@ -3893,7 +4009,7 @@
         ? restored.rallies.filter(rally => rally && typeof rally === "object")
         : [];
       restored.sideChangeAcknowledgedForGame = !!restored.sideChangeAcknowledgedForGame;
-      restored.speechEnabled = typeof restored.speechEnabled === "boolean" ? restored.speechEnabled : true;
+      restored.speechEnabled = typeof restored.speechEnabled === "boolean" ? restored.speechEnabled : false;
       restored.speechRate = Number(restored.speechRate) || 1.05;
       restored.history = [];
       return restored;
@@ -3907,6 +4023,11 @@
 
     function saveState(liveReason = "state") {
       try {
+        if (IS_TEAM_MODE && teamPrestart) {
+          localStorage.removeItem(STORAGE_KEY);
+          notifyStateChanged();
+          return true;
+        }
         if (state.status !== "match") {
           localStorage.removeItem(STORAGE_KEY);
           notifyStateChanged();
@@ -4187,7 +4308,81 @@
       return "saved";
     }
 
+    async function startPlannedTeamMatch() {
+      if (!IS_TEAM_MODE || !teamPrestart || teamAssignment?.status !== "planned" || teamStartInFlight) return false;
+      if (!teamAuthUser || !teamAdapter) {
+        teamContextState = "auth";
+        teamContextError = "Для начала встречи требуется вход общей учётной записью Umpire.";
+        render();
+        return false;
+      }
+      if (!storeTeamSession(emptyTeamSession())) {
+        render();
+        return false;
+      }
+      const previousIdentity = { matchId: state.matchId, recordCreatedAt: state.recordCreatedAt, recordUpdatedAt: state.recordUpdatedAt };
+      state.matchId = createMatchId(state.matchDate, lastMatchId);
+      state.recordCreatedAt = new Date().toISOString();
+      state.recordUpdatedAt = state.recordCreatedAt;
+      lastMatchId = state.matchId;
+      state.handicap = { enabled: false, player: "A", points: 0 };
+      state.score = { A: 0, B: 0 };
+      teamStartInFlight = true;
+      teamContextState = "syncing";
+      teamContextError = "";
+      render();
+      try {
+        const started = await teamAdapter.publishTeamStarted(TEAM_MATCH_ID, teamAssignment);
+        teamAssignment = started.assignment;
+        const binding = teamAdapter.bindTeamAssignment(teamAssignment, state);
+        if (!storeTeamSession({ version: 1, teamMatchId: TEAM_MATCH_ID, binding, pendingRelease: null })) {
+          throw new Error(teamContextError || "Не удалось сохранить Team binding после запуска.");
+        }
+        teamPrestart = false;
+        teamContextState = "ready";
+        teamContextError = "";
+        if (!saveState()) throw new Error("Не удалось сохранить локальное состояние начатой встречи.");
+        closeModal();
+        updateHandicapPlayerNames();
+        render();
+        requestWakeLock();
+        void ensureTeamLivePublication();
+        return true;
+      } catch (error) {
+        if (teamAssignment?.status === "planned") Object.assign(state, previousIdentity);
+        teamContextState = "error";
+        teamContextError = `Встреча не начата: ${error instanceof Error ? error.message : String(error)}`;
+        render();
+        return false;
+      } finally {
+        teamStartInFlight = false;
+      }
+    }
+
+    async function publishTeamCurrentResult(result) {
+      if (!IS_TEAM_MODE || teamPrestart || !teamAdapter || !teamAuthUser || teamAssignment?.status !== "current") return false;
+      const binding = teamSession?.binding;
+      if (!binding) return false;
+      try {
+        const published = await teamAdapter.publishTeamCurrentResult(TEAM_MATCH_ID, binding, state, result);
+        teamAssignment = published.assignment;
+        teamContextState = "ready";
+        teamContextError = "";
+        render();
+        return true;
+      } catch (error) {
+        teamContextState = "error";
+        teamContextError = `Не удалось синхронизировать финальный счёт Team: ${error instanceof Error ? error.message : String(error)}`;
+        render();
+        return false;
+      }
+    }
+
     function addPoint(player) {
+      if (IS_TEAM_MODE && teamPrestart) {
+        showInitialArrangementModal();
+        return;
+      }
       if (isMatchOver() || isGameOver()) return;
       const server = currentServer();
       const scoreBefore = { A: state.score.A, B: state.score.B };
@@ -4221,6 +4416,7 @@
           saveState("match");
           updateHandicapPlayerNames();
           render();
+          if (IS_TEAM_MODE) void publishTeamCurrentResult(finalTeamResult());
           speak(scorePhrase());
           showMatchOver();
         } else {
@@ -4249,6 +4445,7 @@
     function undo() {
       const prev = historyStack.pop();
       if (!prev) return;
+      const hadFinalTeamResult = IS_TEAM_MODE ? finalTeamResult() : null;
       const requiresCheckpoint = crossedLiveCheckpointBoundary(state, prev);
       const currentSpeechEnabled = state.speechEnabled;
       state = prev;
@@ -4257,7 +4454,8 @@
       saveState(requiresCheckpoint ? "rollback" : "state");
       closeModal();
       updateHandicapPlayerNames();
-    render();
+      render();
+      if (hadFinalTeamResult && !finalTeamResult()) void publishTeamCurrentResult(null);
       vibrate(8);
     }
 
@@ -4594,8 +4792,8 @@
         groups[0]?.refresh(draftLeft);
         groups[1]?.refresh(draftServer);
         if (saveButton) {
-          saveButton.disabled = draftLeft === state.leftPlayer
-            && draftServer === state.currentFirstServer;
+          saveButton.disabled = teamPrestart ? false : (draftLeft === state.leftPlayer
+            && draftServer === state.currentFirstServer);
         }
       };
 
@@ -4612,41 +4810,30 @@
 
       const applyArrangement = () => {
         const result = applyInitialArrangement(draftLeft, draftServer);
-        if (result === "locked") {
-          showInitialArrangementUnavailable();
-          return;
-        }
-        if (result === "invalid") {
-          showInitialArrangementUnavailable("Выбранные значения начальной расстановки некорректны.");
-          return;
-        }
-        if (result === "unchanged") {
-          closeModal();
-          return;
-        }
+        if (result === "locked") { showInitialArrangementUnavailable(); return; }
+        if (result === "invalid") { showInitialArrangementUnavailable("Выбранные значения начальной расстановки некорректны."); return; }
         if (result === "save-failed") {
           render();
           activeModal = "initialArrangementSaveError";
-          showModal(
-            "Не удалось сохранить",
-            "Начальная расстановка не изменена. Проверьте доступность локального хранилища браузера и повторите попытку.",
-            [makeButton("Закрыть", "secondary", closeModal)]
-          );
+          showModal("Не удалось сохранить", "Начальная расстановка не изменена. Проверьте доступность локального хранилища браузера и повторите попытку.", [makeButton("Закрыть", "secondary", closeModal)]);
           activeModal = "initialArrangementSaveError";
           return;
         }
-
+        if (teamPrestart) {
+          void startPlannedTeamMatch();
+          return;
+        }
         closeModal();
         updateHandicapPlayerNames();
         render();
       };
 
-      saveButton = makeButton("Сохранить", "primary", applyArrangement);
-      saveButton.disabled = true;
+      saveButton = makeButton(teamPrestart ? "Начать встречу" : "Сохранить", "primary", applyArrangement);
+      saveButton.disabled = !teamPrestart;
       activeModal = "initialArrangement";
       showModal(
         "Начальная расстановка",
-        "Можно изменить до первого розыгрыша.",
+        teamPrestart ? "Проверьте расстановку и первого подающего. Встреча начнётся только после подтверждения." : "Можно изменить до первого розыгрыша.",
         [saveButton, makeButton("Отмена", "secondary", closeModal)],
         [],
         controls
@@ -4658,13 +4845,19 @@
     function showRestoreChoice() {
       if (!pendingRestoreState) return;
       activeModal = "restoreChoice";
+      const actions = IS_TEAM_MODE
+        ? [
+            makeButton("Восстановить встречу", "primary", restoreSavedMeeting),
+            makeButton("Не сейчас", "secondary", closeModal)
+          ]
+        : [
+            makeButton("Восстановить встречу", "primary", restoreSavedMeeting),
+            makeButton("Начать новую встречу", "danger", discardSavedMeeting)
+          ];
       showModal(
         "Найдена сохранённая встреча",
         `${pendingRestoreState.players.A} — ${pendingRestoreState.players.B}`,
-        [
-          makeButton("Восстановить встречу", "primary", restoreSavedMeeting),
-          makeButton("Начать новую встречу", "danger", discardSavedMeeting)
-        ]
+        actions
       );
       activeModal = "restoreChoice";
     }
@@ -4792,22 +4985,98 @@
       activeModal = "gameOver";
     }
 
+    function umpireGateUrl() {
+      const url = new URL("./team/umpire.html", location.href);
+      url.search = "";
+      url.hash = "";
+      url.searchParams.set("teamMatch", TEAM_MATCH_ID);
+      return url.toString();
+    }
+
+    async function finishCurrentTeamMatch() {
+      if (!IS_TEAM_MODE || teamPrestart || teamReleaseInFlight) return;
+      const result = finalTeamResult();
+      const pending = captureTeamRelease();
+      if (!result || !pending || teamAssignment?.status !== "current") {
+        teamContextState = "error";
+        teamContextError = "Завершение заблокировано: финальный результат или Team binding не подтверждён.";
+        render();
+        return;
+      }
+      teamReleaseInFlight = true;
+      teamContextState = "syncing";
+      teamContextError = "";
+      render();
+      try {
+        if (!(await publishTeamCurrentResult(result))) throw new Error(teamContextError || "Финальный счёт не синхронизирован с Team.");
+        if (livePublicationMatchesCurrentMeeting()) {
+          const stopped = await stopLivePublication({ silent: true });
+          if (!stopped) throw new Error("Не удалось безопасно остановить live-публикацию.");
+        }
+
+        let reportUrl;
+        try {
+          teamBackupInFlight = true;
+          const backup = await backupCurrentTeamReport(pending);
+          reportUrl = backup.reportUrl;
+        } catch (error) {
+          console.warn("Team report backup skipped; finish remains allowed without reportUrl.", error);
+          reportUrl = undefined;
+        } finally {
+          teamBackupInFlight = false;
+        }
+
+        const published = await teamAdapter.publishTeamFinished(TEAM_MATCH_ID, pending.binding, pending.ttScoreState, result, reportUrl);
+        teamAssignment = published.assignment;
+        storeTeamSession(emptyTeamSession());
+        clearSavedState();
+        historyStack = [];
+        teamPrestart = false;
+        state = defaultState();
+        closeModal();
+        location.assign(umpireGateUrl());
+      } catch (error) {
+        teamContextState = "error";
+        teamContextError = `Встреча не завершена: ${error instanceof Error ? error.message : String(error)}`;
+        render();
+        showMatchOver();
+      } finally {
+        teamReleaseInFlight = false;
+      }
+    }
+
+    function showTeamFinishConfirm() {
+      activeModal = "teamFinishConfirm";
+      showModal(
+        "Завершить встречу?",
+        "Финальный счёт будет зафиксирован в командной встрече. Следующая личная встреча останется в состоянии planned до отдельного начала.",
+        [
+          makeButton("Завершить встречу", "danger", () => void finishCurrentTeamMatch()),
+          makeButton("Отмена", "secondary", showMatchOver)
+        ]
+      );
+      activeModal = "teamFinishConfirm";
+    }
+
     function showMatchOver() {
       if (activeModal === "matchOver") return;
       const winner = resultMatchWinner();
       activeModal = "matchOver";
-      showModal(
-        `Встреча «${state.players.A} — ${state.players.B}» завершена.
+      const actions = IS_TEAM_MODE
+        ? [makeButton("Завершить встречу", "primary", showTeamFinishConfirm), makeUndoButton()]
+        : [
+            makeShareFilesButton("Поделиться отчётом о встрече"),
+            makeButton("Новая встреча", "secondary", () => showNewMatchConfirm(showMatchOver)),
+            makeUndoButton()
+          ];
+      const heading = IS_TEAM_MODE
+        ? `Счёт встречи «${state.players.A} — ${state.players.B}» завершён.
 
-Выиграл(а) ${state.players[winner]} со счётом ${finalMatchScoreText(winner)}.`,
-        "",
-        [
-          makeShareFilesButton("Поделиться отчётом о встрече"),
-          makeButton("Новая встреча", "secondary", () => showNewMatchConfirm(showMatchOver)),
-          makeUndoButton()
-        ],
-        finalMatchRows(winner)
-      );
+Финальный счёт: ${state.players[winner]} — победитель, ${finalMatchScoreText(winner)}.`
+        : `Встреча «${state.players.A} — ${state.players.B}» завершена.
+
+Выиграл(а) ${state.players[winner]} со счётом ${finalMatchScoreText(winner)}.`;
+      showModal(heading, "", actions, finalMatchRows(winner));
       activeModal = "matchOver";
     }
 
@@ -4859,6 +5128,7 @@
     }
 
     function showMenu() {
+      if (IS_TEAM_MODE) { showInitialArrangementModal(); return; }
       const arrangementActions = canEditInitialArrangement()
         ? [makeButton("Изменить начальную расстановку", "secondary", showInitialArrangementModal)]
         : [];
@@ -7143,9 +7413,13 @@ ${buildStandaloneReportRoot().outerHTML}
       const matchOver = isMatchOver();
       els.zoneA.classList.toggle("server", !gameOver && server === "A");
       els.zoneB.classList.toggle("server", !gameOver && server === "B");
-      els.zoneA.classList.toggle("locked", gameOver);
-      els.zoneB.classList.toggle("locked", gameOver);
+      const scoringLocked = gameOver || (IS_TEAM_MODE && teamPrestart);
+      els.zoneA.classList.toggle("locked", scoringLocked);
+      els.zoneB.classList.toggle("locked", scoringLocked);
+      els.zoneA.disabled = scoringLocked;
+      els.zoneB.disabled = scoringLocked;
       els.undoButton.disabled = !historyStack.length;
+      els.newMatchButton.textContent = IS_TEAM_MODE ? "Завершить встречу" : "Новая встреча";
       const speechAvailable = speechSupported();
       els.speechStateLabel.textContent = state.speechEnabled ? "вкл." : "выкл.";
       els.speechButton.setAttribute(
@@ -7336,7 +7610,7 @@ ${buildStandaloneReportRoot().outerHTML}
     els.ackSideNotice.addEventListener("click", acknowledgeSideNotice);
     els.nextGameButton.addEventListener("click", startNextGame);
     els.copyProtocolButton.addEventListener("click", copyResult);
-    els.newMatchButton.addEventListener("click", () => showNewMatchConfirm(showMatchOver));
+    els.newMatchButton.addEventListener("click", () => IS_TEAM_MODE ? showTeamFinishConfirm() : showNewMatchConfirm(showMatchOver));
     }
     els.copyLiveViewerErrorButton.addEventListener("click", event => {
       void copyLiveDiagnostic("зритель", liveViewerError || els.liveViewerStatusText.textContent, event.currentTarget);
@@ -7379,6 +7653,7 @@ ${buildStandaloneReportRoot().outerHTML}
         void attemptPendingTeamRelease();
         requestTeamLiveSync();
         void reloadTeamContext();
+        void ensureTeamLivePublication();
       }
     });
 
@@ -7415,7 +7690,7 @@ ${buildStandaloneReportRoot().outerHTML}
     else if (IS_TEAM_REPORT) loadTeamReport();
     else if (IS_PROTECTED_REPORT) loadProtectedReport();
     if (PAGE_CAPABILITIES.writesLiveState && !pendingRestoreState && livePublicationMatchesCurrentMeeting()) void resumeLivePublication();
-    if (PAGE_CAPABILITIES.writesLocalMeeting && pendingRestoreState) showRestoreChoice();
+    if (PAGE_CAPABILITIES.writesLocalMeeting && pendingRestoreState && !IS_TEAM_MODE) showRestoreChoice();
   </script>
 </body>
 </html>
