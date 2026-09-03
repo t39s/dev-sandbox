@@ -92,7 +92,7 @@ export function importTeamMatchForCreation(raw, filename) {
   for (const [index, match] of prepared.individualMatches.entries()) {
     const expectedId = `m${String(index + 1).padStart(2, "0")}`;
     if (match.id !== expectedId) throw new Error(`Личная встреча № ${index + 1}: ожидается ID ${expectedId}.`);
-    const expectedStatus = "planned";
+    const expectedStatus = index === 0 ? "current" : "planned";
     if (match.sourceStatus !== expectedStatus) {
       throw new Error("Продолжить подготовку можно только для ещё не начатой командной встречи.");
     }
@@ -154,7 +154,7 @@ export function createTeamMatch(input, updatedAt, pairOrder = null) {
       order,
       playerAId,
       playerBId,
-      status: "planned",
+      status: order === 1 ? "current" : "planned",
       result: null,
       reportUrl: null
     };

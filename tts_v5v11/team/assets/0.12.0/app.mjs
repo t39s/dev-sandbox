@@ -15,7 +15,7 @@ import {
 import {
   TTSCORE_CURRENT_MEETING_KEY, TTSCORE_LIVE_PUBLICATION_KEY, TTSCORE_SYNC_CHANNEL,
   TTSCORE_TEAM_PENDING_FINISHED_KEY, clearPendingFinishedMatch, confirmPendingFinishedExit,
-  readTtScoreIntegration, reconcilePendingFinishedMatch, ttScoreGameWins,
+  pendingTransitionDecision, readTtScoreIntegration, reconcilePendingFinishedMatch, ttScoreGameWins,
   ttScoreLiveReportUrl, ttScoreLiveScoreboardUrl, updatePendingFinishedMatch
 } from "./ttscore-integration.mjs";
 import {
@@ -41,7 +41,7 @@ const elements = Object.fromEntries([
   "editor-links-form", "editor-links-list", "editor-links-panel", "editor-details-panel", "editor-details-form", "editor-date", "editor-venue",
   "editor-team-a-name", "editor-team-b-name", "editor-players-a", "editor-players-b", "prepare-changes",
   "editor-changes-section", "editor-planned-section", "editor-planned-list", "editor-undo-section", "editor-undo-match", "prepare-undo", "editor-transition-section",
-  "editor-open-ttscore", "editor-open-umpire", "editor-current-live-scoreboard", "editor-current-live-report", "games-a-team-name", "games-b-team-name",
+  "editor-open-ttscore", "editor-open-judge", "editor-current-live-scoreboard", "editor-current-live-report", "games-a-team-name", "games-b-team-name",
   "editor-save-status", "ttscore-integration", "ttscore-integration-status", "ttscore-refresh",
   "ttscore-use-result", "ttscore-cancel-pending", "ttscore-action-status",
   "firebase-auth-panel", "firebase-auth-form", "firebase-auth-email", "firebase-auth-password",
@@ -230,9 +230,7 @@ function renderIndividualMatch(match, teamMatch) {
       ? link("Отчёт", match.reportUrl, "button button--secondary")
       : text("span", "Отчёт не добавлен", "muted"));
   } else if (match.status === "current") {
-    result.append(match.result
-      ? text("span", `Счёт завершён ${match.result.gamesA}:${match.result.gamesB} · ожидается завершение встречи`, "muted")
-      : text("span", "Встреча идёт", "muted"));
+    result.append(text("span", "Встреча идёт", "muted"));
     if (teamMatch.liveScoreboardUrl) result.append(link("Live-табло", teamMatch.liveScoreboardUrl, "button button--secondary"));
     if (teamMatch.liveReportUrl) result.append(link("Live-отчёт", teamMatch.liveReportUrl, "button button--secondary"));
   } else if (match.status === "not_required") {
@@ -364,8 +362,8 @@ function ttScoreTeamLaunchUrl(teamMatch) {
   return url.toString();
 }
 
-function umpireTeamLaunchUrl(teamMatch) {
-  const url = new URL("./umpire.html", location.href);
+function judgeTeamLaunchUrl(teamMatch) {
+  const url = new URL("./ttscore_judge_0.12.0.html", location.href);
   url.searchParams.set("teamMatch", teamMatch.id);
   return url.toString();
 }
@@ -459,8 +457,16 @@ function operationalLiveLinksDiffer(teamMatch, desired) {
 }
 
 function nextTtScoreAutomationAction(teamMatch) {
-  // RC2: lifecycle transitions are explicit in Team-mode ttScore.
-  // Team Editor may only mirror operational live links automatically.
+  pendingWorkflow = updatePendingFinishedMatch(localStorage, teamMatch, Date.now());
+  const transitionDecision = pendingTransitionDecision(pendingWorkflow);
+  if (transitionDecision.ready && pendingWorkflow.pending) {
+    return {
+      type: "transition",
+      pending: pendingWorkflow.pending,
+      reason: transitionDecision.reason,
+      nextLiveLinks: pendingNextLiveLinks()
+    };
+  }
   if (teamMatch.completed) return null;
   const liveLinks = desiredCurrentLiveLinks(teamMatch);
   if (operationalLiveLinksDiffer(teamMatch, liveLinks)) return { type: "live-links", liveLinks };
@@ -507,17 +513,28 @@ async function runTtScoreAutomation() {
       setEditorBusy(true);
       try {
         const updatedAt = new Date().toISOString();
-        const artifact = prepareOperationalLiveUpdate(rawTeamMatch, action.liveLinks, updatedAt);
+        const artifact = action.type === "transition"
+          ? prepareTransition(rawTeamMatch, action.pending.result, updatedAt, action.nextLiveLinks)
+          : prepareOperationalLiveUpdate(rawTeamMatch, action.liveLinks, updatedAt);
         const published = await publishFirebaseTeamMatch(
           request.id,
           artifact.data,
           loadedRevision,
           sourceRevision
         );
-        adoptPublishedEditorState(published);
-        setTtScoreActionStatus(action.liveLinks.liveReportUrl
-          ? "Live-отчёт и Live-табло текущей ttScore-встречи автоматически опубликованы в ttscore_team."
-          : "Неактуальные Live-ссылки автоматически удалены из опубликованного состояния ttscore_team.");
+        const prepared = adoptPublishedEditorState(published);
+        if (action.type === "transition") {
+          const finished = artifact.transition.finishedMatchId;
+          const next = prepared.individualMatches.find(match => match.status === "current");
+          setTtScoreActionStatus(artifact.transition.nextMatchId
+            ? `Автоматически опубликован результат ${action.pending.result.gamesA}:${action.pending.result.gamesB} встречи ${finished}. Следующая личная встреча: ${matchLabel(next)}.`
+            : `Автоматически опубликован результат ${action.pending.result.gamesA}:${action.pending.result.gamesB} встречи ${finished}. Командная встреча завершена.`);
+          ttScoreAutomationQueued = true;
+        } else {
+          setTtScoreActionStatus(action.liveLinks.liveReportUrl
+            ? "Live-отчёт и Live-табло текущей ttScore-встречи автоматически опубликованы в ttscore_team."
+            : "Неактуальные Live-ссылки автоматически удалены из опубликованного состояния ttscore_team.");
+        }
       } catch (error) {
         showEditorError(error);
         setTtScoreActionStatus(`Автоматическая публикация остановлена безопасно: ${error instanceof Error ? error.message : String(error)}`);
@@ -559,8 +576,9 @@ function refreshPendingWorkflow(teamMatch) {
     return pending;
   }
 
-  // Legacy localStorage может уже содержать другую ttScore-встречу.
-  // RC2 не использует это как lifecycle-сигнал: результат подставляется только как административная подсказка.
+  // После запуска следующей ttScore-встречи результат предыдущей фиксируется локально.
+  // Подставляем его один раз; дальнейшие ручные исправления судьи не перезаписываем
+  // событиями live/storage новой встречи.
   if (pendingResultAutofillMatchId !== pending.matchId || !pendingResultAutofillLocked) {
     if (pendingResultAutofillMatchId !== pending.matchId) {
       elements.games_a.value = String(pending.result.gamesA);
@@ -583,22 +601,14 @@ function renderTtScoreIntegration(teamMatch) {
   elements.ttscore_cancel_pending.hidden = true;
   const current = teamMatch.individualMatches.find(match => match.status === "current");
   const pending = refreshPendingWorkflow(teamMatch);
-  if (!current) {
-    ttScoreIntegrationSnapshot = null;
-    const next = teamMatch.individualMatches.find(match => match.status === "planned");
-    elements.ttscore_integration_status.textContent = next
-      ? `Пауза между личными встречами. Следующая встреча ожидает начала: ${matchLabel(next)}.`
-      : "Пауза между личными встречами.";
-    return;
-  }
   const snapshot = readTtScoreIntegration(localStorage, current, ttScoreBaseUrl(), Date.now());
   ttScoreIntegrationSnapshot = snapshot;
   elements.ttscore_cancel_pending.hidden = !(pending && snapshot.meeting?.state?.matchId && snapshot.meeting.state.matchId !== pending.matchId);
 
   if (snapshot.meeting.status === "missing") {
     elements.ttscore_integration_status.textContent = pending
-      ? `Локально сохранён результат: ${pending.result.gamesA}:${pending.result.gamesB}. RC2 завершает Team lifecycle явно из ttScore; локальный pending не используется для автоматического перехода.`
-      : `ttScore сейчас не ведёт личную встречу. Следующая по командному расписанию: ${matchLabel(current ?? teamMatch.individualMatches.find(match => match.status === "planned"))}.`;
+      ? `Сохранён результат предыдущей встречи: ${pending.result.gamesA}:${pending.result.gamesB}.${pending.exitConfirmedAt ? " Выход из завершённой встречи подтверждён; публикация выполняется автоматически." : " Ожидается подтверждение завершения через «Новая встреча» в ttScore или запуск следующей пары."}`
+      : `ttScore сейчас не ведёт личную встречу. Следующая по командному расписанию: ${matchLabel(current)}. После её запуска соответствие пары будет проверено автоматически.`;
     return;
   }
   if (snapshot.meeting.status === "invalid") {
@@ -618,7 +628,7 @@ function renderTtScoreIntegration(teamMatch) {
       elements.ttscore_integration_status.textContent = [
         `Предыдущий результат сохранён: ${pending.result.gamesA}:${pending.result.gamesB}.`,
         `Следующая встреча ttScore: ${foundLabel}.`,
-        liveReady ? "Обнаружен Live другой локальной ttScore-встречи; RC2 не запускает и не публикует её автоматически." : "Другая локальная ttScore-встреча не является сигналом Team lifecycle; явный старт выполняется в Team-mode ttScore."
+        liveReady ? "Live следующей встречи готов: обе ссылки будут опубликованы автоматически вместе с переходом." : "Live следующей встречи ещё не запущен. Переход будет опубликован автоматически без Live."
       ].join("\n");
       return;
     }
@@ -688,7 +698,7 @@ function initializeTtScoreSync() {
           Date.now()
         );
         if (confirmed) {
-          setTtScoreActionStatus(`Локально обнаружено подтверждение выхода из встречи ${confirmed.individualMatchId}. RC2 не выполняет lifecycle-переход из Team Editor автоматически.`);
+          setTtScoreActionStatus(`ttScore подтвердил завершение личной встречи ${confirmed.individualMatchId}; результат будет опубликован автоматически.`);
         }
       } catch (_) {}
     }
@@ -779,7 +789,7 @@ function configureEditor(teamMatch) {
   elements.editor_planned_section.hidden = teamMatch.completed;
   elements.editor_transition_section.hidden = teamMatch.completed;
   elements.editor_open_ttscore.hidden = teamMatch.completed || request.source !== "firebase";
-  elements.editor_open_umpire.hidden = teamMatch.completed || request.source !== "firebase";
+  elements.editor_open_judge.hidden = teamMatch.completed || request.source !== "firebase";
   elements.editor_changes_section.open = teamMatch.completed;
   elements.editor_links_panel.open = teamMatch.completed;
   if (!teamMatch.completed) {
@@ -788,11 +798,10 @@ function configureEditor(teamMatch) {
     renderGamesOptions(elements.games_a, gamesToWin);
     renderGamesOptions(elements.games_b, gamesToWin);
     refreshTransitionTeamNames();
-    elements.editor_current.textContent = current ? matchLabel(current) : "нет · пауза между личными встречами";
+    elements.editor_current.textContent = matchLabel(current);
     elements.editor_open_ttscore.href = ttScoreTeamLaunchUrl(teamMatch);
-    elements.editor_open_umpire.href = umpireTeamLaunchUrl(teamMatch);
-    elements.editor_transition_section.hidden = !current;
-    for (const control of elements.transition_form.elements) control.disabled = !current;
+    elements.editor_open_judge.href = judgeTeamLaunchUrl(teamMatch);
+    for (const control of elements.transition_form.elements) control.disabled = false;
     for (const control of elements.editor_details_form.elements) control.disabled = false;
   }
   renderTtScoreIntegration(teamMatch);
@@ -1159,7 +1168,7 @@ async function prepareUpdate(event) {
       ? `Командная встреча завершится со счётом ${prepared.score.A}:${prepared.score.B}.`
       : transition.draw
         ? `Командная встреча завершится вничью ${prepared.score.A}:${prepared.score.B}.`
-        : `Счёт станет ${prepared.score.A}:${prepared.score.B}; следующая встреча останется planned — ${matchLabel(prepared.individualMatches.find(match => match.status === "planned"))}.`;
+        : `Счёт станет ${prepared.score.A}:${prepared.score.B}; следующая встреча — ${matchLabel(prepared.individualMatches.find(match => match.status === "current"))}.`;
     showPreparedArtifact(artifact, summary);
   } catch (error) {
     showEditorError(error);

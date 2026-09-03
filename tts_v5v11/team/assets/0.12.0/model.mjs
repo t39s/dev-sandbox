@@ -225,11 +225,10 @@ export function prepareTeamMatch(raw) {
 
     const status = requiredString(source.status, `${path}.status`, 20);
     assert(SOURCE_STATUSES.has(status), `${path}.status: разрешены planned, current и finished.`);
-    const result = source.result === null
-      ? null
-      : validateResult(source.result, `${path}.result`, individualMatchBestOf);
-    assert(status !== "finished" || result !== null, `${path}.result: для finished требуется финальный результат.`);
-    assert(status !== "planned" || result === null, `${path}.result: для planned результат должен отсутствовать.`);
+    const result = status === "finished"
+      ? validateResult(source.result, `${path}.result`, individualMatchBestOf)
+      : null;
+    assert(status === "finished" || source.result === null, `${path}.result: результат разрешён только для finished.`);
     // liveUrl is accepted only as a legacy v0.8.4-and-earlier field and is intentionally ignored.
     const reportUrl = validateLink(source.reportUrl, `${path}.reportUrl`);
 
