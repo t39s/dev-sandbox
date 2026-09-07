@@ -5,7 +5,7 @@ import json
 root = Path(__file__).resolve().parents[2]
 states = json.loads((Path(__file__).parent / "realtime-editor" / "states.json").read_text(encoding="utf-8"))
 initial = json.loads(json.dumps(states["initial"]))
-html = (root / "team" / "ttscore_team_0.9.0.html").read_text(encoding="utf-8")
+html = (root / "team" / "ttscore_team_0.10.0.html").read_text(encoding="utf-8")
 html = html.replace("<head>", '<head><base href="https://fixture.test/team/">', 1)
 
 firebase_app = '''
@@ -74,7 +74,7 @@ with sync_playwright() as pw:
         body=path.read_text(encoding="utf-8")
         if rel.endswith("app.mjs"):
             body=body.replace("parseTeamMatchRequest(location.search)", 'parseTeamMatchRequest("?mode=edit&match=realtime-editor-test")')
-            body=body.replace('new URL("../ttScore_0.4.0.html", location.href)', 'new URL("../ttScore_0.4.0.html", document.baseURI)')
+            body=body.replace('new URL("../ttScore_0.5.0.html", location.href)', 'new URL("../ttScore_0.5.0.html", document.baseURI)')
         ctype="text/javascript" if rel.endswith(".mjs") else "text/css" if rel.endswith(".css") else "text/plain"
         return route.fulfill(status=200, content_type=ctype, body=body)
 

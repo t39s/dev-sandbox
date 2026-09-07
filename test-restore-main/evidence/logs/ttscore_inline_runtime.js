@@ -39,13 +39,19 @@
     const requestedSource = pageParams.get("source");
     const livePublisherUid = pageParams.get("publisher") || "";
     const protectedReportKeyText = location.hash.length > 1 ? location.hash.slice(1) : "";
+    const TEAM_MATCH_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,79}$/;
+    const TEAM_REPORT_RECORD_ID_PATTERN = /^\d{4}-\d{4}-[0-9a-f]{4}$/;
+    const requestedReportTeamMatchId = pageParams.get("teamMatch") || "";
+    const requestedReportRecordId = pageParams.get("record") || "";
     const IS_LIVE_REPORT = requestedPage === "report" && requestedSource === "live";
     const IS_LIVE_SCOREBOARD = requestedPage === "scoreboard" && requestedSource === "live";
+    const IS_TEAM_REPORT = requestedPage === "report" && requestedSource === "team";
     const IS_PROTECTED_REPORT = !!protectedReportKeyText
       && requestedSource !== "picker"
       && requestedSource !== "import"
-      && requestedSource !== "live";
-    const IS_REMOTE_REPORT = IS_PROTECTED_REPORT || IS_LIVE_REPORT;
+      && requestedSource !== "live"
+      && requestedSource !== "team";
+    const IS_REMOTE_REPORT = IS_PROTECTED_REPORT || IS_LIVE_REPORT || IS_TEAM_REPORT;
     const PAGE_MODE = IS_LIVE_SCOREBOARD
       ? "scoreboard"
       : (requestedPage === "report" || IS_REMOTE_REPORT ? "report" : "score");
@@ -61,9 +67,10 @@
     const IS_IMPORT_PICKER = IS_REPORT_PAGE && requestedSource === "picker";
     const IS_IMPORTED_REPORT = IS_REPORT_PAGE && requestedSource === "import";
     const SYNC_CHANNEL_NAME = "ttScore:0.3.5:meeting";
+    // Team integration protocol namespace is intentionally preserved from accepted 0.4.0
+    // so an in-flight binding/pending release survives an application upgrade.
     const TEAM_SESSION_KEY = "ttScore:0.4.0:teamIntegration:v1";
-    const TEAM_ADAPTER_MODULE_URL = new URL("./team/assets/0.9.0/ttscore-team-adapter.mjs", location.href).toString();
-    const TEAM_MATCH_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,79}$/;
+    const TEAM_ADAPTER_MODULE_URL = new URL("./team/assets/0.10.0/ttscore-team-adapter.mjs", location.href).toString();
     const requestedTeamMatchId = pageParams.get("teamMatch");
     const TEAM_MODE_REQUESTED = PAGE_MODE === "score" && requestedTeamMatchId !== null;
     const TEAM_MATCH_ID = TEAM_MODE_REQUESTED && TEAM_MATCH_ID_PATTERN.test(requestedTeamMatchId || "") ? requestedTeamMatchId : "";
@@ -178,6 +185,7 @@
     let importLoadError = importedSessionResult?.error || "";
     let protectedReportLoading = IS_PROTECTED_REPORT;
     let liveReportLoading = IS_LIVE_REPORT;
+    let teamReportLoading = IS_TEAM_REPORT;
     let liveScoreboardLoading = IS_LIVE_SCOREBOARD;
     let liveViewerRevision = 0;
     let liveViewerCheckpointRevision = 0;
@@ -208,6 +216,7 @@
     let teamLiveSyncInFlight = false;
     let teamLiveSyncQueued = false;
     let teamReleaseInFlight = false;
+    let teamBackupInFlight = false;
     const liveTabId = createLiveTabId();
     const MAX_UNDO = 50;
     let historyStack = [];
@@ -414,6 +423,7 @@
 
     function teamContextMessage() {
       if (!TEAM_MATCH_ID) return "Некорректный параметр teamMatch. Перейдите в автономный режим или откройте ссылку из ttscore_team.";
+      if (teamBackupInFlight) return "Сохранение резервной копии завершённой встречи в Team Firebase…";
       if (teamSession?.pendingRelease) {
         if (teamReleaseInFlight) return "Подтверждение завершённой личной встречи в Team…";
         if (teamContextState === "error") return teamContextError || "Не удалось подтвердить завершение в Team.";
@@ -463,8 +473,8 @@
       els.teamContextStatus.textContent = teamContextMessage();
       els.teamContextStatus.dataset.state = teamContextState === "ready" ? "ready" : ((teamContextState === "error" || teamContextState === "conflict") ? "error" : teamContextState);
       els.teamAuthForm.hidden = !teamAuthReady || !!teamAuthUser || !TEAM_MATCH_ID;
-      els.teamReloadButton.disabled = teamContextState === "loading" || teamReleaseInFlight;
-      els.teamExitButton.disabled = state.status === "match" || !!teamSession?.pendingRelease || teamReleaseInFlight;
+      els.teamReloadButton.disabled = teamContextState === "loading" || teamReleaseInFlight || teamBackupInFlight;
+      els.teamExitButton.disabled = state.status === "match" || !!teamSession?.pendingRelease || teamReleaseInFlight || teamBackupInFlight;
 
       const locked = true;
       els.matchDateInput.disabled = locked;
@@ -496,8 +506,8 @@
     }
 
     async function loadTeamAdapter() {
-      if (!IS_TEAM_MODE) return null;
-      if (!TEAM_MATCH_ID) throw new Error("Некорректный параметр teamMatch.");
+      if (!IS_TEAM_MODE && !IS_TEAM_REPORT) return null;
+      if (IS_TEAM_MODE && !TEAM_MATCH_ID) throw new Error("Некорректный параметр teamMatch.");
       if (!teamAdapterPromise) teamAdapterPromise = import(TEAM_ADAPTER_MODULE_URL);
       teamAdapter = await teamAdapterPromise;
       return teamAdapter;
@@ -546,14 +556,31 @@
       render();
     }
 
-    async function reloadTeamContext() {
+    function rebasePendingTeamRelease(assignment) {
+      const pending = teamSession?.pendingRelease;
+      if (!pending || !teamAdapter || assignment?.status !== "current") return false;
+      const rebasedBinding = teamAdapter.rebaseTeamBinding(assignment, pending.binding, pending.ttScoreState);
+      if (!rebasedBinding || rebasedBinding.revision === pending.binding.revision) return false;
+      const nextPending = { ...pending, binding: clone(rebasedBinding) };
+      const stored = storeTeamSession({
+        ...teamSession,
+        binding: clone(rebasedBinding),
+        pendingRelease: nextPending
+      });
+      if (!stored) throw new Error(teamContextError || "Не удалось сохранить обновлённый Team binding перед повторной публикацией.");
+      return true;
+    }
+
+    async function reloadTeamContext({ allowPendingRebase = false } = {}) {
       if (!IS_TEAM_MODE || !TEAM_MATCH_ID) return;
       teamContextState = "loading";
       teamContextError = "";
       render();
       try {
         const adapter = await loadTeamAdapter();
-        handleTeamAssignment(await adapter.readTeamContext(TEAM_MATCH_ID));
+        const assignment = await adapter.readTeamContext(TEAM_MATCH_ID);
+        if (allowPendingRebase && teamSession?.pendingRelease) rebasePendingTeamRelease(assignment);
+        handleTeamAssignment(assignment);
       } catch (error) {
         teamContextState = "error";
         teamContextError = error instanceof Error ? error.message : String(error);
@@ -629,6 +656,41 @@
       location.assign(url.toString());
     }
 
+    function teamPublishedReportUrl(recordId) {
+      const url = new URL(location.href);
+      url.hash = "";
+      url.search = "";
+      url.searchParams.set("page", "report");
+      url.searchParams.set("source", "team");
+      url.searchParams.set("teamMatch", TEAM_MATCH_ID);
+      url.searchParams.set("record", recordId);
+      return url.toString();
+    }
+
+    async function backupCurrentTeamReport(pending) {
+      if (!IS_TEAM_MODE || !TEAM_MATCH_ID || !pending?.binding) throw new Error("Backup report: Team binding отсутствует.");
+      const adapter = await loadTeamAdapter();
+      if (!adapter) throw new Error("Backup report: Team adapter недоступен.");
+      const artifact = createCanonicalJsonArtifact();
+      if (artifact.data.record.status !== "complete") throw new Error("Backup report: завершённая встреча не имеет canonical status complete.");
+      if (artifact.data.record.id !== pending.binding.ttScoreMatchId || artifact.data.record.id !== pending.ttScoreState?.matchId) {
+        throw new Error("Backup report: canonical recordId не совпадает с Team binding.");
+      }
+      const integrity = await sha256HexUtf8(artifact.json);
+      const record = {
+        schemaVersion: 1,
+        teamMatchId: TEAM_MATCH_ID,
+        individualMatchId: pending.binding.individualMatchId,
+        recordId: artifact.data.record.id,
+        savedAt: Date.now(),
+        byteLength: integrity.byteLength,
+        sha256: integrity.sha256,
+        json: artifact.json
+      };
+      const stored = await adapter.backupTeamReport(TEAM_MATCH_ID, pending.binding, pending.ttScoreState, record);
+      return { record: stored, reportUrl: teamPublishedReportUrl(stored.recordId) };
+    }
+
     function finalTeamResult() {
       const gamesA = resultGamesWon("A");
       const gamesB = resultGamesWon("B");
@@ -679,7 +741,8 @@
           TEAM_MATCH_ID,
           pending.binding,
           pending.ttScoreState,
-          pending.result
+          pending.result,
+          pending.reportUrl
         );
         storeTeamSession(emptyTeamSession());
         teamAssignment = result.assignment;
@@ -933,7 +996,7 @@
       const pageUrl = new URL(location.href);
       pageUrl.hash = "";
       return [
-        "ttScore 0.4.0 — first-server-normalization 1",
+        "ttScore 0.5.0 — first-server-normalization 1",
         `Роль: ${role}`,
         `Ошибка: ${message || "Неизвестная ошибка"}`,
         `Время: ${new Date().toISOString()}`,
@@ -2063,6 +2126,23 @@
             render();
             alert(teamContextError || "Не удалось безопасно связать завершённую встречу с Team assignment. Team не изменён.");
             return;
+          }
+          try {
+            teamBackupInFlight = true;
+            teamContextState = "syncing";
+            teamContextError = "";
+            render();
+            const backup = await backupCurrentTeamReport(pendingTeamRelease);
+            pendingTeamRelease = { ...pendingTeamRelease, reportUrl: backup.reportUrl };
+          } catch (error) {
+            teamBackupInFlight = false;
+            teamContextState = "error";
+            teamContextError = `Новая встреча не начата: резервная копия отчёта не подтверждена. ${error instanceof Error ? error.message : String(error)}`;
+            render();
+            alert(teamContextError);
+            return;
+          } finally {
+            teamBackupInFlight = false;
           }
           const nextSession = {
             version: 1,
@@ -3374,7 +3454,7 @@
         },
         createdBy: {
           application: "ttScore",
-          version: "0.4.0"
+          version: "0.5.0"
         },
         match: {
           date: state.matchDate,
@@ -3716,6 +3796,20 @@
       return !!globalThis.crypto?.subtle && typeof globalThis.crypto.getRandomValues === "function";
     }
 
+    async function sha256HexUtf8(text) {
+      if (!globalThis.crypto?.subtle || typeof TextEncoder !== "function") {
+        throw new Error("Проверка целостности отчёта требует HTTPS и поддержки Web Crypto API.");
+      }
+      if (typeof text !== "string" || !text.length) throw new Error("JSON встречи для резервного копирования отсутствует.");
+      const bytes = new TextEncoder().encode(text);
+      if (bytes.byteLength > MAX_CANONICAL_JSON_BYTES) {
+        throw new Error("JSON встречи превышает допустимый размер 1 МиБ.");
+      }
+      const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+      const sha256 = Array.from(digest, byte => byte.toString(16).padStart(2, "0")).join("");
+      return { sha256, byteLength: bytes.byteLength };
+    }
+
     async function deriveProtectedReportId(keyBytes) {
       if (!protectedCryptoAvailable()) throw new Error("Защищённые отчёты требуют HTTPS и поддержки Web Crypto API.");
       const context = new TextEncoder().encode(PROTECTED_REPORT_ID_CONTEXT);
@@ -3818,6 +3912,44 @@
         importLoadError = error?.message || "Не удалось открыть защищённый отчёт.";
       } finally {
         protectedReportLoading = false;
+        render();
+      }
+    }
+
+    async function loadTeamReport() {
+      teamReportLoading = true;
+      importLoadError = "";
+      render();
+      try {
+        if (!TEAM_MATCH_ID_PATTERN.test(requestedReportTeamMatchId)) throw new Error("В ссылке отсутствует корректный teamMatch.");
+        if (!TEAM_REPORT_RECORD_ID_PATTERN.test(requestedReportRecordId)) throw new Error("В ссылке отсутствует корректный record ID.");
+        const adapter = await loadTeamAdapter();
+        if (!adapter) throw new Error("Team report adapter недоступен.");
+        const backup = await adapter.readTeamReport(requestedReportTeamMatchId, requestedReportRecordId);
+        const integrity = await sha256HexUtf8(backup.json);
+        if (integrity.byteLength !== backup.byteLength) throw new Error("Размер резервной копии отчёта не совпадает с metadata.");
+        if (integrity.sha256 !== backup.sha256) throw new Error("SHA-256 резервной копии отчёта не совпадает с metadata.");
+        const { data, analysis } = parseCanonicalJsonText(backup.json);
+        if (data.record.id !== backup.recordId || data.record.id !== requestedReportRecordId) {
+          throw new Error("Canonical recordId не совпадает со ссылкой отчёта.");
+        }
+        if (data.record.status !== "complete" || !analysis.matchEnded) {
+          throw new Error("Резервная копия не содержит завершённую личную встречу.");
+        }
+        state = buildStateFromCanonicalData(data, analysis);
+        importedCanonicalSource = { filename: `tts_${data.record.id}.json`, text: backup.json, data };
+        statsSelectedGame = state.gameIndex || 0;
+        statsFollowCurrentGame = true;
+        multiChartSelectionMode = "current";
+        multiChartCustomGameIndexes.clear();
+        multiChartMeetingId = state.matchId || null;
+        reportPerspectivePlayer = "A";
+      } catch (error) {
+        state = defaultState();
+        importedCanonicalSource = null;
+        importLoadError = error?.message || "Не удалось открыть Team-отчёт.";
+      } finally {
+        teamReportLoading = false;
         render();
       }
     }
@@ -4069,7 +4201,7 @@
       appLinkLine.append(appLink);
       const version = document.createElement("p");
       version.className = "app-version";
-      version.textContent = "Версия 0.4.0";
+      version.textContent = "Версия 0.5.0";
       footer.append(dataEnteredLine, appLinkLine, version);
       screen.append(footer);
       root.append(screen);
@@ -4719,9 +4851,11 @@ ${buildStandaloneReportRoot().outerHTML}
       els.statHeaderHandicap.textContent = showHandicap ? reportHandicapText() : "";
       renderInteractiveReportFooter(IS_REMOTE_REPORT && hasMeeting);
       if (IS_REMOTE_REPORT && !hasMeeting) {
-        const loading = IS_LIVE_REPORT ? liveReportLoading : protectedReportLoading;
+        const loading = IS_LIVE_REPORT ? liveReportLoading : (IS_TEAM_REPORT ? teamReportLoading : protectedReportLoading);
         const title = IS_LIVE_REPORT
           ? (loading ? "Подключение к live-отчёту" : "Live-отчёт")
+          : IS_TEAM_REPORT
+          ? (loading ? "Загрузка Team-отчёта" : "Team-отчёт")
           : (loading ? "Загрузка защищённого отчёта" : "Защищённый отчёт");
         document.title = `${title} — ttScore`;
         els.statTitle.textContent = title;
@@ -4731,8 +4865,8 @@ ${buildStandaloneReportRoot().outerHTML}
         els.statScoreTableWrap.hidden = true;
         els.statEmpty.hidden = false;
         els.statEmptyText.textContent = loading
-          ? (IS_LIVE_REPORT ? "Ожидание первого зашифрованного снимка…" : "Загрузка и расшифрование отчёта…")
-          : (importLoadError || (IS_LIVE_REPORT ? "Не удалось открыть live-отчёт." : "Не удалось открыть защищённый отчёт."));
+          ? (IS_LIVE_REPORT ? "Ожидание первого зашифрованного снимка…" : (IS_TEAM_REPORT ? "Загрузка резервной копии отчёта из Team Firebase…" : "Загрузка и расшифрование отчёта…"))
+          : (importLoadError || (IS_LIVE_REPORT ? "Не удалось открыть live-отчёт." : (IS_TEAM_REPORT ? "Не удалось открыть Team-отчёт." : "Не удалось открыть защищённый отчёт.")));
         els.selectSavedReportButton.hidden = true;
         els.selectAnotherReportButton.hidden = true;
         els.exportReportButton.hidden = true;
@@ -4746,7 +4880,7 @@ ${buildStandaloneReportRoot().outerHTML}
       els.statStatusCard.hidden = false;
       els.selectSavedReportButton.hidden = true;
       els.selectAnotherReportButton.hidden = !IS_IMPORTED_REPORT;
-      els.exportReportButton.hidden = IS_REMOTE_REPORT;
+      els.exportReportButton.hidden = IS_REMOTE_REPORT && !IS_TEAM_REPORT;
       els.statEmpty.hidden = hasMeeting;
       els.statEmptyText.textContent = importLoadError
         || "Начните встречу в основной вкладке ttScore. Статистика появится после первого сохранения состояния.";
@@ -5017,7 +5151,7 @@ ${buildStandaloneReportRoot().outerHTML}
     });
     els.startButton.addEventListener("click", startMatch);
     els.teamAuthForm.addEventListener("submit", handleTeamSignIn);
-    els.teamReloadButton.addEventListener("click", () => { void reloadTeamContext(); });
+    els.teamReloadButton.addEventListener("click", () => { void reloadTeamContext({ allowPendingRebase: true }); });
     els.teamExitButton.addEventListener("click", exitTeamMode);
     els.zoneA.addEventListener("click", () => addPoint("A"));
     els.zoneB.addEventListener("click", () => addPoint("B"));
@@ -5107,6 +5241,7 @@ ${buildStandaloneReportRoot().outerHTML}
     if (PAGE_CAPABILITIES.writesLiveState) void cleanupQueuedLivePublications();
     if (IS_LIVE_REPORT) startLiveReportSubscription();
     else if (IS_LIVE_SCOREBOARD) startLiveScoreboardSubscription();
+    else if (IS_TEAM_REPORT) loadTeamReport();
     else if (IS_PROTECTED_REPORT) loadProtectedReport();
     if (PAGE_CAPABILITIES.writesLiveState && !pendingRestoreState && livePublicationMatchesCurrentMeeting()) void resumeLivePublication();
     if (PAGE_CAPABILITIES.writesLocalMeeting && pendingRestoreState) showRestoreChoice();

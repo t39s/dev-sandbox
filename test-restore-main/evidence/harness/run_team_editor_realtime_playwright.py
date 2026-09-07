@@ -5,7 +5,7 @@ import json
 root = Path(__file__).resolve().parents[2]
 states = json.loads((Path(__file__).parent / "realtime-editor" / "states.json").read_text(encoding="utf-8"))
 initial, updated, updated2 = states["initial"], states["updated"], states["updated2"]
-html = (root / "team" / "ttscore_team_0.9.0.html").read_text(encoding="utf-8")
+html = (root / "team" / "ttscore_team_0.10.0.html").read_text(encoding="utf-8")
 html = html.replace("<head>", '<head><base href="https://fixture.test/team/">', 1)
 mock_firebase = """
 let current = INITIAL_STATE;
@@ -38,7 +38,7 @@ with sync_playwright() as pw:
         if not url.startswith(prefix):
             return route.abort()
         rel = url[len(prefix):]
-        if rel == "team/assets/0.9.0/firebase-source.mjs":
+        if rel == "team/assets/0.10.0/firebase-source.mjs":
             return route.fulfill(status=200, content_type="text/javascript; charset=utf-8", body=mock_firebase)
         path = root / rel
         if not path.is_file():

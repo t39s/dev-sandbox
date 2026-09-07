@@ -63,7 +63,7 @@ with sync_playwright() as pw:
 
     page.route('**/*',handler)
     page.set_content('''<!doctype html><script type="module">
-      import { transactFirebaseTeamMatch } from "https://fixture.test/team/assets/0.9.0/firebase-source.mjs";
+      import { transactFirebaseTeamMatch } from "https://fixture.test/team/assets/0.10.0/firebase-source.mjs";
       try {
         const results=await Promise.all([
           transactFirebaseTeamMatch("same-client-race", current => ({...current, liveReportUrl:"https://live.invalid/r", liveScoreboardUrl:"https://live.invalid/s"})),

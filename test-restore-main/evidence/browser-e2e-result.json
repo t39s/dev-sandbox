@@ -35,7 +35,7 @@
     {
       "name": "binding created",
       "ok": true,
-      "detail": "{\"version\": 1, \"teamMatchId\": \"team-e2e\", \"binding\": {\"version\": 1, \"teamMatchId\": \"team-e2e\", \"individualMatchId\": \"m01\", \"matchDate\": \"2026-09-05\", \"bestOf\": 3, \"playerA\": {\"id\": \"a1\", \"name\": \"Иванов\"}, \"playerB\": {\"id\": \"b1\", \"name\": \"Петров\"}, \"revision\": \"rev-m01\", \"ttScoreMatchId\": \"2026-0905-407c\"}, \"pendingRelease\": null}"
+      "detail": "{\"version\": 1, \"teamMatchId\": \"team-e2e\", \"binding\": {\"version\": 1, \"teamMatchId\": \"team-e2e\", \"individualMatchId\": \"m01\", \"matchDate\": \"2026-09-05\", \"bestOf\": 3, \"playerA\": {\"id\": \"a1\", \"name\": \"Иванов\"}, \"playerB\": {\"id\": \"b1\", \"name\": \"Петров\"}, \"revision\": \"rev-m01\", \"ttScoreMatchId\": \"2026-0905-bfda\"}, \"pendingRelease\": null}"
     },
     {
       "name": "no team finish after game 1",
