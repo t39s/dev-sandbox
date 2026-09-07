@@ -1,0 +1,21 @@
+{
+  "unit": "условная единица, не рыночная цена",
+  "budget_limit": 1000,
+  "initial_build_items": {
+    "frame_fork": 220,
+    "wheels_tires": 150,
+    "brakes": 100,
+    "drivetrain": 170,
+    "cockpit_seat_pedals": 90,
+    "rack_fenders_lights_bell": 90,
+    "assembly": 60
+  },
+  "total_after_planned_work": 990,
+  "reserve": 10,
+  "upgrade": {
+    "new_kit": 205,
+    "labor": 25,
+    "trade_in": 120,
+    "net": 110
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "unit_id": "BUD-001",
+  "as_built": {
+    "baseline_commit": "f82582acc43161d69366185c6f9ac114bbcb5d50",
+    "baseline_tag": "baseline-v1",
+    "drivetrain": "DRIVE-1-SIM",
+    "deviations": [
+      {
+        "id": "DEV-01",
+        "specified": "BELL-A-SIM",
+        "installed": "BELL-B-SIM",
+        "reason": "BELL-A отсутствует; в учебной модели тот же интерфейс и назначение",
+        "approved_by": "Анна",
+        "verified_by": "Борис"
+      }
+    ],
+    "evidence": "evidence/BUILD.md"
+  },
+  "current": {
+    "baseline_commit": "e755428053671abf83b86f0ecdb53f246751dd9e",
+    "drivetrain": "DRIVE-2-SIM",
+    "bell": "BELL-B-SIM",
+    "status": "accepted-for-scenario-in-simulation",
+    "last_event": "SERVICE-01"
+  },
+  "events": [
+    {
+      "id": "SERVICE-01",
+      "from_baseline": "f82582acc43161d69366185c6f9ac114bbcb5d50",
+      "to_baseline": "e755428053671abf83b86f0ecdb53f246751dd9e",
+      "removed": "DRIVE-1-SIM",
+      "installed": "DRIVE-2-SIM",
+      "evidence": "evidence/SERVICE-01.md",
+      "deviations_retained": [
+        "DEV-01"
+      ]
+    }
+  ]
+}

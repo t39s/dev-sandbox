@@ -1,0 +1,47 @@
+* 1fff85b (alternative/05-small-ring) PR-05R rejected: smaller ring loses required high ratio
+| *   bed046c (HEAD -> main, tag: unit-serviced) Merge PR-07: update actual unit after work and trial
+| |\  
+| | * 989f83a (service/BUD-001) PR-07: register completed retrofit and repeated route trial
+| |/  
+| * e755428 (tag: baseline-v2) Merge PR-05: B2 accepted, unit not yet modified
+|/| 
+| * fc3f5b1 (topic/05-two-rings) PR-05: redesign to 2x and authorize controlled retrofit
+|/  
+*   7cd5f0c Merge field evidence: record failed R2 before redesign
+|\  
+| * 35f1798 (research/05-field) PR-05 research: loaded route disproves 1x hypothesis
+|/  
+*   483acb4 (tag: unit-built) Merge build record: physical state registered
+|\  
+| * 3d3a378 (build/BUD-001) Build record: BUD-001 assembled to B1 with approved DEV-01
+|/  
+*   f82582a (tag: baseline-v1) Merge release B1: prototype build authorized
+|\  
+| * d7c8a71 (release/prototype) Release B1: authorize one prototype, loaded climb still open
+|/  
+*   ac2f7ae Merge PR-04B: compatible wheels accepted
+|\  
+| * d921a9b (topic/04-wheels) PR-04B fix: match both hubs to selected rotors
+| *   ee9f091 Update PR-04B with brake branch for integration review
+| |\  
+| * | 83d7910 (tag: wheel-proposal-incompatible) PR-04B draft: Center Lock wheels
+* | |   39993d0 Merge PR-04A: brakes accepted with paired wheel correction
+|\ \ \  
+| |/ /  
+|/| /   
+| |/    
+| * 034a6b1 (topic/04-brakes) PR-04A: cable discs with 6-bolt rotors
+|/  
+*   ddf7e36 (tag: before-parallel) Merge PR-03: prototype drivetrain with open load test
+|\  
+| * a039734 (topic/03-drive) PR-03: select provisional 1x drivetrain
+|/  
+*   c7254dd Merge PR-02: frame interfaces agreed
+|\  
+| * d8124c6 (topic/02-frame) PR-02: select catalog rigid frame
+|/  
+*   0cbe4dd Merge PR-01: purpose agreed
+|\  
+| * 6357d7c (topic/01-purpose) PR-01: choose utility bicycle
+|/  
+* 925e935 Start: scenario, requirements and one PR template

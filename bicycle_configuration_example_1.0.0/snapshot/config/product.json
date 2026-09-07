@@ -1,0 +1,19 @@
+{
+  "name": "Будни",
+  "role": "городской утилитарный велосипед",
+  "motor": false,
+  "handlebar": "прямой",
+  "cargo_kg": 8,
+  "accessories": [
+    "багажник RACK-SIM",
+    "крылья FENDER-SIM",
+    "свет LIGHT-SIM",
+    "звонок BELL-A-SIM"
+  ],
+  "other_modules": [
+    "руль/вынос COCKPIT-SIM",
+    "седло/штырь SEAT-SIM",
+    "педали PEDAL-SIM"
+  ],
+  "budget_limit": 1000
+}

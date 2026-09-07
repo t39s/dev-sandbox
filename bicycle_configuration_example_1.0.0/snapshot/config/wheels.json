@@ -1,0 +1,10 @@
+{
+  "id": "WHEEL-6B-SIM",
+  "bsd_mm": 622,
+  "tire_mm": 40,
+  "front_axle": "QR100-SIM",
+  "rear_axle": "QR135-SIM",
+  "freehub": "HG10-SIM",
+  "front_rotor_mount": "6-bolt",
+  "rear_rotor_mount": "6-bolt"
+}

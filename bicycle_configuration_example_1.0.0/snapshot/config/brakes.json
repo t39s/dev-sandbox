@@ -1,0 +1,15 @@
+{
+  "id": "BRAKE-M-SIM",
+  "actuation": "механический тросовый",
+  "lever_caliper_set": "LONGPULL-M-SIM",
+  "caliper_mount": "PM160-SIM",
+  "front": {
+    "rotor_mount": "6-bolt",
+    "rotor_mm": 160
+  },
+  "rear": {
+    "rotor_mount": "6-bolt",
+    "rotor_mm": 160
+  },
+  "adapters": false
+}

@@ -1,0 +1,31 @@
+{
+  "id": "DRIVE-2-SIM",
+  "architecture": "2x10",
+  "chainrings": [
+    36,
+    22
+  ],
+  "cassette": [
+    11,
+    13,
+    15,
+    17,
+    19,
+    21,
+    23,
+    26,
+    30,
+    34
+  ],
+  "freehub": "HG10-SIM",
+  "chainline_system": "CHAINLINE-A-SIM",
+  "bottom_bracket": "BB-A-SIM",
+  "rear_derailleur": "RD-2-SIM",
+  "rear_capacity_t": 37,
+  "rear_max_sprocket_t": 34,
+  "front_derailleur": "FD-2-SIM",
+  "front_shifter": "SHIFTER-F2-SIM",
+  "rear_shifter": "SHIFTER-R2-SIM",
+  "chain": "CHAIN-2-SIM",
+  "compatible_as_set_in_model": true
+}

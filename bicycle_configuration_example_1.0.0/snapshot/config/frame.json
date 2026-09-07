@@ -1,0 +1,16 @@
+{
+  "id": "FRAME-A-SIM",
+  "material": "сталь",
+  "size": "M-SIM fitted to Maria in story",
+  "fork": "FORK-RIGID-SIM",
+  "suspension": false,
+  "wheel_bsd_mm": 622,
+  "tire_mm": 40,
+  "front_axle": "QR100-SIM",
+  "rear_axle": "QR135-SIM",
+  "brake_mount": "PM160-SIM",
+  "front_derailleur_ready": true,
+  "rack_and_fender_ready": true,
+  "chainline_system": "CHAINLINE-A-SIM",
+  "bottom_bracket": "BB-A-SIM"
+}
