@@ -1,0 +1,20 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "editors": {
+      ".read": false,
+      ".write": false
+    },
+    "teamMatches": {
+      "$matchId": {
+        ".read": true,
+        ".write": "auth != null && root.child('editors').child(auth.uid).val() === true && newData.exists()",
+        ".validate": "newData.hasChildren(['schemaVersion', 'id', '_writeRevision']) && newData.child('schemaVersion').val() === 4 && newData.child('id').val() === $matchId",
+        "_writeRevision": {
+          ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() % 1 === 0 && ((!data.exists() && newData.val() === 1) || (data.isNumber() && newData.val() === data.val() + 1))"
+        }
+      }
+    }
+  }
+}
