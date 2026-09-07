@@ -74,3 +74,12 @@ Both versions are release candidates, not accepted baselines until owner testing
 - Realtime subscription and reconnect do not silently rebase.
 - A second external change after refresh is rejected again.
 - RC8 Database Rules and `firebase-source.mjs` are unchanged.
+
+## 0.5.0 / 0.10.0 RC1 — automatic Team report backup
+
+- Full completed canonical ttScore JSON is backed up to existing `ttscore-list` RTDB before local reset.
+- Backup is create-only, integrity-addressed by SHA-256 metadata, and retry-idempotent.
+- Finished Team transition publishes result and reportUrl together.
+- `source=team` opens the backed-up report in ttScore HTML viewer.
+- Team remote report can re-export files locally.
+- No Storage, Functions or separate database added.

@@ -43,3 +43,12 @@
 ## RC9 — explicit pending-result rebase
 
 Decision: keep stale publication fail-closed and permit binding revision rebase only after explicit `Перечитать Team`, only for the same current individual match identity. Automatic realtime/reconnect does not authorize rebase. Firebase transport CAS and Rules remain unchanged.
+
+## 2026-09-02 — report backup/publication RC1
+
+- Baseline is accepted RC9 (`ttScore 0.4.0 + ttscore_team 0.9.0`).
+- New candidate versions: `ttScore 0.5.0 + ttscore_team 0.10.0`.
+- Full canonical completed JSON is backed up to a separate `individualMatchReportsV1` branch in existing `ttscore-list` RTDB.
+- Backup confirmation is a hard barrier before clearing full local completed-match state.
+- reportUrl is applied atomically with Team finish transition.
+- Multi-match offline continuity remains deferred; normal internet with recoverable 2–5 minute interruption is the operating assumption.

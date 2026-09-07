@@ -1,48 +1,38 @@
-# Owner acceptance checklist — ttScore 0.4.0 + ttscore_team 0.9.0 RC9
+# Owner acceptance — ttScore 0.5.0 + ttscore_team 0.10.0 RC1
 
-## Deployment over RC8
+## Deployment
 
-1. Keep the currently published RC8/RC6 Firebase Database Rules unchanged.
-2. Replace:
-   - `ttScore_0.4.0.html`
-   - `team/assets/0.9.0/team-integration-contract.mjs`
-   - `team/assets/0.9.0/ttscore-team-adapter.mjs`
-3. `team/assets/0.9.0/firebase-source.mjs` does not change.
-4. Hard reload the `ttScore` page used for acceptance.
+1. Publish RC1 `firebase-database-rules.json` to Firebase project `ttscore-list`.
+2. Deploy the complete versioned static package.
+3. Hard reload open ttScore/ttscore_team pages.
 
-## A. Normal finalization
+## Required happy path
 
-1. Open the current Team assignment in `ttScore`.
-2. Complete the individual match.
-3. Confirm `Новая встреча → Начать новую встречу`.
-4. Expected: Team score changes once, completed match becomes `finished`, next planned match becomes `current`.
-5. No `Перечитать Team` should be needed when no external change occurred.
+1. Open a Team current personal match in `ttScore_0.5.0`.
+2. Complete the personal match.
+3. Choose `Новая встреча` → confirm.
+4. Verify Team score advances and next personal match becomes current.
+5. In RTDB verify one record exists under `/individualMatchReportsV1/<teamMatchId>/<recordId>`.
+6. Verify the finished personal match in ttscore_team has an `Отчёт` link.
+7. Open it and verify players, final score, games and rally report.
+8. From the cloud report verify local file export remains available.
 
-## B. External stale-conflict and explicit recovery — required RC9 scenario
+## Required temporary-network failure path
 
-1. Start current individual match `№1` in `ttScore`.
-2. In `ttscore_team` editor, reorder only future `planned` matches, for example `№2 ↔ №3`, and publish.
-3. Return to `ttScore` and finish `№1`.
-4. Confirm `Новая встреча → Начать новую встречу`.
-5. Expected first response: result remains local and Team write is blocked because assignment/revision changed.
-6. Press `Перечитать Team` in `ttScore`.
-7. Expected recovery without leaving `ttScore`:
-   - pending result is applied exactly once;
-   - `№1` becomes `finished`;
-   - Team score changes;
-   - the first match in the administrator's new planned order becomes `current`;
-   - next assignment is prefilled in `ttScore`.
+1. Complete a personal match.
+2. Make Firebase/network unavailable before confirming new match.
+3. Confirm `Новая встреча`.
+4. Expected: explicit backup error; Team does not advance; completed match remains on the phone with full rally data.
+5. Restore connectivity within the operational 2–5 minute outage window.
+6. Repeat `Новая встреча` confirmation.
+7. Expected: backup succeeds, Team advances, report link works, no data re-entry is required.
 
-## C. External conflict remains fail-closed
+## Regression checks
 
-Use two independent writers loaded from the same Team state. Publish from writer A, then attempt a stale write from writer B. Writer B must be rejected and must not overwrite A.
+- normal scoring and Undo;
+- Live after temporary outage;
+- planned-order stale conflict + RC9 `Перечитать Team` recovery;
+- ttscore_team realtime editor update;
+- autonomous ttScore mode.
 
-## D. Existing regressions
-
-- create Team match still produces `_writeRevision: 1`;
-- administrative reorder increments `_writeRevision`;
-- realtime editor receives clean external changes without page reload;
-- same-client Live-clear + finished transition does not produce a false conflict;
-- autonomous `ttScore` scoring remains functional.
-
-RC9 is not an accepted baseline until explicit owner acceptance.
+RC1 becomes baseline only after explicit owner acceptance.

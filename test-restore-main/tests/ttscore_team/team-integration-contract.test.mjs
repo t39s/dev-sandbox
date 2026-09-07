@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createTeamMatch } from '../../team/assets/0.9.0/creator.mjs';
+import { createTeamMatch } from '../../team/assets/0.10.0/creator.mjs';
 import {
   TEAM_INTEGRATION_CONTRACT_VERSION, assignmentMatchesBinding, bindAssignment,
   finishedBindingApplied, operationalRevision, prepareOperationalLiveUpdate, prepareTransition, rebaseBinding,
   teamAssignment, validateBoundState
-} from '../../team/assets/0.9.0/team-integration-contract.mjs';
+} from '../../team/assets/0.10.0/team-integration-contract.mjs';
 
 function raw(overrides = {}) {
   const value = createTeamMatch({
@@ -84,6 +84,25 @@ test('finish transition завершает binding match и назначает �
   assert.equal(out.data.individualMatches[0].status, 'finished');
   assert.equal(out.transition.nextMatchId, 'm02');
   assert.equal(out.assignment.individualMatchId, 'm02');
+});
+
+
+test('finish transition публикует reportUrl атомарно с результатом', () => {
+  const source = raw(); const a = teamAssignment(source); const state = scoreState(a); const b = bindAssignment(a, state);
+  const reportUrl = 'https://example.invalid/ttScore_0.5.0.html?page=report&source=team&teamMatch=team-contract&record=2026-0905-abcd';
+  const out = prepareTransition(source, { gamesA: 3, gamesB: 1, reportUrl }, '2026-09-02T10:00:00Z', undefined, b, state);
+  assert.equal(out.data.individualMatches[0].reportUrl, reportUrl);
+  assert.equal(finishedBindingApplied(out.data, b, { gamesA: 3, gamesB: 1 }, reportUrl), true);
+  assert.equal(finishedBindingApplied(out.data, b, { gamesA: 3, gamesB: 1 }, 'https://example.invalid/other'), false);
+});
+
+test('legacy transition без reportUrl сохраняет прежнюю необязательную семантику', () => {
+  const source = raw(); const a = teamAssignment(source); const state = scoreState(a); const b = bindAssignment(a, state);
+  source.individualMatches[0].reportUrl = 'https://example.invalid/manual.html';
+  const revised = teamAssignment(source);
+  const rebased = bindAssignment(revised, state);
+  const out = prepareTransition(source, { gamesA: 3, gamesB: 0 }, '2026-09-02T10:00:00Z', undefined, rebased, state);
+  assert.equal(out.data.individualMatches[0].reportUrl, 'https://example.invalid/manual.html');
 });
 
 test('finish transition отклоняет stale assignment после изменения planned-порядка', () => {

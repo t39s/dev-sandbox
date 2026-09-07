@@ -1,21 +1,29 @@
-# Final Cycle Report — RC9
+# Final Cycle Report — ttScore 0.5.0 + ttscore_team 0.10.0 RC1
 
-## Goal
+## Research
 
-Restore the intended recovery path for a finished personal match when an administrator legitimately changes the order of future Team matches during scoring.
+Confirmed that existing RTDB is sufficient and that report payload should be separated from Team operational state. Verified Firebase Web `set()` completion semantics as the server-write barrier.
 
-## Result
+## Development
 
-Implemented explicit pending-result rebase on `Перечитать Team` only. The stale first write remains blocked; the pending result is then retried against the latest compatible assignment revision and the latest administrative queue determines the next `current` match.
+Implemented immutable canonical JSON backup, server-confirmed reset barrier, reportUrl-in-transition, Team remote report viewer, integrity verification and local recovery export.
 
-## Runtime scope
+## Review
 
-Changed only `ttScore_0.4.0.html`, `team-integration-contract.mjs`, and `ttscore-team-adapter.mjs`. Firebase Rules and `firebase-source.mjs` unchanged.
+Resolved state-loss ordering, post-transition race, ambiguous acknowledgement/idempotency, oversized Team-node coupling and cloud recovery UI concerns. No open blocker/high/medium finding remains.
 
 ## Evidence
 
-All final Node and browser regressions pass, including the owner-reported reorder/reload/reconcile scenario.
+- Team Node 226/226 PASS
+- ttScore Node 13/13 PASS
+- Team E2E 19/19 PASS
+- pending rebase 10/10 PASS
+- report backup/retry/viewer 15/15 PASS
+- autonomous 6/6 PASS
+- realtime editor PASS
+- external revision guard PASS
+- same-client write race PASS
 
 ## Decision
 
-STABILIZE — issue RC9 for owner acceptance; do not start the next architectural feature cycle until this integration candidate is accepted or another blocking defect is found.
+**STABILIZE** — RC1 is ready for owner production acceptance. It is not an accepted baseline until explicitly accepted by the owner.

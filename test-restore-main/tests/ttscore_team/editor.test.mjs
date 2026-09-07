@@ -4,8 +4,8 @@ import test from "node:test";
 import {
   assertSourceUnchanged, movePlannedMatch, parseEditorJson, prepareCombinedEditorChanges, prepareEditableSource,
   prepareEditorChanges, prepareLinkChanges, prepareOperationalLiveUpdate, prepareTransition, sourceRevision
-} from "../../team/assets/0.9.0/editor.mjs";
-import { createTeamMatch } from "../../team/assets/0.9.0/creator.mjs";
+} from "../../team/assets/0.10.0/editor.mjs";
+import { createTeamMatch } from "../../team/assets/0.10.0/creator.mjs";
 
 function fixture() {
   const raw = createTeamMatch({

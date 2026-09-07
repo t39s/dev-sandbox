@@ -4,13 +4,13 @@ import test from "node:test";
 
 import {
   FIREBASE_CONFIG, FIREBASE_SDK_VERSION, assertFirebaseSourceRevision,
-  firebaseTeamMatchPath, firebaseTeamMatchWriteRevision, normalizeFirebaseTeamMatchData,
+  firebaseIndividualMatchReportPath, firebaseTeamMatchPath, firebaseTeamMatchWriteRevision, normalizeFirebaseTeamMatchData,
   prepareFirebaseTeamMatchGuardedWrite, serializeFirebaseTeamMatchWrite, withFirebaseTeamMatchWriteRevision
-} from "../../team/assets/0.9.0/firebase-source.mjs";
-import { createTeamMatch } from "../../team/assets/0.9.0/creator.mjs";
-import { prepareEditableSource, sourceRevision } from "../../team/assets/0.9.0/editor.mjs";
+} from "../../team/assets/0.10.0/firebase-source.mjs";
+import { createTeamMatch } from "../../team/assets/0.10.0/creator.mjs";
+import { prepareEditableSource, sourceRevision } from "../../team/assets/0.10.0/editor.mjs";
 
-const source = readFileSync(new URL("../../team/assets/0.9.0/firebase-source.mjs", import.meta.url), "utf8");
+const source = readFileSync(new URL("../../team/assets/0.10.0/firebase-source.mjs", import.meta.url), "utf8");
 
 test("Firebase использует выделенный проект ttscore-list и europe-west1 RTDB", () => {
   assert.equal(FIREBASE_CONFIG.projectId, "ttscore-list");
@@ -22,6 +22,19 @@ test("Firebase использует выделенный проект ttscore-li
 test("командная встреча хранится одним JSON-узлом /teamMatches/<id>", () => {
   assert.equal(firebaseTeamMatchPath("north-south-2026"), "teamMatches/north-south-2026");
   assert.throws(() => firebaseTeamMatchPath("../secret"), /Некорректный идентификатор/);
+});
+
+
+test("report backup хранится в отдельной versioned-ветке той же RTDB", () => {
+  assert.equal(
+    firebaseIndividualMatchReportPath("north-south-2026", "2026-0902-abcd"),
+    "individualMatchReportsV1/north-south-2026/2026-0902-abcd"
+  );
+  assert.throws(() => firebaseIndividualMatchReportPath("north-south-2026", "../secret"), /идентификатор отчёта/);
+  assert.match(source, /createFirebaseIndividualMatchReport/);
+  assert.match(source, /readFirebaseIndividualMatchReport/);
+  assert.match(source, /sameTeamReportPayload/);
+  assert.match(source, /databaseModule\.set\(reference, candidate\)/);
 });
 
 test("runtime использует realtime onValue, Email/Password и server-enforced revision CAS", () => {

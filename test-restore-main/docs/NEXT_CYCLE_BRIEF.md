@@ -1,29 +1,29 @@
-# Next Cycle Brief — RC9
+# Next Cycle Brief — report backup RC1
 
 ## Current state
 
-RC8 was production-tested: its false same-client finalization conflict is fixed. Owner testing then exposed a separate recovery defect after a legitimate administrator reorder of future matches. RC9 implements explicit safe pending-result rebase after `Перечитать Team`.
+Implementation candidate: `ttScore 0.5.0 + ttscore_team 0.10.0 RC1`, based on accepted RC9.
 
 ## Evidence
 
-Team Node 215/215, `ttScore` Node 11/11, normal Team browser 19/19, new pending-rebase browser 10/10, autonomous browser 6/6, realtime editor PASS, external revision guard PASS, same-client write race PASS. Rules and `firebase-source.mjs` are byte-identical RC8.
+Team Node 226/226; ttScore Node 13/13; Team browser 19/19; pending-rebase 10/10; report backup/retry/viewer 15/15; autonomous 6/6; realtime, external revision guard and same-client race PASS.
 
 ## Known limitations
 
-Production owner acceptance of the new explicit recovery path is still required. RC9 does not introduce Judge/Admin authorization roles or Team-level Undo.
+No credentialed production Firebase E2E in build environment. Full offline continuity across multiple personal matches is intentionally out of scope; product assumes normal internet availability with recoverable 2–5 minute interruptions.
 
 ## Gap
 
-Confirm in production that after an administrator reorders future planned matches, finalization first blocks stale publication and `Перечитать Team` then completes the pending result using the new order without leaving `ttScore`.
+Real Firebase Rules + RTDB + published URL owner acceptance remains required.
 
 ## Recommended next target
 
-Owner acceptance RC9. If accepted, freeze `ttScore 0.4.0` / `ttscore_team 0.9.0` as the integration baseline before starting the separately agreed Judge/Admin capability split and Team-level one-step Undo design.
+Production acceptance of RC1 using happy path and temporary-network failure path. Do not start offline-continuity work.
 
 ## Decision
 
-STABILIZE
+STABILIZE.
 
 ## Reason
 
-The reported defect is locally corrected with targeted evidence and unchanged concurrency protections; the remaining uncertainty is production acceptance, not architecture or implementation.
+Implementation and review criteria are met in the available environment; remaining uncertainty is production integration evidence, not an unresolved design/code blocker.

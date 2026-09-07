@@ -79,3 +79,40 @@ test("RC6: deletion Team node остаётся fail-closed", () => {
   const expr = matchRules[".write"];
   assert.equal(evaluate(expr, ["auth", "root", "newData"], [{ uid: "u1" }, rootSnapshot({ u1: true }), objectSnapshot(null)]), false);
 });
+
+
+const reportRootRules = rules.rules.individualMatchReportsV1;
+const reportRules = reportRootRules["$teamMatchId"]["$recordId"];
+
+test("report backup branch закрывает listing и разрешает только direct public leaf read", () => {
+  assert.equal(reportRootRules[".read"], false);
+  assert.equal(reportRootRules[".write"], false);
+  assert.equal(reportRootRules["$teamMatchId"][".read"], false);
+  assert.equal(reportRules[".read"], true);
+});
+
+test("report backup create-only: только allowlisted editor и существующий Team match", () => {
+  const write = reportRules[".write"];
+  assert.match(write, /auth != null/);
+  assert.match(write, /root\.child\('editors'\)\.child\(auth\.uid\)\.val\(\) === true/);
+  assert.match(write, /root\.child\('teamMatches'\)\.child\(\$teamMatchId\)\.exists\(\)/);
+  assert.match(write, /!data\.exists\(\)/);
+  assert.match(write, /newData\.exists\(\)/);
+});
+
+test("report backup schema/path identity и immutable payload валидируются Rules", () => {
+  assert.match(reportRules[".validate"], /schemaVersion/);
+  assert.match(reportRules[".validate"], /teamMatchId/);
+  assert.match(reportRules[".validate"], /individualMatchId/);
+  assert.match(reportRules[".validate"], /recordId/);
+  assert.match(reportRules[".validate"], /savedAt/);
+  assert.match(reportRules[".validate"], /byteLength/);
+  assert.match(reportRules[".validate"], /sha256/);
+  assert.match(reportRules[".validate"], /json/);
+  assert.match(reportRules.teamMatchId[".validate"], /newData\.val\(\) === \$teamMatchId/);
+  assert.match(reportRules.recordId[".validate"], /newData\.val\(\) === \$recordId/);
+  assert.match(reportRules.byteLength[".validate"], /1048576/);
+  assert.match(reportRules.sha256[".validate"], /\{64\}/);
+  assert.match(reportRules.json[".validate"], /1048576/);
+  assert.equal(reportRules.$other[".validate"], false);
+});
