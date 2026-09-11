@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D Крестики — Нолики</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<main class="app">
+  <header class="header">
+    <h1>3D Крестики — Нолики</h1>
+    <p id="subtitle">3×3×3 · 3 подряд · 49 линий</p>
+  </header>
+
+  <fieldset class="modes" aria-label="Режим игры">
+    <legend>Режим</legend>
+    <label>
+      <input type="radio" name="mode" value="classic" />
+      <span>Classic 3D</span>
+      <small>3×3×3</small>
+    </label>
+    <label>
+      <input type="radio" name="mode" value="strategic" />
+      <span>Strategic 3D</span>
+      <small>4×4×4 · Qubic</small>
+    </label>
+  </fieldset>
+
+  <section class="scoreboard" aria-label="Счёт серии">
+    <div><span>Вы</span><strong id="score-human">0</strong></div>
+    <div><span>Алгоритм</span><strong id="score-algorithm">0</strong></div>
+  </section>
+
+  <p id="status" class="status" aria-live="polite">Ваш ход (X)</p>
+
+  <fieldset id="layers" class="layers" aria-label="Активный слой">
+    <legend>Активный слой</legend>
+  </fieldset>
+
+  <section class="play-area">
+    <div class="board-column">
+      <p id="layer-status" class="layer-status"></p>
+      <section id="board" class="board" aria-label="Игровое поле"></section>
+    </div>
+    <aside class="overview-card" aria-labelledby="overview-title">
+      <div class="overview-heading">
+        <strong id="overview-title">Куб целиком</strong>
+        <span>ближний → дальний</span>
+      </div>
+      <div id="overview" class="overview"></div>
+    </aside>
+  </section>
+
+  <p id="rule-note" class="rule-note"></p>
+
+  <div class="actions">
+    <button id="restart" class="primary" type="button">Новая игра</button>
+    <button id="reset-score" class="secondary" type="button" disabled>
+      Сбросить счёт
+    </button>
+  </div>
+</main>
+<script src="modes.js"></script>
+<script src="game-model.js"></script>
+<script src="ai-model.js"></script>
+<script src="score-model.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
