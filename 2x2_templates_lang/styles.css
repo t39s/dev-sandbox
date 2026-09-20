@@ -2,3 +2,5 @@
 .candidate{margin:18px 0;padding:16px;border:2px solid #8da7ce;border-radius:18px;background:#f8fbff}.candidate h2{margin:4px 0}.compact{margin-top:12px}.compact .level-card{min-height:54px}
 
 .preview-warning{padding:10px 14px;border-top:1px solid #edf0f5;background:#fff8e8;color:#6e4b00;font-size:14px}
+
+.preview-spoiler{margin:14px 0}.preview-spoiler>summary{cursor:pointer;font-weight:750;min-height:48px;padding:14px 4px;list-style-position:inside}.preview-spoiler>summary:focus-visible{outline:3px solid #1f67d8;outline-offset:2px;border-radius:8px}.preview-spoiler .preview{margin:8px 0 0}

@@ -10,7 +10,7 @@ const state={
 };
 
 function $(id){return document.getElementById(id)}
-function mapEls(){['setup','practice','report','setTitle','setMeta','diagnostics','levels','preview','fileInput','loadFileBtn','stockBtn','demoBtn','startBtn','cancelPrepare','prepareBox','prepareText','levelTitle','progress','problem','answer','feedback','keypad','submit','reportTitle','reportStats','reportList','backBtn','resumeBox','resumeBtn','restartBtn','candidateBox','candidateTitle','candidateMeta','candidateLevels','candidatePreview','useCandidateBtn','discardCandidateBtn'].forEach(id=>els[id]=$(id));}
+function mapEls(){['setup','practice','report','setTitle','setMeta','diagnostics','levels','preview','fileInput','loadFileBtn','stockBtn','demoBtn','startBtn','cancelPrepare','prepareBox','prepareText','levelTitle','progress','problem','answer','feedback','keypad','submit','reportTitle','reportStats','reportList','backBtn','resumeBox','resumeBtn','restartBtn','candidateBox','candidateTitle','candidateMeta','candidateLevels','candidatePreviewDetails','candidatePreview','useCandidateBtn','discardCandidateBtn'].forEach(id=>els[id]=$(id));}
 function show(name){for(const id of ['setup','practice','report'])els[id].hidden=id!==name;}
 function detectStorage(){try{const k=APP+'storage-probe';localStorage.setItem(k,'1');localStorage.removeItem(k);return true}catch{return false}}
 function storageGet(k){try{return localStorage.getItem(k)}catch{return null}}
@@ -95,11 +95,11 @@ async function selectLevel(i,b){
 
 function stageCandidate(data){
   const v=C.validateSet(data);if(!v.ok){diagnose([...v.errors,'Предыдущий рабочий набор сохранён.'],false);return}
-  state.pending=data;const token=++state.candidatePreviewToken;els.candidateBox.hidden=false;text(els.candidateTitle,data.title);text(els.candidateMeta,`id: ${data.id} · revision: ${data.revision} · ${data.levels.length} уровней`);els.candidateLevels.replaceChildren();els.candidatePreview.replaceChildren();
-  data.levels.forEach(l=>{const b=document.createElement('button');b.type='button';b.className='level-card';b.innerHTML='<span class="level-name"></span><span class="level-detail"></span>';b.querySelector('.level-name').textContent=l.title;b.querySelector('.level-detail').textContent=`${l.items.reduce((a,x)=>a+x.count,0)} заданий`;b.addEventListener('click',async()=>{const previewToken=++state.candidatePreviewToken;document.querySelectorAll('#candidateLevels .level-card').forEach(x=>x.classList.toggle('selected',x===b));await renderPreview(data,l,els.candidatePreview,()=>state.pending===data&&previewToken===state.candidatePreviewToken)});els.candidateLevels.appendChild(b)});
+  state.pending=data;const token=++state.candidatePreviewToken;els.candidateBox.hidden=false;els.candidatePreviewDetails.open=false;text(els.candidateTitle,data.title);text(els.candidateMeta,`id: ${data.id} · revision: ${data.revision} · ${data.levels.length} уровней`);els.candidateLevels.replaceChildren();els.candidatePreview.replaceChildren();
+  data.levels.forEach(l=>{const b=document.createElement('button');b.type='button';b.className='level-card';b.innerHTML='<span class="level-name"></span><span class="level-detail"></span>';b.querySelector('.level-name').textContent=l.title;b.querySelector('.level-detail').textContent=`${l.items.reduce((a,x)=>a+x.count,0)} заданий`;b.addEventListener('click',async()=>{const previewToken=++state.candidatePreviewToken;els.candidatePreviewDetails.open=false;document.querySelectorAll('#candidateLevels .level-card').forEach(x=>x.classList.toggle('selected',x===b));await renderPreview(data,l,els.candidatePreview,()=>state.pending===data&&previewToken===state.candidatePreviewToken)});els.candidateLevels.appendChild(b)});
   void token;diagnose(['Импортированный файл прошёл проверку. Просмотрите набор и нажмите «Использовать набор» для активации.'],true);
 }
-function hideCandidate(){if(!els.candidateBox)return;els.candidateBox.hidden=true;els.candidateLevels.replaceChildren();els.candidatePreview.replaceChildren();}
+function hideCandidate(){if(!els.candidateBox)return;els.candidateBox.hidden=true;els.candidatePreviewDetails.open=false;els.candidateLevels.replaceChildren();els.candidatePreview.replaceChildren();}
 function useCandidate(){if(state.pending)activate(state.pending,'imported',true)}
 function discardCandidate(){state.pending=null;state.candidatePreviewToken++;hideCandidate();diagnose(['Импорт отменён. Текущий рабочий набор не изменён.'],true)}
 

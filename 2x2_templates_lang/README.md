@@ -1,4 +1,4 @@
-# 2x2 0.1.0-rc.1
+# 2x2 0.1.0-rc.3
 
 Acceptance candidate статического веб-приложения для тренировки устного счёта по архитектурному заданию `2x2_architecture_1.0.0-draft.1.md`.
 
@@ -31,7 +31,7 @@ python3 -m http.server 8080
 ## Текущее состояние
 
 - Core: **22/22 PASS**.
-- Chromium E2E: **13/13 PASS**.
+- Chromium E2E: **14/14 PASS**.
 - JSON Schema: stock/demo **PASS**.
 - Static safety / HTTP smoke: **PASS**.
 - Desktop Chromium max-pool measurement выполнен.
@@ -43,7 +43,7 @@ python3 -m http.server 8080
 
 2x2 Templates v1 использует JSON как формат хранения и ограниченный арифметический DSL с AST. `eval`/`Function` не используются. Поддерживаются integer variables/derived/constraints, `+ - * / %`, скобки, exact division, expression или prompt+answer, конечные пулы, дедупликация и selection without replacement.
 
-Session controller не перезагружает страницу между ответами. Сохраняются конкретные задания, input и результаты; reload/background делают сеанс interrupted, поэтому он не открывает следующий уровень. Импорт `.json` двухфазный: validate/preview → явное «Использовать набор»; плохой файл не заменяет рабочий.
+Session controller не перезагружает страницу между ответами. Сохраняются конкретные задания, input и результаты; reload/background делают сеанс interrupted, поэтому он не открывает следующий уровень. Импорт `.json` двухфазный: validate/preview → явное «Использовать набор»; preview примеров сохранён, но свернут под спойлером по умолчанию; плохой файл не заменяет рабочий.
 
 Мобильный practice UI имеет цифровую клавиатуру с `±`, `0`, `⌫`, аппаратные keyboard actions и safe-area-aware portrait layout. Для короткого arithmetic scenario автоматизированно проверены 320/375/390/430 × 568 CSS px.
 
