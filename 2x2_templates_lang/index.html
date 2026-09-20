@@ -10,7 +10,7 @@
 <body>
 <main class="shell">
   <section id="setup" class="screen">
-    <header class="top"><div><div class="eyebrow">2x2 0.1.0-rc.1 · Templates v1</div><h1 id="setTitle">Загрузка…</h1><div id="setMeta" class="muted"></div></div></header>
+    <header class="top"><div><div class="eyebrow">2x2 0.1.0-rc.4 · Templates v1</div><h1 id="setTitle">Загрузка…</h1><div id="setMeta" class="muted"></div></div></header>
     <div id="diagnostics" class="notice" hidden></div>
     <div id="resumeBox" class="resume" hidden><p></p><div class="row"><button id="resumeBtn" class="primary">Продолжить без зачёта</button><button id="restartBtn">Начать заново</button></div></div>
     <div class="toolbar"><button id="loadFileBtn">Загрузить задания</button><input id="fileInput" type="file" accept="application/json,.json" hidden><button id="stockBtn">Штатный набор</button><button id="demoBtn">Демо генератора</button></div>
@@ -19,7 +19,10 @@
       <div class="eyebrow">Проверенный импорт — ещё не активирован</div>
       <h2 id="candidateTitle"></h2><div id="candidateMeta" class="muted"></div>
       <div id="candidateLevels" class="level-grid compact"></div>
-      <div id="candidatePreview" class="preview"></div>
+      <details id="candidatePreviewDetails" class="preview-spoiler">
+        <summary id="candidatePreviewSummary">Предпросмотр примеров</summary>
+        <div id="candidatePreview" class="preview"></div>
+      </details>
       <div class="row"><button id="useCandidateBtn" class="primary">Использовать набор</button><button id="discardCandidateBtn">Отменить импорт</button></div>
     </section>
     <h2>Уровни</h2><div id="levels" class="level-grid"></div>
@@ -42,8 +45,23 @@
     <button id="submit" class="primary submit" disabled>Ответить</button>
   </section>
 
-  <section id="report" class="screen" hidden>
-    <div class="eyebrow">Результат</div><h1 id="reportTitle"></h1><p id="reportStats" class="report-stats"></p><div id="reportList" class="report-list"></div><button id="backBtn" class="primary">К уровням</button>
+  <section id="report" class="screen legacy-report" hidden>
+    <h1 id="reportTitle"></h1>
+    <div id="reportReason" class="legacy-report-reason"></div>
+    <p id="reportStats" class="visually-hidden"></p>
+    <table class="legacy-report-table" aria-label="Результаты прохождения уровня">
+      <thead><tr><th>№<br>задания</th><th>Не верные<br>ответы</th><th class="time">Затраченное<br>время, сек.</th></tr></thead>
+      <tbody id="reportList"></tbody>
+      <tfoot>
+        <tr class="total"><th>Итого</th><th id="reportErrors"></th><th id="reportTime" class="time"></th></tr>
+        <tr><td>Норматив</td><td id="reportNormErrors"></td><td id="reportNormTime" class="time"></td></tr>
+      </tfoot>
+    </table>
+    <div class="legacy-report-actions">
+      <button id="reportPrimaryBtn" type="button" hidden></button>
+      <button id="backBtn" type="button">Выбрать уровень</button>
+    </div>
+    <p class="legacy-copyright">И.&nbsp;Юнушев, 2003.</p>
   </section>
 </main>
 <script src="core.js"></script><script src="app.js"></script>
