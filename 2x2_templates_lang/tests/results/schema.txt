@@ -1,0 +1,2 @@
+PASS data/templates.json
+PASS data/demo-templates.json

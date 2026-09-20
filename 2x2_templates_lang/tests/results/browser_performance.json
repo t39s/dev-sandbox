@@ -1,0 +1,9 @@
+{
+  "poolLength": 100000,
+  "sequenceLength": 5,
+  "pool100kMs": 499.9,
+  "level500kMs": 2728.4,
+  "timerTicks": 789,
+  "maxTimerGapMs": 20.7,
+  "runtime": "Chromium 144.0.7559.96"
+}

@@ -1,0 +1,3 @@
+2x2 0.1.0-rc.1
+Build date: 2026-09-19
+Source baseline: t39s/2x2 gh-pages @ 7da35e81e484051f0b9bb4936cc55190bf34023d

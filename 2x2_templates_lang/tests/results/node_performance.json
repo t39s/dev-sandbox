@@ -1,0 +1,6 @@
+{
+  "runtime": "Node v22.16.0",
+  "pool_100k_ms": 259.5,
+  "level_500k_ms": 1287.7,
+  "rss_after_mb": 266
+}

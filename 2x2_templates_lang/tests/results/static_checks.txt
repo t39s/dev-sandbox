@@ -1,0 +1,4 @@
+PASS core.js syntax
+PASS app.js syntax
+PASS no eval()/Function() in runtime
+PASS CSP present and scripts external

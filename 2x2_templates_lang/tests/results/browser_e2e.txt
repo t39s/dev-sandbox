@@ -1,0 +1,15 @@
+PASS stock set loads and 8 levels render
+PASS full level pass opens report and unlocks next level
+PASS generated demo level integrates with UI
+PASS large preparation can be cancelled and retried
+PASS unavailable storage is reported explicitly
+PASS practice keyboard, negative answer, repeat Enter
+PASS reload during answer restores same concrete item/input
+PASS reload during feedback advances without duplicate result
+PASS visibility change marks the current session interrupted
+PASS error/time boundaries are inclusive; exceeding time fails
+PASS JSON import is two-phase; bad file preserves active set
+PASS HTML in imported text is rendered as text
+PASS 320/375/390/430 × 568 portrait layout fits
+
+13 passed, 0 failed

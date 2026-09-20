@@ -1,0 +1,24 @@
+PASS stock set validates
+PASS demo set validates
+PASS operator precedence 2 + 3 * 4 = 14
+PASS parentheses (2 + 3) * 4 = 20
+PASS nested subtraction = -9
+PASS division/multiplication left associative = 8
+PASS remainder sign matches JS = -1
+PASS leading zero rejected
+PASS source integer outside ±1,000,000 rejected
+PASS JS injection rejected
+PASS unknown field rejected
+PASS unknown variable name rejected before start
+PASS cycle rejected
+PASS duplicate values rejected
+PASS range boundaries are inclusive
+PASS addition-over-ten pool has exactly 36 ordered pairs
+PASS division pool is integer and divisor nonzero
+PASS empty pool detected
+PASS one variant count=2 rejected
+PASS cross-template duplicate prompt produces warning
+PASS 100k pool preparation can be cancelled
+PASS all 64 legacy expressions preserve order/parentheses and answers
+
+22 passed, 0 failed

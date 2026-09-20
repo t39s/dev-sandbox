@@ -43,7 +43,8 @@
         let j = i + 1; while (j < source.length && /[0-9]/.test(source[j])) j++;
         const raw = source.slice(i, j);
         if (raw.length > 1 && raw[0] === '0') throw new ValidationError('целое не может иметь ведущий ноль');
-        tokens.push({t:'int', v:Number(raw), raw}); i = j; continue;
+        const value = Number(raw); if (value > LIMIT) throw new ValidationError(`целое ${raw} вне диапазона 0…${LIMIT}`);
+        tokens.push({t:'int', v:value, raw}); i = j; continue;
       }
       if (/[a-z]/.test(c)) {
         let j = i + 1; while (j < source.length && /[a-z0-9_]/.test(source[j])) j++;
@@ -288,8 +289,13 @@
 
   async function generateLevel(set, level, options={}){
     const templateMap=new Map(set.templates.map(t=>[t.id,t]));let combos=0;for(const it of level.items)combos+=assignmentCount(templateMap.get(it.templateId));if(combos>500000)throw new ValidationError(`Уровень требует ${combos} исходных сочетаний, максимум 500000`);
-    const sequence=[];
-    for(const it of level.items){const t=templateMap.get(it.templateId);const pool=await buildPoolAsync(t,options);if(pool.length===0)throw new ValidationError(`Шаблон ${t.id}: условию не соответствует ни одно сочетание чисел`);sequence.push(...sampleWithoutReplacement(pool,it.count,options.rng||Math.random));}
+    const sequence=[]; const promptOwner=new Map(); const crossTemplateDuplicates=new Set();
+    for(const it of level.items){
+      const t=templateMap.get(it.templateId);const pool=await buildPoolAsync(t,options);if(pool.length===0)throw new ValidationError(`Шаблон ${t.id}: условию не соответствует ни одно сочетание чисел`);
+      for(const item of pool){const owner=promptOwner.get(item.prompt);if(owner&&owner!==t.id)crossTemplateDuplicates.add(item.prompt);else if(!owner)promptOwner.set(item.prompt,t.id);}
+      sequence.push(...sampleWithoutReplacement(pool,it.count,options.rng||Math.random));
+    }
+    if(crossTemplateDuplicates.size&&options.onWarning){const examples=Array.from(crossTemplateDuplicates).slice(0,3).join('; ');options.onWarning(`Разные шаблоны дают одинаковые условия: ${crossTemplateDuplicates.size}${examples?` (например: ${examples})`:''}`);}
     return level.shuffle?shuffle(sequence,options.rng||Math.random):sequence;
   }
 
