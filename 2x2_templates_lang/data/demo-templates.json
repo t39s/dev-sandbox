@@ -1,0 +1,128 @@
+{
+  "format": "2x2-templates",
+  "version": 1,
+  "id": "mental-arithmetic-generated",
+  "revision": 1,
+  "title": "Устный счёт — демонстрация генератора",
+  "templates": [
+    {
+      "id": "addition-over-ten",
+      "title": "Сложение с переходом через десяток",
+      "variables": {
+        "a": {
+          "min": 1,
+          "max": 9
+        },
+        "b": {
+          "min": 1,
+          "max": 9
+        }
+      },
+      "expression": "a + b",
+      "constraints": [
+        "a + b > 10"
+      ]
+    },
+    {
+      "id": "division",
+      "title": "Табличное деление",
+      "variables": {
+        "d": {
+          "min": 2,
+          "max": 9
+        },
+        "q": {
+          "min": 2,
+          "max": 9
+        }
+      },
+      "derived": {
+        "n": "d * q"
+      },
+      "expression": "n / d"
+    },
+    {
+      "id": "missing-addend",
+      "title": "Найди пропущенное число",
+      "variables": {
+        "a": {
+          "min": 1,
+          "max": 9
+        },
+        "x": {
+          "min": 1,
+          "max": 9
+        }
+      },
+      "derived": {
+        "s": "a + x"
+      },
+      "prompt": "{a} + □ = {s}",
+      "answer": "x"
+    },
+    {
+      "id": "boxes",
+      "title": "Карандаши в коробках",
+      "variables": {
+        "n": {
+          "values": [
+            2,
+            3,
+            4
+          ]
+        },
+        "k": {
+          "min": 2,
+          "max": 9
+        }
+      },
+      "prompt": "Коробок: {n}. В каждой по {k} карандашей. Сколько карандашей всего?",
+      "answer": "n * k"
+    }
+  ],
+  "levels": [
+    {
+      "id": "generated-1",
+      "title": "Генератор: переход через десяток",
+      "maxErrors": 1,
+      "maxSeconds": 35,
+      "items": [
+        {
+          "templateId": "addition-over-ten",
+          "count": 8
+        }
+      ],
+      "shuffle": true
+    },
+    {
+      "id": "generated-2",
+      "title": "Генератор: деление и пропуск",
+      "maxErrors": 1,
+      "maxSeconds": 50,
+      "items": [
+        {
+          "templateId": "division",
+          "count": 4
+        },
+        {
+          "templateId": "missing-addend",
+          "count": 4
+        }
+      ],
+      "shuffle": true
+    },
+    {
+      "id": "generated-3",
+      "title": "Текстовые задачи",
+      "maxErrors": 1,
+      "maxSeconds": 60,
+      "items": [
+        {
+          "templateId": "boxes",
+          "count": 6
+        }
+      ],
+      "shuffle": true
+    }
+  ]
+}

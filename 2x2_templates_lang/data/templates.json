@@ -1,0 +1,659 @@
+{
+  "format": "2x2-templates",
+  "version": 1,
+  "id": "mental-arithmetic",
+  "revision": 1,
+  "title": "Устный счёт — исходные уровни",
+  "templates": [
+    {
+      "id": "legacy-1-1",
+      "title": "Уровень 1. Задание 1",
+      "expression": "2 + 2"
+    },
+    {
+      "id": "legacy-1-2",
+      "title": "Уровень 1. Задание 2",
+      "expression": "9 - 4"
+    },
+    {
+      "id": "legacy-1-3",
+      "title": "Уровень 1. Задание 3",
+      "expression": "3 + 8"
+    },
+    {
+      "id": "legacy-1-4",
+      "title": "Уровень 1. Задание 4",
+      "expression": "5 - 9"
+    },
+    {
+      "id": "legacy-1-5",
+      "title": "Уровень 1. Задание 5",
+      "expression": "7 + 9"
+    },
+    {
+      "id": "legacy-1-6",
+      "title": "Уровень 1. Задание 6",
+      "expression": "-4 + 8"
+    },
+    {
+      "id": "legacy-1-7",
+      "title": "Уровень 1. Задание 7",
+      "expression": "6 + 5"
+    },
+    {
+      "id": "legacy-1-8",
+      "title": "Уровень 1. Задание 8",
+      "expression": "3 - 9"
+    },
+    {
+      "id": "legacy-2-1",
+      "title": "Уровень 2. Задание 1",
+      "expression": "3 + 5 + 9"
+    },
+    {
+      "id": "legacy-2-2",
+      "title": "Уровень 2. Задание 2",
+      "expression": "4 - 7 + 5"
+    },
+    {
+      "id": "legacy-2-3",
+      "title": "Уровень 2. Задание 3",
+      "expression": "3 + 8 - 9"
+    },
+    {
+      "id": "legacy-2-4",
+      "title": "Уровень 2. Задание 4",
+      "expression": "-5 - 8 - 3"
+    },
+    {
+      "id": "legacy-2-5",
+      "title": "Уровень 2. Задание 5",
+      "expression": "4 + 9 + 8"
+    },
+    {
+      "id": "legacy-2-6",
+      "title": "Уровень 2. Задание 6",
+      "expression": "-2 + 9 - 2"
+    },
+    {
+      "id": "legacy-2-7",
+      "title": "Уровень 2. Задание 7",
+      "expression": "3 + 7 - 3"
+    },
+    {
+      "id": "legacy-2-8",
+      "title": "Уровень 2. Задание 8",
+      "expression": "8 + 9 + 7"
+    },
+    {
+      "id": "legacy-3-1",
+      "title": "Уровень 3. Задание 1",
+      "expression": "5 - (6 - 5)"
+    },
+    {
+      "id": "legacy-3-2",
+      "title": "Уровень 3. Задание 2",
+      "expression": "3 + (4 - 7)"
+    },
+    {
+      "id": "legacy-3-3",
+      "title": "Уровень 3. Задание 3",
+      "expression": "(-6 + 7) + 9"
+    },
+    {
+      "id": "legacy-3-4",
+      "title": "Уровень 3. Задание 4",
+      "expression": "7 - (9 + 7)"
+    },
+    {
+      "id": "legacy-3-5",
+      "title": "Уровень 3. Задание 5",
+      "expression": "1 - (7 - 9)"
+    },
+    {
+      "id": "legacy-3-6",
+      "title": "Уровень 3. Задание 6",
+      "expression": "-7 - (3 - 6)"
+    },
+    {
+      "id": "legacy-3-7",
+      "title": "Уровень 3. Задание 7",
+      "expression": "9 - (9 + 9)"
+    },
+    {
+      "id": "legacy-3-8",
+      "title": "Уровень 3. Задание 8",
+      "expression": "-6 - (6 + 7)"
+    },
+    {
+      "id": "legacy-4-1",
+      "title": "Уровень 4. Задание 1",
+      "expression": "5 - (8 - 5) + 8"
+    },
+    {
+      "id": "legacy-4-2",
+      "title": "Уровень 4. Задание 2",
+      "expression": "3 + (4 - 7) - 5"
+    },
+    {
+      "id": "legacy-4-3",
+      "title": "Уровень 4. Задание 3",
+      "expression": "-6 + (7 + 9) - 6"
+    },
+    {
+      "id": "legacy-4-4",
+      "title": "Уровень 4. Задание 4",
+      "expression": "-7 - (4 - 9) + 7"
+    },
+    {
+      "id": "legacy-4-5",
+      "title": "Уровень 4. Задание 5",
+      "expression": "1 - (7 - 2) + 9"
+    },
+    {
+      "id": "legacy-4-6",
+      "title": "Уровень 4. Задание 6",
+      "expression": "-7 - (3 - 9) + 6"
+    },
+    {
+      "id": "legacy-4-7",
+      "title": "Уровень 4. Задание 7",
+      "expression": "8 - (9 + 9) - 9"
+    },
+    {
+      "id": "legacy-4-8",
+      "title": "Уровень 4. Задание 8",
+      "expression": "6 - (6 + 9) + 9"
+    },
+    {
+      "id": "legacy-5-1",
+      "title": "Уровень 5. Задание 1",
+      "expression": "3 - 19"
+    },
+    {
+      "id": "legacy-5-2",
+      "title": "Уровень 5. Задание 2",
+      "expression": "-6 + 18"
+    },
+    {
+      "id": "legacy-5-3",
+      "title": "Уровень 5. Задание 3",
+      "expression": "8 + 27"
+    },
+    {
+      "id": "legacy-5-4",
+      "title": "Уровень 5. Задание 4",
+      "expression": "19 - 7"
+    },
+    {
+      "id": "legacy-5-5",
+      "title": "Уровень 5. Задание 5",
+      "expression": "7 - 38"
+    },
+    {
+      "id": "legacy-5-6",
+      "title": "Уровень 5. Задание 6",
+      "expression": "41 - 7"
+    },
+    {
+      "id": "legacy-5-7",
+      "title": "Уровень 5. Задание 7",
+      "expression": "-87 - 8"
+    },
+    {
+      "id": "legacy-5-8",
+      "title": "Уровень 5. Задание 8",
+      "expression": "-5 + 99"
+    },
+    {
+      "id": "legacy-6-1",
+      "title": "Уровень 6. Задание 1",
+      "expression": "5 + 67 - 8"
+    },
+    {
+      "id": "legacy-6-2",
+      "title": "Уровень 6. Задание 2",
+      "expression": "-78 + 5 - 9"
+    },
+    {
+      "id": "legacy-6-3",
+      "title": "Уровень 6. Задание 3",
+      "expression": "2 - 56 + 4"
+    },
+    {
+      "id": "legacy-6-4",
+      "title": "Уровень 6. Задание 4",
+      "expression": "32 - 8 + 3"
+    },
+    {
+      "id": "legacy-6-5",
+      "title": "Уровень 6. Задание 5",
+      "expression": "8 - 40 + 8"
+    },
+    {
+      "id": "legacy-6-6",
+      "title": "Уровень 6. Задание 6",
+      "expression": "-9 + 90 - 8"
+    },
+    {
+      "id": "legacy-6-7",
+      "title": "Уровень 6. Задание 7",
+      "expression": "-76 - 9 - 8"
+    },
+    {
+      "id": "legacy-6-8",
+      "title": "Уровень 6. Задание 8",
+      "expression": "58 + 6 + 7"
+    },
+    {
+      "id": "legacy-7-1",
+      "title": "Уровень 7. Задание 1",
+      "expression": "9 - (73 - 8)"
+    },
+    {
+      "id": "legacy-7-2",
+      "title": "Уровень 7. Задание 2",
+      "expression": "6 + (9 - 32)"
+    },
+    {
+      "id": "legacy-7-3",
+      "title": "Уровень 7. Задание 3",
+      "expression": "1 + (48 + 9)"
+    },
+    {
+      "id": "legacy-7-4",
+      "title": "Уровень 7. Задание 4",
+      "expression": "-9 + (65 - 8)"
+    },
+    {
+      "id": "legacy-7-5",
+      "title": "Уровень 7. Задание 5",
+      "expression": "-7 - (34 - 7)"
+    },
+    {
+      "id": "legacy-7-6",
+      "title": "Уровень 7. Задание 6",
+      "expression": "5 + (-21 + 9)"
+    },
+    {
+      "id": "legacy-7-7",
+      "title": "Уровень 7. Задание 7",
+      "expression": "4 - (-56 + 3)"
+    },
+    {
+      "id": "legacy-7-8",
+      "title": "Уровень 7. Задание 8",
+      "expression": "7 - (17 - 2)"
+    },
+    {
+      "id": "legacy-8-1",
+      "title": "Уровень 8. Задание 1",
+      "expression": "72 - 32"
+    },
+    {
+      "id": "legacy-8-2",
+      "title": "Уровень 8. Задание 2",
+      "expression": "75 - 49"
+    },
+    {
+      "id": "legacy-8-3",
+      "title": "Уровень 8. Задание 3",
+      "expression": "18 + 29"
+    },
+    {
+      "id": "legacy-8-4",
+      "title": "Уровень 8. Задание 4",
+      "expression": "92 - 57"
+    },
+    {
+      "id": "legacy-8-5",
+      "title": "Уровень 8. Задание 5",
+      "expression": "16 - 73"
+    },
+    {
+      "id": "legacy-8-6",
+      "title": "Уровень 8. Задание 6",
+      "expression": "27 + 78"
+    },
+    {
+      "id": "legacy-8-7",
+      "title": "Уровень 8. Задание 7",
+      "expression": "-95 - 32"
+    },
+    {
+      "id": "legacy-8-8",
+      "title": "Уровень 8. Задание 8",
+      "expression": "39 + 93"
+    }
+  ],
+  "levels": [
+    {
+      "id": "legacy-level-1",
+      "title": "1 уровень. 9 + 9",
+      "maxErrors": 1,
+      "maxSeconds": 30,
+      "items": [
+        {
+          "templateId": "legacy-1-1",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-1-2",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-1-3",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-1-4",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-1-5",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-1-6",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-1-7",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-1-8",
+          "count": 1
+        }
+      ],
+      "shuffle": false
+    },
+    {
+      "id": "legacy-level-2",
+      "title": "2 уровень. 9 + 9 + 9",
+      "maxErrors": 1,
+      "maxSeconds": 40,
+      "items": [
+        {
+          "templateId": "legacy-2-1",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-2-2",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-2-3",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-2-4",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-2-5",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-2-6",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-2-7",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-2-8",
+          "count": 1
+        }
+      ],
+      "shuffle": false
+    },
+    {
+      "id": "legacy-level-3",
+      "title": "3 уровень. 9 + (9 + 9)",
+      "maxErrors": 1,
+      "maxSeconds": 50,
+      "items": [
+        {
+          "templateId": "legacy-3-1",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-3-2",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-3-3",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-3-4",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-3-5",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-3-6",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-3-7",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-3-8",
+          "count": 1
+        }
+      ],
+      "shuffle": false
+    },
+    {
+      "id": "legacy-level-4",
+      "title": "4 уровень. 9 + (9 + 9) + 9",
+      "maxErrors": 1,
+      "maxSeconds": 60,
+      "items": [
+        {
+          "templateId": "legacy-4-1",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-4-2",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-4-3",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-4-4",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-4-5",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-4-6",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-4-7",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-4-8",
+          "count": 1
+        }
+      ],
+      "shuffle": false
+    },
+    {
+      "id": "legacy-level-5",
+      "title": "5 уровень. 9 + 99",
+      "maxErrors": 1,
+      "maxSeconds": 40,
+      "items": [
+        {
+          "templateId": "legacy-5-1",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-5-2",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-5-3",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-5-4",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-5-5",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-5-6",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-5-7",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-5-8",
+          "count": 1
+        }
+      ],
+      "shuffle": false
+    },
+    {
+      "id": "legacy-level-6",
+      "title": "6 уровень. 9 + 99 + 9",
+      "maxErrors": 1,
+      "maxSeconds": 60,
+      "items": [
+        {
+          "templateId": "legacy-6-1",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-6-2",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-6-3",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-6-4",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-6-5",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-6-6",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-6-7",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-6-8",
+          "count": 1
+        }
+      ],
+      "shuffle": false
+    },
+    {
+      "id": "legacy-level-7",
+      "title": "7 уровень. 9 + (99 + 9)",
+      "maxErrors": 1,
+      "maxSeconds": 80,
+      "items": [
+        {
+          "templateId": "legacy-7-1",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-7-2",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-7-3",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-7-4",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-7-5",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-7-6",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-7-7",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-7-8",
+          "count": 1
+        }
+      ],
+      "shuffle": false
+    },
+    {
+      "id": "legacy-level-8",
+      "title": "8 уровень. 99 + 99",
+      "maxErrors": 1,
+      "maxSeconds": 50,
+      "items": [
+        {
+          "templateId": "legacy-8-1",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-8-2",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-8-3",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-8-4",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-8-5",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-8-6",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-8-7",
+          "count": 1
+        },
+        {
+          "templateId": "legacy-8-8",
+          "count": 1
+        }
+      ],
+      "shuffle": false
+    }
+  ]
+}
