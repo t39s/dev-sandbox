@@ -4,3 +4,20 @@
 .preview-warning{padding:10px 14px;border-top:1px solid #edf0f5;background:#fff8e8;color:#6e4b00;font-size:14px}
 
 .preview-spoiler{margin:14px 0}.preview-spoiler>summary{cursor:pointer;font-weight:750;min-height:48px;padding:14px 4px;list-style-position:inside}.preview-spoiler>summary:focus-visible{outline:3px solid #1f67d8;outline-offset:2px;border-radius:8px}.preview-spoiler .preview{margin:8px 0 0}
+
+
+/* RC4: report presentation aligned with the original 2x2 report (gh-pages @ 7da35e8). */
+.visually-hidden{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.legacy-report{font-family:"Times New Roman",Times,serif;font-size:12pt;color:#000;background:#fff;text-align:center;min-height:100dvh;padding-top:10px}
+.legacy-report h1{font-family:Arial,sans-serif;font-size:120%;line-height:1;text-align:center;font-weight:bold;margin:20pt 0}
+.legacy-report-reason p,.legacy-copyright{font-size:105%;line-height:1;text-align:center;margin:6px 0}
+.legacy-report-reason{min-height:0}
+.legacy-report-table{width:330px;max-width:100%;margin:20pt auto 12px;border-collapse:collapse;border:1px solid #777;table-layout:fixed;background:#fff}
+.legacy-report-table th,.legacy-report-table td{border:1px solid #777;padding:8px;font-family:"Times New Roman",Times,serif;font-size:12pt;line-height:.95;text-align:center;font-weight:normal;background:#fff}
+.legacy-report-table thead th,.legacy-report-table tr.total th{font-weight:bold}
+.legacy-report-table th.time,.legacy-report-table td.time{text-align:right}
+.legacy-report-actions{display:flex;justify-content:center;gap:4px;flex-wrap:wrap;margin:12px 0 0}
+.legacy-report-actions button{font:13.3333px Arial,sans-serif;color:#000;background:#f0f0f0;border:1px solid #767676;border-radius:2px;min-height:26px;padding:3px 10px;font-weight:400;box-shadow:none}
+.legacy-report-actions button:focus-visible{outline:2px solid #000;outline-offset:2px}
+.legacy-copyright{margin-top:42px;text-align:center}
+@media(max-width:360px){.legacy-report{padding-left:10px;padding-right:10px}.legacy-report-table th,.legacy-report-table td{padding:7px 5px;font-size:11pt}}

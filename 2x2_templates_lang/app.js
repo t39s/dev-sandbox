@@ -6,11 +6,11 @@ const els={};
 const state={
   set:null,source:'stock',level:null,sequence:null,index:0,input:'',results:[],elapsedMs:0,shownAt:0,
   locked:false,interrupted:false,phase:'answer',abort:null,pending:null,
-  previewToken:0,candidatePreviewToken:0,prepareToken:0,storageAvailable:true
+  previewToken:0,candidatePreviewToken:0,prepareToken:0,storageAvailable:true,reportAction:null
 };
 
 function $(id){return document.getElementById(id)}
-function mapEls(){['setup','practice','report','setTitle','setMeta','diagnostics','levels','preview','fileInput','loadFileBtn','stockBtn','demoBtn','startBtn','cancelPrepare','prepareBox','prepareText','levelTitle','progress','problem','answer','feedback','keypad','submit','reportTitle','reportStats','reportList','backBtn','resumeBox','resumeBtn','restartBtn','candidateBox','candidateTitle','candidateMeta','candidateLevels','candidatePreviewDetails','candidatePreview','useCandidateBtn','discardCandidateBtn'].forEach(id=>els[id]=$(id));}
+function mapEls(){['setup','practice','report','setTitle','setMeta','diagnostics','levels','preview','fileInput','loadFileBtn','stockBtn','demoBtn','startBtn','cancelPrepare','prepareBox','prepareText','levelTitle','progress','problem','answer','feedback','keypad','submit','reportTitle','reportReason','reportStats','reportList','reportErrors','reportTime','reportNormErrors','reportNormTime','reportPrimaryBtn','backBtn','resumeBox','resumeBtn','restartBtn','candidateBox','candidateTitle','candidateMeta','candidateLevels','candidatePreviewDetails','candidatePreview','useCandidateBtn','discardCandidateBtn'].forEach(id=>els[id]=$(id));}
 function show(name){for(const id of ['setup','practice','report'])els[id].hidden=id!==name;}
 function detectStorage(){try{const k=APP+'storage-probe';localStorage.setItem(k,'1');localStorage.removeItem(k);return true}catch{return false}}
 function storageGet(k){try{return localStorage.getItem(k)}catch{return null}}
@@ -134,9 +134,58 @@ function submitAnswer(){
   state.results.push({prompt:item.prompt,answer:item.answer,given:n,correct,elapsedMs:elapsed});state.phase='feedback';text(els.feedback,correct?'Верно':'Неверно. Ответ: '+fmt(item.answer));els.feedback.className='feedback '+(correct?'good':'bad');renderInput();saveSession();setTimeout(advanceAfterFeedback,900);
 }
 function finish(){
-  const errors=state.results.filter(x=>!x.correct).length;const secs=state.elapsedMs/1000;const passed=!state.interrupted&&errors<=state.level.maxErrors&&secs<=state.level.maxSeconds;
-  if(passed){const idx=state.set.levels.findIndex(l=>l.id===state.level.id);const p=getProgress();p.maxUnlocked=Math.max(p.maxUnlocked,Math.min(state.set.levels.length-1,idx+1));saveProgress(p)}
-  clearSession();show('report');text(els.reportTitle,passed?'Уровень пройден':'Тренировка завершена');text(els.reportStats,`${state.results.filter(x=>x.correct).length}/${state.results.length} верно · ошибок: ${errors} · время: ${secs.toFixed(1)} с · порог: ≤ ${state.level.maxErrors} ошибок и ≤ ${state.level.maxSeconds} с${state.interrupted?' · сеанс был прерван':''}`);els.reportList.replaceChildren();state.results.forEach((r,i)=>{const row=document.createElement('div');row.className='report-row '+(r.correct?'ok':'fail');const q=document.createElement('span');q.textContent=`${i+1}. ${r.prompt}`;const a=document.createElement('span');a.textContent=`ваш: ${fmt(r.given)} · ответ: ${fmt(r.answer)}`;row.append(q,a);els.reportList.appendChild(row)})
+  const errors=state.results.filter(x=>!x.correct).length;
+  const secs=state.elapsedMs/1000;
+  const correct=state.results.length-errors;
+  const idx=state.set.levels.findIndex(l=>l.id===state.level.id);
+  const last=idx===state.set.levels.length-1;
+  const withinErrors=errors<=state.level.maxErrors;
+  const withinTime=secs<=state.level.maxSeconds;
+  const passed=!state.interrupted&&withinErrors&&withinTime;
+  if(passed){const p=getProgress();p.maxUnlocked=Math.max(p.maxUnlocked,Math.min(state.set.levels.length-1,idx+1));saveProgress(p)}
+  clearSession();show('report');
+
+  if(passed&&last){
+    els.reportTitle.replaceChildren(document.createTextNode('Последний уровень завершен!'),document.createElement('br'),document.createTextNode('Поздравляю!'));
+  }else if(passed){
+    els.reportTitle.replaceChildren(document.createTextNode(`Уровень ${idx+1}`),document.createElement('br'),document.createTextNode('успешно завершен!'));
+  }else{
+    els.reportTitle.replaceChildren(document.createTextNode(`Уровень ${idx+1}`),document.createElement('br'),document.createTextNode('пройти не удалось.'));
+  }
+
+  const reasons=[];
+  if(state.interrupted)reasons.push('Сеанс был прерван. Результат не открывает следующий уровень.');
+  else{
+    if(!withinErrors)reasons.push('Верных ответов меньше, чем требуется.');
+    if(!withinTime)reasons.push('Затраты времени больше допустимых.');
+    if(passed&&last)reasons.push('Чтобы закрепить навыки счёта в уме, можете повторить задания.');
+  }
+  els.reportReason.replaceChildren(...reasons.map(message=>{const p=document.createElement('p');p.textContent=message;return p}));
+  text(els.reportStats,`${correct}/${state.results.length} верно · ошибок: ${errors} · время: ${secs.toFixed(2)} с · норматив: ≤ ${state.level.maxErrors} ошибок и ≤ ${state.level.maxSeconds.toFixed(2)} с${state.interrupted?' · сеанс был прерван':''}`);
+
+  els.reportList.replaceChildren();
+  state.results.forEach((r,i)=>{
+    const tr=document.createElement('tr');
+    const num=document.createElement('td');num.textContent=String(i+1);
+    const err=document.createElement('td');err.textContent=r.correct?' ':'Х';
+    const time=document.createElement('td');time.className='time';time.textContent=(r.elapsedMs/1000).toFixed(2);
+    tr.title=`${r.prompt}; ваш ответ: ${fmt(r.given)}; правильный ответ: ${fmt(r.answer)}`;
+    tr.append(num,err,time);els.reportList.appendChild(tr);
+  });
+  text(els.reportErrors,errors?String(errors):'Нет');
+  text(els.reportTime,secs.toFixed(2));
+  text(els.reportNormErrors,String(state.level.maxErrors));
+  text(els.reportNormTime,state.level.maxSeconds.toFixed(2));
+
+  state.reportAction=null;
+  if(passed&&!last)state.reportAction={kind:'continue',index:idx+1};
+  else if(!passed)state.reportAction={kind:'repeat',index:idx};
+  els.reportPrimaryBtn.hidden=!state.reportAction;
+  if(state.reportAction)text(els.reportPrimaryBtn,state.reportAction.kind==='continue'?'Продолжить':'Повторить');
+}
+
+function runReportPrimaryAction(){
+  const action=state.reportAction;if(!action)return;const index=action.index;renderSetup();const b=els.levels.children[index];if(b&&!b.disabled)b.click();
 }
 
 function validSessionItem(x){return x&&typeof x==='object'&&typeof x.prompt==='string'&&x.prompt.length<=1000&&Number.isInteger(x.answer)&&Math.abs(x.answer)<=1000000}
@@ -176,7 +225,7 @@ async function init(){
   mapEls();state.storageAvailable=detectStorage();
   els.loadFileBtn.addEventListener('click',()=>els.fileInput.click());els.fileInput.addEventListener('change',onFile);els.stockBtn.addEventListener('click',()=>loadBundled('data/templates.json','stock'));els.demoBtn.addEventListener('click',()=>loadBundled('data/demo-templates.json','demo'));
   els.useCandidateBtn.addEventListener('click',useCandidate);els.discardCandidateBtn.addEventListener('click',discardCandidate);els.startBtn.addEventListener('click',startSelected);els.cancelPrepare.addEventListener('click',cancelPreparation);
-  els.keypad.addEventListener('click',e=>{const b=e.target.closest('button[data-action]');if(b)action(b.dataset.action)});els.submit.addEventListener('click',()=>action('submit'));els.backBtn.addEventListener('click',renderSetup);els.resumeBtn.addEventListener('click',resume);els.restartBtn.addEventListener('click',restartInterrupted);document.addEventListener('keydown',keyboard);document.addEventListener('visibilitychange',()=>{if(document.hidden)markInterrupted()});
+  els.keypad.addEventListener('click',e=>{const b=e.target.closest('button[data-action]');if(b)action(b.dataset.action)});els.submit.addEventListener('click',()=>action('submit'));els.reportPrimaryBtn.addEventListener('click',runReportPrimaryAction);els.backBtn.addEventListener('click',renderSetup);els.resumeBtn.addEventListener('click',resume);els.restartBtn.addEventListener('click',restartInterrupted);document.addEventListener('keydown',keyboard);document.addEventListener('visibilitychange',()=>{if(document.hidden)markInterrupted()});
   if(tryRestore())return;
   let imported=null;try{imported=JSON.parse(storageGet(importedKey())||'null')}catch{}
   if(imported&&C.validateSet(imported).ok)activate(imported,'imported',false);else await loadBundled('data/templates.json','stock');
