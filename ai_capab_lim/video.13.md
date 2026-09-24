@@ -2,7 +2,7 @@ Anthropic | [Claude Academy](https://academy.claude.com) | Course [AI capabiliti
 
 [Lessons list](index.md)
   
-# Перевод транскрипции видео
+# Перевод расшифровки видео
 ## Урок 13. Next Steps (Следующие шаги)
 
  ​  
@@ -14,7 +14,7 @@ Anthropic | [Claude Academy](https://academy.claude.com) | Course [AI capabiliti
 | Fluent AI use isn't about memorizing every failure mode. | Свободное владение ИИ — это не запоминание каждого возможного сбоя. |
 | It's about holding a small, clear model of the machine in your head, so that when something goes wrong you can recognize which kind of wrong it is and respond accordingly. | Речь о том, чтобы держать в голове небольшую и ясную модель того, как устроена система, чтобы, когда что-то идёт не так, вы могли распознать, что именно пошло не так, и отреагировать соответствующим образом. |
 | ​  | ​  |
-| **Transcript** | **Транскрипт** |
+| **Transcript** | **Расшифровка** |
 |  |  |
 | Hi again, it's Kristen from the education team at Anthropic. | Снова здравствуйте, это Кристен из образовательной команды Anthropic. |
 | When you started this series, you probably had some version of one question: Why does AI do that? | Когда вы начинали эту серию, у вас, вероятно, была та или иная версия одного вопроса: почему ИИ делает это? |
