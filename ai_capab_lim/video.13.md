@@ -3,6 +3,8 @@ Anthropic | [Claude Academy](https://academy.claude.com) | Course [AI capabiliti
 [Lessons list](index.md)
 
  ​  
+# Перевод транскрипции видео из уроков курса
+
 | Original text | Перевод на русский язык |
 |---|---|
 | ​  | ​  |
