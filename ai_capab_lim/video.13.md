@@ -1,8 +1,8 @@
-Anthropic | Claude Academy
+Anthropic | [Claude Academy](https://academy.claude.com)
 
-https://academy.claude.com/courses/ai-capabilities-and-limitations/
+Course [AI capabilities and limitations] (https://academy.claude.com/courses/ai-capabilities-and-limitations/)
 
-[Оглавление](index.md)
+[Lessons list](index.md)
 
 | Original text | Перевод на русский язык |
 |---|---|
