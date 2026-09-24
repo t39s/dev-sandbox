@@ -23,6 +23,7 @@ Anthropic | [Claude Academy](https://academy.claude.com)
 
 Перевод расшифровок и глоссарий — ChatGPT 5.6 Sol.
 
+​
 
 [Оригинальный курс](https://academy.claude.com/courses/ai-capabilities-and-limitations/) — Anthropic / Claude Academy
 
