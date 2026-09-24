@@ -5,6 +5,7 @@ Anthropic | [Claude Academy](https://academy.claude.com) | Course [AI capabiliti
 # Перевод расшифровки видео
 ## Урок 13. Next Steps (Следующие шаги)
 
+
 ||| 
 |---|---|
 | **Summary** | **Резюме** |
