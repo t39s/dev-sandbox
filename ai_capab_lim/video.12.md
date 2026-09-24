@@ -5,6 +5,7 @@ Anthropic | [Claude Academy](https://academy.claude.com) | Course [AI capabiliti
 # Перевод расшифровки видео
 ## Урок 12. When Properties Collide (Когда свойства сталкиваются)
  ​ 
+
 | ​ | ​ |
 |---|---|
 | **Summary** | **Резюме** |
