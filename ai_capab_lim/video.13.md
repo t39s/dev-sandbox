@@ -94,6 +94,7 @@ Anthropic | [Claude Academy](https://academy.claude.com) | Course [AI capabiliti
 | You've built a mental model that's durable on purpose. | Вы сформировали ментальную модель, которая специально рассчитана на долговечность. |
 | The target keeps moving, and now you know how to track it. | Цель продолжает двигаться, и теперь вы знаете, как за ней следить. |
 
+
 [Lessons list](index.md)
 
 Anthropic | [Claude Academy](https://academy.claude.com) | Course [AI capabilities and limitations](https://academy.claude.com/courses/ai-capabilities-and-limitations/)
