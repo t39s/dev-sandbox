@@ -1,4 +1,8 @@
-Anthropic | [Claude Academy](https://academy.claude.com)
+---
+layout: course
+---
+
+Anthropic \| [Claude Academy](https://academy.claude.com)
 
 # AI Capabilities and Limitations
 ## Перевод расшифровок видео к урокам курса
