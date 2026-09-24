@@ -1,4 +1,8 @@
-Anthropic | [Claude Academy](https://academy.claude.com) | Course [AI capabilities and limitations](https://academy.claude.com/courses/ai-capabilities-and-limitations/)
+---
+layout: course
+---
+
+Anthropic \| [Claude Academy](https://academy.claude.com) \| Course [AI capabilities and limitations](https://academy.claude.com/courses/ai-capabilities-and-limitations/)
 
 [Оглавление](index.md)
 
@@ -109,7 +113,7 @@ Anthropic | [Claude Academy](https://academy.claude.com) | Course [AI capabiliti
 
 [Оглавление](index.md)
 
-Anthropic | [Claude Academy](https://academy.claude.com) | Course [AI capabilities and limitations](https://academy.claude.com/courses/ai-capabilities-and-limitations/)
+Anthropic \| [Claude Academy](https://academy.claude.com) \| Course [AI capabilities and limitations](https://academy.claude.com/courses/ai-capabilities-and-limitations/)
 
 Перевод и глоссарий — ChatGPT 5.6 Sol.
 
