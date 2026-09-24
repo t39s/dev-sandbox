@@ -1,6 +1,6 @@
-Anthropic | [Claude Academy](https://academy.claude.com) | Course [AI capabilities and limitations](https://academy.claude.com/courses/ai-capabilities-and-limitations/)
+Anthropic \| [Claude Academy](https://academy.claude.com) \| Course [AI capabilities and limitations](https://academy.claude.com/courses/ai-capabilities-and-limitations/)
 
-[Оглавление](index.md) | [Глоссарий](glossary.md)
+[Оглавление](index.md) \| [Глоссарий](glossary.md)
   
 # Перевод расшифровки видео
 ## Урок 12. When Properties Collide (Когда свойства сталкиваются)
@@ -61,12 +61,12 @@ Anthropic | [Claude Academy](https://academy.claude.com) | Course [AI capabiliti
 
  ​ 
 
-[Оглавление](index.md) | [Глоссарий](glossary.md)
+[Оглавление](index.md) \| [Глоссарий](glossary.md)
 
 Перевод и глоссарий — ChatGPT 5.6 Sol.
 
 ​
 
-Anthropic | [Claude Academy](https://academy.claude.com) | Course [AI capabilities and limitations](https://academy.claude.com/courses/ai-capabilities-and-limitations/)
+Anthropic \| [Claude Academy](https://academy.claude.com) \| Course [AI capabilities and limitations](https://academy.claude.com/courses/ai-capabilities-and-limitations/)
 
 2026
