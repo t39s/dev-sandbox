@@ -4,6 +4,7 @@ Anthropic | [Claude Academy](https://academy.claude.com) | Course [AI capabiliti
 
 | Original text | Перевод на русский язык |
 |---|---|
+| ​  | ​  |
 | Lesson 13 | Урок 13 |
 | **Next Steps** | **Следующие шаги** |
 | ​  | ​  |
