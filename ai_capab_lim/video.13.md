@@ -4,6 +4,7 @@ Anthropic | [Claude Academy](https://academy.claude.com) | Course [AI capabiliti
   
 ## Перевод транскрипции видео из уроков курса
 
+  
 | Original text | Перевод на русский язык |
 |---|---|
 | ​  | ​  |
