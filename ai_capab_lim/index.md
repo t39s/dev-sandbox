@@ -1,9 +1,9 @@
 Anthropic | [Claude Academy](https://academy.claude.com)
 
 # AI Capabilities and Limitations
-## Перевод расшифровок видео курса
+## Перевод расшифровок видео к урокам курса
 
-| № | Title | Название |
+| № | Lesson | Урок |
 |---|---|---|
 | 1 | [Intro to AI Capabilities and Limitations](video.01.md) | Введение в возможности и ограничения ИИ |
 | 2 | [What We Mean by AI](video.02.md) | Что мы подразумеваем под ИИ |
@@ -18,6 +18,8 @@ Anthropic | [Claude Academy](https://academy.claude.com)
 | 11 | Try It Out: Steerability | Попробуйте сами: управляемость |
 | 12 | [When Properties Collide](video.12.md) | Когда свойства сталкиваются |
 | 13 | [Next Steps](video.13.md) | Следующие шаги |
+
+​
 
 [Glossary / Глоссарий](glossary.md)
 
