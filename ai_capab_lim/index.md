@@ -1,21 +1,28 @@
-Anthropic | [Claude Academy](https://academy.claude.com) | Course [AI capabilities and limitations](https://academy.claude.com/courses/ai-capabilities-and-limitations/)
+Anthropic | [Claude Academy](https://academy.claude.com)
 
-## Оглавление
+# AI Capabilities and Limitations
+## Перевод расшифровок видео курса
 
-| Lesson No. | Title | Название |
+| № | Title | Название |
 |---|---|---|
-| [Lesson 1](video.01.md) | Intro to AI Capabilities and Limitations | Введение в возможности и ограничения ИИ |
-| [Lesson 2](video.02.md) | What We Mean by AI | Что мы подразумеваем под ИИ |
-| [Lesson 3](video.03.md) | How AI Gets Its Character | Как ИИ приобретает свой характер |
-| [Lesson 4](video.04.md) | Next Token Prediction | Предсказание следующего токена |
-| Lesson 5 | Try It Out: Next Token Prediction | Попробуйте сами: предсказание следующего токена |
-| [Lesson 6](video.06.md) | Knowledge | Знания |
-| Lesson 7 | Try It Out: Knowledge | Попробуйте сами: знания |
-| [Lesson 8](video.08.md) | Working Memory | Рабочая память |
-| Lesson 9 | Try It Out: Working Memory | Попробуйте сами: рабочая память |
-| [Lesson 10](video.10.md) | Steerability | Управляемость |
-| Lesson 11 | Try It Out: Steerability | Попробуйте сами: управляемость |
-| [Lesson 12](video.12.md) | When Properties Collide | Когда свойства сталкиваются |
-| [Lesson 13](video.13.md) | Next Steps | Следующие шаги |
+| 1 | [Intro to AI Capabilities and Limitations](video.01.md) | Введение в возможности и ограничения ИИ |
+| 2 | [What We Mean by AI](video.02.md) | Что мы подразумеваем под ИИ |
+| 3 | [How AI Gets Its Character](video.03.md) | Как ИИ приобретает свой характер |
+| 4 | [Next Token Prediction](video.04.md) | Предсказание следующего токена |
+| 5 | Try It Out: Next Token Prediction | Попробуйте сами: предсказание следующего токена |
+| 6 | [Knowledge](video.06.md) | Знания |
+| 7 | Try It Out: Knowledge | Попробуйте сами: знания |
+| 8 | [Working Memory](video.08.md) | Рабочая память |
+| 9 | Try It Out: Working Memory | Попробуйте сами: рабочая память |
+| 10 | [Steerability](video.10.md) | Управляемость |
+| 11 | Try It Out: Steerability | Попробуйте сами: управляемость |
+| 12 | [When Properties Collide](video.12.md) | Когда свойства сталкиваются |
+| 13 | [Next Steps](video.13.md) | Следующие шаги |
 
 [Glossary / Глоссарий](glossary.md)
+
+[Оригинальный курс](https://academy.claude.com/courses/ai-capabilities-and-limitations/) — Anthropic / Claude Academy
+
+Перевод расшифровок и глоссарий — ChatGPT 5.6 Sol.
+
+2026
