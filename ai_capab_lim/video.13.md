@@ -5,7 +5,7 @@ Anthropic | [Claude Academy](https://academy.claude.com) | Course [AI capabiliti
 # Перевод транскрипции видео
 ## Урок 13. Next Steps (Следующие шаги)
 
-  
+ ​  
 | Original text | Перевод на русский язык |
 |---|---|
 | ​  | ​  |
