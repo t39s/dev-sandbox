@@ -5,14 +5,14 @@ Anthropic | [Claude Academy](https://academy.claude.com) | Course [AI capabiliti
 | Original text | Перевод на русский язык |
 |---|---|
 | Lesson 13 | Урок 13 |
-| Next Steps | **Следующие шаги** |
+| **Next Steps** | **Следующие шаги** |
 |  |  |
-| Summary | Резюме |
-| . | . |
+| **Summary** | **Резюме** |
+|   |   |
 | Fluent AI use isn't about memorizing every failure mode. | Свободное владение ИИ — это не запоминание каждого возможного сбоя. |
 | It's about holding a small, clear model of the machine in your head, so that when something goes wrong you can recognize which kind of wrong it is and respond accordingly. | Речь о том, чтобы держать в голове небольшую и ясную модель того, как устроена система, чтобы, когда что-то идёт не так, вы могли распознать, что именно пошло не так, и отреагировать соответствующим образом. |
 |  |  |
-| Transcript | Транскрипт |
+| **Transcript** | **Транскрипт** |
 |  |  |
 | Hi again, it's Kristen from the education team at Anthropic. | Снова здравствуйте, это Кристен из образовательной команды Anthropic. |
 | When you started this series, you probably had some version of one question: Why does AI do that? | Когда вы начинали эту серию, у вас, вероятно, была та или иная версия одного вопроса: почему ИИ делает это? |
@@ -92,3 +92,7 @@ Anthropic | [Claude Academy](https://academy.claude.com) | Course [AI capabiliti
 |  |  |
 | You've built a mental model that's durable on purpose. | Вы сформировали ментальную модель, которая специально рассчитана на долговечность. |
 | The target keeps moving, and now you know how to track it. | Цель продолжает двигаться, и теперь вы знаете, как за ней следить. |
+
+[Lessons list](index.md)
+
+Anthropic | [Claude Academy](https://academy.claude.com) | Course [AI capabilities and limitations](https://academy.claude.com/courses/ai-capabilities-and-limitations/)
