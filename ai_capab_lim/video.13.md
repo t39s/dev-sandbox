@@ -9,9 +9,6 @@ Anthropic | [Claude Academy](https://academy.claude.com) | Course [AI capabiliti
 | Original text | Перевод на русский язык |
 |---|---|
 | ​  | ​  |
-| Lesson 13 | Урок 13 |
-| **Next Steps** | **Следующие шаги** |
-| ​  | ​  |
 | **Summary** | **Резюме** |
 | ​  | ​  |
 | Fluent AI use isn't about memorizing every failure mode. | Свободное владение ИИ — это не запоминание каждого возможного сбоя. |
