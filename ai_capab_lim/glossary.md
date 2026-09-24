@@ -113,8 +113,10 @@ Anthropic \| [Claude Academy](https://academy.claude.com) \| Course [AI capabili
 
 [Оглавление](index.md)
 
-Anthropic \| [Claude Academy](https://academy.claude.com) \| Course [AI capabilities and limitations](https://academy.claude.com/courses/ai-capabilities-and-limitations/)
-
 Перевод и глоссарий — ChatGPT 5.6 Sol.
+
+​
+
+Anthropic \| [Claude Academy](https://academy.claude.com) \| Course [AI capabilities and limitations](https://academy.claude.com/courses/ai-capabilities-and-limitations/)
 
 2026
