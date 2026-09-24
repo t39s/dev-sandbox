@@ -1,3 +1,7 @@
+Anthropic | [Claude Academy](https://academy.claude.com) | Course [AI capabilities and limitations](https://academy.claude.com/courses/ai-capabilities-and-limitations/)
+
+# Оглавление
+
 | Lesson No. | Title | Название |
 |---|---|---|
 | [Lesson 1](video.01.md) | Intro to AI Capabilities and Limitations | Введение в возможности и ограничения ИИ |
@@ -13,3 +17,5 @@
 | Lesson 11 | Try It Out: Steerability | Попробуйте сами: управляемость |
 | [Lesson 12](video.12.md) | When Properties Collide | Когда свойства сталкиваются |
 | [Lesson 13](video.13.md) | Next Steps | Следующие шаги |
+
+[Glossary / Глоссарий](glossary.md)
