@@ -1,15 +1,15 @@
 Anthropic | Claude Academy
 
-Course
+Course 
 https://academy.claude.com/courses/ai-capabilities-and-limitations/
 
 | Original text | Перевод на русский язык |
 |---|---|
 | Lesson 13 | Урок 13 |
-| Next Steps | Следующие шаги |
+| #Next Steps | #Следующие шаги |
 |  |  |
-| Summary | Резюме |
-|  |  |
+| ##Summary | ##Резюме |
+| . | . |
 | Fluent AI use isn't about memorizing every failure mode. | Свободное владение ИИ — это не запоминание каждого возможного сбоя. |
 | It's about holding a small, clear model of the machine in your head, so that when something goes wrong you can recognize which kind of wrong it is and respond accordingly. | Речь о том, чтобы держать в голове небольшую и ясную модель того, как устроена система, чтобы, когда что-то идёт не так, вы могли распознать, что именно пошло не так, и отреагировать соответствующим образом. |
 |  |  |
