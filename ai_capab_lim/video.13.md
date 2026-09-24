@@ -2,8 +2,7 @@ Anthropic | [Claude Academy](https://academy.claude.com) | Course [AI capabiliti
 
 [Lessons list](index.md)
   
-## Перевод транскрипции видео из урока 13
-## Следующие шаги
+## Перевод транскрипции видео из урока 13 «Следующие шаги»
 
   
 | Original text | Перевод на русский язык |
