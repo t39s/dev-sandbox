@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>HCD — Проводник по оглавлению</title>
+<style>
+:root { --bg:#f8fafc; --surface:#fff; --ink:#202936; --secondary:#627082; --border:#dbe2ea; --hover:#eef4fb; --focus:#dceafe; --blue:#1868ac; --indent:23px; --shadow:0 6px 24px rgba(24,44,74,.07); }
+* { box-sizing:border-box; }
+html { font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui, sans-serif; background:var(--bg); color:var(--ink); }
+body { margin:0; }
+button,input { font:inherit; }
+button { cursor:pointer; }
+header { background:#fff; border-bottom:1px solid var(--border); position:sticky; top:0; z-index:3; box-shadow:0 2px 8px #27313f08; }
+.wrap { max-width:1200px; padding:0 23px; margin:0 auto; }
+.heading { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:18px 0 13px; }
+.heading h1 { font-size:20px; line-height:1.25; margin:0; font-weight:600; letter-spacing:-.25px; }
+.heading p { margin:5px 0 0; color:var(--secondary); font-size:12.5px; }
+.source-link { color:#1664a7; text-decoration:none; white-space:nowrap; font-size:13px; }
+.source-link:hover,.node-link:hover { text-decoration:underline; }
+.toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding-bottom:14px; }
+.search { flex:1 1 240px; min-width:165px; border:1px solid #c5d2df; border-radius:6px; background:white; padding:9px 12px 9px 33px; outline:none; font-size:13px; background-image:url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%23728091" stroke-width="2"%3E%3Ccircle cx="11" cy="11" r="7"/%3E%3Cpath d="m16 16 5 5"/%3E%3C/svg%3E'); background-position:10px center; background-repeat:no-repeat; }
+.search:focus { box-shadow:0 0 0 2px #a6d3f7; border-color:#2887c6; }
+.action { background:#fff; border:1px solid #cfd9e3; border-radius:6px; color:#35465a; padding:8px 11px; font-size:12.5px; line-height:20px; }
+.action:hover { background:#edf3f8; }
+.action:focus-visible,.arrow:focus-visible,.node-link:focus-visible,.line-link:focus-visible { outline:2px solid #1780c4; outline-offset:2px; }
+.workspace { max-width:1200px; margin:23px auto 80px; padding:0 23px; }
+.panel { background:var(--surface); border:1px solid var(--border); border-radius:9px; box-shadow:var(--shadow); overflow:hidden; }
+.panel-bar { border-bottom:1px solid var(--border); padding:12px 18px; display:flex; align-items:center; flex-wrap:wrap; justify-content:space-between; gap:10px; background:#fafcfe; }
+.panel-title { font-size:13px; font-weight:600; }
+.meta { color:var(--secondary); font-size:12px; }
+.tree-scroller { overflow:auto; max-height:calc(100vh - 245px); min-height:240px; padding:12px 12px 26px 6px; }
+.tree, .subtree { margin:0; padding:0; list-style:none; }
+.tree { min-width:620px; }
+.subtree { padding-left:var(--indent); border-left:1px solid #e5ebf2; margin-left:12px; }
+.item { padding:0; margin:0; }
+.row { min-height:31px; display:flex; align-items:flex-start; border-radius:4px; font-size:13px; line-height:21px; gap:3px; }
+.row:hover { background:var(--hover); }
+.row:focus-within { background:var(--focus); }
+.arrow, .arrow-placeholder { width:25px; height:27px; flex:0 0 25px; margin-top:2px; }
+.arrow { border:0; background:transparent; color:#4e647a; display:inline-grid; place-items:center; padding:0; border-radius:3px; }
+.arrow:hover { background:#d9e9f9; }
+.arrow svg { width:12px; height:12px; transform:rotate(0deg); transition:transform .12s; }
+.arrow.open svg { transform:rotate(90deg); }
+.icon { flex:0 0 18px; width:18px; height:18px; margin:6px 3px 0 0; }
+.folder { color:#d6a13a; }
+.file { color:#7d94a9; }
+.node-link { flex:1; color:#26374a; padding:5px 3px 5px 2px; text-decoration:none; overflow-wrap:anywhere; border-radius:3px; }
+.node-link.level-1 { font-weight:650; color:#163b62; }
+.node-link.level-2 { font-weight:570; }
+.line-link { font-size:11px; color:#8494a5; text-decoration:none; padding:4px 8px; border-radius:3px; margin:1px 0 0 3px; white-space:nowrap; }
+.line-link:hover { color:#1566a4; background:#e5f0f9; }
+mark { background:#fff0a6; color:inherit; border-radius:2px; padding:0; }
+.empty, .problem, .loading { padding:32px 24px; color:var(--secondary); text-align:center; font-size:13px; line-height:1.7; }
+.problem { color:#a23c32; }
+.problem a { color:var(--blue); }
+.status-pill { display:inline-block; margin-left:9px; padding:2px 7px; border-radius:20px; background:#e9f2fa; color:#4a7090; font-size:11px; font-weight:400; vertical-align:1px; }
+footer { color:var(--secondary); font-size:12px; max-width:1200px; margin:16px auto 35px; padding:0 23px; line-height:1.6; }
+footer a { color:#236ca5; }
+@media(max-width:620px) { .wrap,.workspace,footer { padding-left:12px; padding-right:12px; } .heading { align-items:start; flex-direction:column; gap:7px; } .heading h1{font-size:18px} .toolbar{gap:6px}.action{padding:7px 8px;} .panel-bar{padding:10px 12px} .tree-scroller{max-height:calc(100vh - 280px)} }
+@media(prefers-reduced-motion:reduce){.arrow svg{transition:none}}
+</style>
+</head>
+<body>
+<header>
+ <div class="wrap">
+  <div class="heading">
+   <div><h1>Human Capability Development <span style="font-weight:400;color:#647689">/ Оглавление</span></h1>
+   <p>Иерархический проводник по заголовкам Markdown · все уровни</p></div>
+   <a id="github-link" class="source-link" target="_blank" rel="noopener noreferrer">Исходный документ ↗</a>
+  </div>
+  <div class="toolbar" aria-label="Управление деревом">
+   <input id="search" class="search" type="search" aria-label="Поиск по заголовкам" placeholder="Поиск по всем заголовкам…" autocomplete="off">
+   <button id="expand" class="action" type="button">Развернуть всё</button>
+   <button id="collapse" class="action" type="button">Свернуть всё</button>
+   <button id="levels" class="action" type="button" title="Циклическое раскрытие первых уровней">Уровни: 2</button>
+   <button id="refresh" class="action" type="button" title="Повторно загрузить исходный Markdown">Обновить ↻</button>
+  </div>
+ </div>
+</header>
+<main class="workspace">
+ <section class="panel" aria-label="Дерево оглавления">
+  <div class="panel-bar"><div class="panel-title">Структура документа <span class="status-pill" id="edition">main</span></div><span class="meta" id="stats" role="status" aria-live="polite">Загрузка…</span></div>
+  <div class="tree-scroller" id="scroll"><div class="loading" id="loading">Получение заголовков из исходного документа…</div><ul class="tree" id="tree" role="tree" aria-label="Оглавление" hidden></ul><div class="empty" id="empty" hidden>Совпадений не найдено.</div><div class="problem" id="problem" hidden></div></div>
+ </section>
+</main>
+<footer>Интерфейс — отдельный HTML-файл. Он получает заголовки из оригинального Markdown, не копирует текст разделов и сохраняет исходную последовательность. Нажатие на название открывает раздел на GitHub; «L…» открывает точную строку исходного файла. Данные последней успешной загрузки кэшируются в браузере.</footer>
+<script>
+'use strict';
+(() => {
+ const BASE = 'https://github.com/ailev/FPF/blob/main/Engineering%20DPF%20Suite/HUMAN-CAPABILITY-DEVELOPMENT-PRINCIPLES-FRAMEWORK.md';
+ const RAW = 'https://raw.githubusercontent.com/ailev/FPF/main/Engineering%20DPF%20Suite/HUMAN-CAPABILITY-DEVELOPMENT-PRINCIPLES-FRAMEWORK.md';
+ const CDN = 'https://cdn.jsdelivr.net/gh/ailev/FPF@main/Engineering%20DPF%20Suite/HUMAN-CAPABILITY-DEVELOPMENT-PRINCIPLES-FRAMEWORK.md';
+ const CACHE_KEY = 'hcd-toc-explorer-v1';
+ const el = id => document.getElementById(id);
+ const ui = {tree:el('tree'), loading:el('loading'), empty:el('empty'), problem:el('problem'),stats:el('stats'), search:el('search'),edition:el('edition'),levels:el('levels')};
+ el('github-link').href=BASE;
+ let entries=[], roots=[], byId=new Map(), expanded=new Set(), levelLimit=2, searchText='', version='';
+ const htmlEscape = s => String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+ function stripMarkdown(value) {
+   return value.replace(/\s+#+\s*$/, '')
+     .replace(/<[^>]*>/g,'').replace(/!\[([^\]]*)\]\([^)]*\)/g,'$1')
+     .replace(/\[([^\]]+)\]\([^)]*\)/g,'$1')
+     .replace(/\[([^\]]+)\]\[[^\]]*\]/g,'$1')
+     .replace(/\\([\\`*{}\[\]()#+.!_>~-])/g,'$1')
+     .replace(/[`*_~]/g,'').replace(/\s+/g,' ').trim();
+ }
+ function slugify(s) {
+   return stripMarkdown(s).toLowerCase().replace(/[^\p{L}\p{N}_\-\s]/gu,'').trim().replace(/\s/g,'-');
+ }
+ function parseMarkdown(md) {
+   const source=md.replace(/^\ufeff/,'').split(/\r?\n/);
+   let inFence=false, fenceChar='', fenceLen=0;
+   const seen=new Map(), out=[];
+   for(let i=0;i<source.length;i++) {
+     const line=source[i];
+     const fence=line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+     if(fence) {
+       if(!inFence){inFence=true;fenceChar=fence[1][0];fenceLen=fence[1].length;continue;}
+       if(fence[1][0]===fenceChar && fence[1].length>=fenceLen && !fence[2].trim()){inFence=false;continue;}
+     }
+     if(inFence) continue;
+     const h=line.match(/^ {0,3}(#{1,6})(?:[ \t]+|$)(.*)$/);
+     if(!h) continue;
+     const rawTitle=h[2].replace(/[ \t]+#+[ \t]*$/,'').trim();
+     const title=stripMarkdown(rawTitle);
+     if(!title) continue;
+     const base=slugify(rawTitle), suffix=seen.get(base)||0;
+     seen.set(base,suffix+1);
+     out.push({id:out.length,level:h[1].length,title,line:i+1,anchor:base+(suffix?'-'+suffix:''),children:[],parent:null});
+   }
+   return out;
+ }
+ function buildTree(data) {
+   entries=data;roots=[];byId=new Map();const stack=[];
+   for(const n of entries){n.children=[];n.parent=null;
+     while(stack.length && stack[stack.length-1].level>=n.level) stack.pop();
+     if(stack.length){n.parent=stack[stack.length-1].id;stack[stack.length-1].children.push(n.id);}else roots.push(n.id);
+     byId.set(n.id,n);stack.push(n);
+   }
+ }
+ function showError(message) {
+   ui.loading.hidden=true;ui.tree.hidden=true;ui.problem.hidden=false;
+   ui.problem.innerHTML=htmlEscape(message)+'<br><a href="'+BASE+'" target="_blank" rel="noopener noreferrer">Открыть документ на GitHub ↗</a>';
+   ui.stats.textContent='Источник недоступен';
+ }
+ function highlight(s,q){if(!q)return htmlEscape(s);const i=s.toLocaleLowerCase().indexOf(q);if(i<0)return htmlEscape(s);return htmlEscape(s.slice(0,i))+'<mark>'+htmlEscape(s.slice(i,i+q.length))+'</mark>'+htmlEscape(s.slice(i+q.length));}
+ function icon(hasChildren){return hasChildren?'<svg class="icon folder" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2 7c0-1 .9-2 2-2h6l2 2h8c1.1 0 2 .9 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7Z" fill="#E9BE65" stroke="#B88C33" stroke-width=".8"/><path d="M2.5 11h19" stroke="#C1933A" stroke-width=".8"/></svg>':'<svg class="icon file" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 2h9l5 5v15H5z" fill="#F8FAFC" stroke="#8FA3B6" stroke-width="1.4"/><path d="M14 2v5h5M8 12h8M8 16h8" stroke="#9BAABB" stroke-width="1.2"/></svg>';}
+ function visibleMatches(q) {
+   if(!q)return {visible:null,forced:null, count:entries.length};
+   const visible=new Set(),forced=new Set();let count=0;
+   for(const n of entries){if(n.title.toLocaleLowerCase().includes(q)){count++;visible.add(n.id);let p=n.parent;while(p!==null){visible.add(p);forced.add(p);p=byId.get(p).parent;}}}
+   return {visible,forced,count};
+ }
+ function render(){
+   ui.loading.hidden=true;ui.problem.hidden=true;
+   const q=searchText.trim().toLocaleLowerCase(), {visible,forced,count}=visibleMatches(q);
+   ui.empty.hidden=count!==0;ui.tree.hidden=count===0;
+   ui.stats.textContent=q?`${count} совпадений из ${entries.length} заголовков`:`${entries.length} заголовков · ${Math.max(...entries.map(n=>n.level))} уровней`;
+   if(!count){ui.tree.replaceChildren();return;}
+   const makeList=(ids,depth)=>{
+     const ul=document.createElement('ul');ul.className=depth?'subtree':'tree';ul.setAttribute('role',depth?'group':'tree');
+     for(const id of ids){
+       if(visible&&!visible.has(id))continue;
+       const n=byId.get(id),has=n.children.some(ch=>!visible||visible.has(ch));
+       const isOpen=has&&(q?forced.has(id)||expanded.has(id):expanded.has(id));
+       const li=document.createElement('li');li.className='item';li.setAttribute('role','treeitem');li.setAttribute('aria-level',String(depth+1));li.setAttribute('aria-label',n.title);
+       if(has)li.setAttribute('aria-expanded',String(isOpen));
+       const row=document.createElement('div');row.className='row';
+       if(has){const arrow=document.createElement('button');arrow.className='arrow'+(isOpen?' open':'');arrow.type='button';arrow.setAttribute('aria-label',(isOpen?'Свернуть: ':'Развернуть: ')+n.title);arrow.setAttribute('aria-expanded',String(isOpen));arrow.innerHTML='<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.75"><path d="m5 2 5 5-5 5"/></svg>';arrow.addEventListener('click',()=>{if(expanded.has(id))expanded.delete(id);else expanded.add(id);render();});row.appendChild(arrow);}
+       else {const space=document.createElement('span');space.className='arrow-placeholder';row.appendChild(space);}
+       const ico=document.createElement('span');ico.innerHTML=icon(has);row.appendChild(ico.firstChild);
+       const link=document.createElement('a');link.className='node-link level-'+n.level;link.href=BASE+'#'+encodeURIComponent(n.anchor);link.target='_blank';link.rel='noopener noreferrer';link.innerHTML=highlight(n.title,q);link.title='Открыть раздел в исходном документе';row.appendChild(link);
+       const line=document.createElement('a');line.className='line-link';line.href=BASE+'?plain=1#L'+n.line;line.title='Открыть строку '+n.line+' в Markdown';line.target='_blank';line.rel='noopener noreferrer';line.textContent='L'+n.line;row.appendChild(line);
+       li.appendChild(row);
+       if(isOpen)li.appendChild(makeList(n.children,depth+1));ul.appendChild(li);
+     }return ul;
+   };
+   ui.tree.replaceWith(makeList(roots,0));ui.tree=document.querySelector('#scroll > ul.tree');ui.tree.id='tree';
+ }
+ function setLevel(l){levelLimit=l;expanded=new Set(entries.filter(n=>n.children.length&&n.level<l).map(n=>n.id));ui.levels.textContent='Уровни: '+l;render();}
+ function install(data,source){buildTree(data);if(!entries.length){showError('В документе не найдены заголовки Markdown.');return;}
+   version=source;ui.edition.textContent=source;
+   expanded=new Set(entries.filter(n=>n.children.length&&n.level<levelLimit).map(n=>n.id));render();
+ }
+ async function load(force=false){ui.loading.hidden=false;ui.problem.hidden=true;ui.empty.hidden=true;ui.stats.textContent='Загрузка…';
+   if(!force){try{const cache=JSON.parse(localStorage.getItem(CACHE_KEY)||'null');if(cache?.entries?.length){install(cache.entries,'кэш · main');ui.stats.textContent+=' · кэш';}}catch(_){/* Storage may be blocked */}}
+   let error=null;
+   for(const url of [RAW,CDN]){
+     try{
+       const response=await fetch(url,{cache:'no-store',signal:AbortSignal.timeout(20000)});
+       if(!response.ok)throw new Error('HTTP '+response.status);
+       const md=await response.text(), parsed=parseMarkdown(md);
+       if(parsed.length<50)throw new Error('Неполный документ / недостаточно заголовков');
+       install(parsed,'main · GitHub');
+       try{localStorage.setItem(CACHE_KEY,JSON.stringify({entries:parsed.map(({id,level,title,line,anchor})=>({id,level,title,line,anchor}))}));}catch(_){/* noncritical */}
+       return;
+     }catch(e){error=e;}
+   }
+   if(entries.length){ui.edition.textContent='кэш · без сети';ui.loading.hidden=true;return;}
+   showError('Не удалось загрузить Markdown. Для первого открытия нужен доступ к GitHub. '+(error?.message||''));
+ }
+ el('expand').addEventListener('click',()=>{expanded=new Set(entries.filter(n=>n.children.length).map(n=>n.id));render();});
+ el('collapse').addEventListener('click',()=>{expanded.clear();render();});
+ ui.levels.addEventListener('click',()=>setLevel(levelLimit>=5?1:levelLimit+1));
+ el('refresh').addEventListener('click',()=>load(true));
+ ui.search.addEventListener('input',()=>{searchText=ui.search.value;render();});
+ // An Enter on the title follows the direct GitHub link. Arrow keys navigate the visible tree.
+ el('scroll').addEventListener('keydown',e=>{
+   if(!['ArrowDown','ArrowUp','ArrowRight','ArrowLeft'].includes(e.key))return;
+   const focused=document.activeElement;if(!focused.matches('.node-link, .arrow'))return;
+   const rows=[...ui.tree.querySelectorAll('.row')];const row=focused.closest('.row');const idx=rows.indexOf(row);if(idx<0)return;
+   e.preventDefault();
+   if(e.key==='ArrowDown'&&rows[idx+1])rows[idx+1].querySelector('.node-link').focus();
+   else if(e.key==='ArrowUp'&&rows[idx-1])rows[idx-1].querySelector('.node-link').focus();
+   else if(e.key==='ArrowRight'){
+      const arrow=row.querySelector('.arrow');if(arrow&&arrow.getAttribute('aria-expanded')==='false'){arrow.click();row.querySelector('.node-link')?.focus();}
+      else if(rows[idx+1]&&rows[idx+1].closest('ul.subtree')) rows[idx+1].querySelector('.node-link').focus();
+   }else if(e.key==='ArrowLeft'){
+      const arrow=row.querySelector('.arrow');if(arrow&&arrow.getAttribute('aria-expanded')==='true'){arrow.click();row.querySelector('.node-link')?.focus();}
+      else {const parent=row.parentElement.parentElement.closest('li.item');parent?.querySelector(':scope > .row .node-link')?.focus();}
+   }
+ });
+ load();
+})();
+</script>
+</body></html>
