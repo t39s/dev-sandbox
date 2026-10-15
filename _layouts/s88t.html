@@ -178,10 +178,8 @@
   }
   // Plain-text numeric chart transcripts remain in the Markdown for agents.
   // Only the graph images are shown in the human-facing presentation.
-  main.querySelectorAll('img[src*="/assets/crops/chart-"]').forEach(function(img){
-    const el=img.closest('p');
-    const prev=el&&el.previousElementSibling;
-    if(prev&&prev.tagName==='PRE')prev.classList.add('chart-transcript');
+  main.querySelectorAll('pre').forEach(function(block){
+    block.classList.add('chart-transcript');
   });
   const headings=Array.from(main.querySelectorAll(':scope > h2'));
   if(headings.length){
