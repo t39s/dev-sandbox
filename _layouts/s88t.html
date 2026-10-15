@@ -1,258 +1,560 @@
 <!doctype html>
 <html lang="{{ page.lang | default: 'ru' }}">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="color-scheme" content="light">
-  <meta name="description" content="{{ page.description | escape }}">
-  <title>{{ page.title | escape }}</title>
-  <style>
-    :root { --ink:#23303c; --muted:#596878; --deep:#17324b; --accent:#145f91; --line:#d5dfe8; --bg:#f2f5f8; --paper:#fff; --panel:#f7fafc; --ring:#005fcc; }
-    * {box-sizing:border-box}
-    html {scroll-behavior:smooth}
-    body {margin:0;background:var(--bg);color:var(--ink);font:17px/1.65 Georgia,"Times New Roman",serif}
-    button,a {touch-action:manipulation}
-    a {color:var(--accent);text-underline-offset:3px}
-    :focus-visible {outline:3px solid var(--ring);outline-offset:3px}
-    .skip {position:absolute;left:-9999px;z-index:50;background:#fff;padding:.5rem}
-    .skip:focus {left:.5rem;top:.5rem}
-    .mast {background:var(--deep);color:#fff;font:500 14px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif}
-    .mast-inner {max-width:1120px;margin:auto;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;padding:.8rem 1.2rem}
-    .mast .title {font-size:.92rem;font-weight:650}
-    .mast-nav {display:flex;gap:.65rem;align-items:center;flex-wrap:wrap}
-    .mast a {color:#e7f2fa}
-    button {font:600 14px/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;cursor:pointer}
-    .action {border:1px solid #b8d8ed;border-radius:7px;background:#f6fbff;color:#114a73;padding:.55rem .8rem}
-    .action:disabled {opacity:.42;cursor:not-allowed}
-    .chapter-nav {display:none;max-width:1120px;margin:0 auto;padding:.75rem 1.1rem;font:14px/1.5 system-ui,sans-serif}
-    .chapter-nav.active {display:block}
-    .chapter-nav strong {display:block;color:var(--muted)}
-    .chapter-nav a {display:inline-block;margin:.3rem 1.1rem .1rem 0}
-    .paper {max-width:1120px;margin:1rem auto 2rem;padding:2.8rem 3.7rem 3.6rem;background:var(--paper);box-shadow:0 5px 28px rgba(30,48,60,.08);border:1px solid var(--line);border-radius:8px}
-    h1,h2,h3,h4,h5 {font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.34;color:var(--deep);overflow-wrap:anywhere;scroll-margin-top:1rem}
-    h1 {font-size:clamp(1.7rem,3vw,2.2rem);margin:1.4rem 0 1.6rem}
-    h2 {font-size:clamp(1.28rem,2.4vw,1.7rem);margin:3.1rem 0 1.2rem;border-bottom:1px solid var(--line);padding-bottom:.55rem}
-    h3 {font-size:1.18rem;margin:2.1rem 0 .8rem}
-    h4 {font-size:1.05rem;margin:1.6rem 0 .65rem}
-    p,ul,ol {margin:0 0 1.05rem}
-    li {margin:.3rem 0}
-    table {display:block;width:100%;overflow-x:auto;border-collapse:collapse;font-size:.9rem}
-    th,td {padding:.5rem .6rem;border:1px solid var(--line)}
-    pre {white-space:pre;overflow-x:auto;max-width:100%;padding:1rem;background:var(--panel);border:1px solid var(--line);font-size:.78rem}
-    .paper img {display:block;max-width:100%;height:auto}
-    .paper > p:has(> img[src*="/assets/crops/photos-"]),
-    .paper > p:has(> img[src*="/assets/crops/chart-"]) {margin:1.25rem auto 1.5rem;max-width:900px}
-    img[src*="/assets/crops/photos-"],img[src*="/assets/crops/chart-"] {width:100%;border-radius:3px}
-    .chart-transcript {display:none}
-    .exercise-card {display:grid;grid-template-columns:minmax(0,34%) minmax(0,1fr);align-items:start;gap:1.2rem;padding:1.1rem;margin:1.2rem 0 1.5rem;border:1px solid var(--line);border-radius:10px;background:var(--panel);scroll-margin-top:1rem}
-    .exercise-figure {min-width:0;background:#fff;padding:.6rem;border:1px solid #e1e7ec;border-radius:7px}
-    .exercise-figure img {width:100%;height:auto;object-fit:contain}
-    .exercise-figure p {margin:0}
-    .exercise-copy {min-width:0;overflow-wrap:anywhere}
-    .exercise-copy > :last-child {margin-bottom:0}
-    .exercise-meta {display:block;font:600 .76rem/1.4 system-ui,sans-serif;color:#44667e;margin-bottom:.4rem}
-    .exercise-link {display:block;font:600 12px/1.3 system-ui,sans-serif;margin-top:.5rem}
-    .footer {font:13px/1.5 system-ui,sans-serif;color:var(--muted);text-align:center;padding:0 1rem 2rem}
-    .reader {position:fixed;inset:0;z-index:100;background:#edf2f6;display:none;flex-direction:column;height:100vh;height:100dvh}
-    .reader.open {display:flex}
-    .reader-bar {flex:none;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:.4rem .8rem;background:var(--deep);color:#fff;padding:.55rem max(.8rem,env(safe-area-inset-right)) .55rem max(.8rem,env(safe-area-inset-left));font:600 14px/1.3 system-ui,sans-serif}
-    .reader-controls {display:flex;align-items:center;gap:.4rem}
-    .reader .action {padding:.45rem .7rem}
-    .reader-title {min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .reader-grid {flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,36%) minmax(0,1fr);gap:.8rem;padding:.7rem;overflow:hidden}
-    .reader-visual,.reader-text {min-width:0;min-height:0;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:9px}
-    .reader-visual {display:flex;align-items:flex-start;justify-content:center;padding:1rem}
-    .reader-visual img {width:100%;height:auto;max-height:calc(100dvh - 115px);object-fit:contain}
-    .reader-text {padding:1.2rem 1.5rem;font:17px/1.58 Georgia,"Times New Roman",serif;overflow-wrap:anywhere}
-    .reader-text > :last-child {margin-bottom:0}
-    .reader-text .exercise-meta {margin-bottom:.7rem}
-    body.reader-open {overflow:hidden}
-    @media(max-width:760px) {
-      body {font-size:16px}
-      .paper {margin:0;border:0;border-radius:0;box-shadow:none;padding:1.5rem 1rem 2.5rem}
-      .chapter-nav {padding:.6rem 1rem}
-      .exercise-card {gap:.7rem;padding:.7rem;grid-template-columns:minmax(0,38%) minmax(0,1fr)}
-      .reader-grid {grid-template-columns:minmax(0,38%) minmax(0,1fr);gap:.5rem;padding:.5rem}
-      .reader-visual {padding:.5rem}
-      .reader-text {padding:.8rem;font-size:15px}
-      .reader-bar {font-size:12px}
-    }
-    @media(max-width:620px) and (orientation:portrait) {
-      .exercise-card {grid-template-columns:minmax(0,1fr)}
-      .exercise-figure {max-width:330px;margin:0 auto;width:100%}
-      .reader-grid {grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(110px,39%) minmax(0,1fr)}
-      .reader-visual {align-items:center}
-      .reader-visual img {height:100%;max-height:100%;width:auto;max-width:100%}
-      .reader-title {max-width:43vw}
-    }
-    @media print {
-      body {background:#fff}
-      .mast,.chapter-nav,.reader,.footer,.exercise-link,.exercise-launch {display:none!important}
-      .paper {margin:0;max-width:none;padding:0;box-shadow:none;border:0}
-      .exercise-card {break-inside:avoid}
-      .chart-transcript {display:none!important}
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#f7f8fa">
+<meta name="description" content="{{ page.description | escape }}">
+<title>{{ page.title | escape }}</title>
+<style>
+:root{--ink:#20252c;--sub:#65717c;--paper:#fff;--bg:#f7f8fa;--border:#e2e7eb;--brand:#176955;--brand-soft:#edf6f1;--radius:16px;--bar-height:60px}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.58 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-text-size-adjust:100%}
+button{font:inherit;cursor:pointer}
+a{color:var(--brand);text-underline-offset:3px}
+button,a{-webkit-tap-highlight-color:transparent}
+button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #5a9b87;outline-offset:3px}
+button:disabled{cursor:default;opacity:.36}
+[hidden]{display:none!important}
+.skip{position:absolute;left:-9999px;top:0;background:#fff;padding:12px;z-index:200}
+.skip:focus{left:12px;top:12px}
+.topbar{position:sticky;top:0;z-index:30;height:var(--bar-height);background:rgba(248,249,251,.97);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;padding:0 max(12px,env(safe-area-inset-right)) 0 max(12px,env(safe-area-inset-left))}
+.toc-toggle{flex:0 0 auto;display:flex;align-items:center;gap:7px;min-height:44px;padding:5px 11px;border:1px solid #d6e2dc;border-radius:11px;background:var(--brand-soft);color:var(--brand);font-size:14px;font-weight:700}
+.toc-icon{font-size:19px;line-height:1}
+.brand{flex:1;min-width:0;text-align:left;border:0;background:transparent;padding:4px 1px;font-size:15px;font-weight:750;line-height:1.2;color:var(--ink)}
+.brand small{display:block;color:var(--sub);font-size:11px;font-weight:500;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.header-location{font-size:11px;font-weight:650;color:var(--sub);white-space:nowrap}
+.publication{max-width:740px;margin:0 auto;padding:28px 18px 50px;background:var(--paper)}
+.publication h1{font-size:clamp(26px,6.5vw,37px);line-height:1.16;letter-spacing:-.025em}
+.publication h2{font-size:25px;line-height:1.25}
+.publication h3{font-size:21px;line-height:1.3}
+.publication h4{font-size:18px;line-height:1.35}
+.publication p{margin:0 0 16px}
+.publication li{margin:0 0 8px}
+.publication img{max-width:100%;height:auto;display:block;margin:16px auto}
+.publication pre{overflow-x:auto;background:#f3f6f8;padding:13px;font-size:12px}
+.publication table{display:block;max-width:100%;overflow-x:auto;border-collapse:collapse;font-size:14px}
+.publication td,.publication th{border:1px solid var(--border);padding:7px}
+.app-ready body{overflow:hidden}
+.app-ready .publication{height:calc(100vh - var(--bar-height));height:calc(100dvh - var(--bar-height));max-width:740px;overflow:hidden;padding:0;border-left:1px solid var(--border);border-right:1px solid var(--border)}
+.reader-screen{height:100%;min-height:0;display:flex;flex-direction:column}
+.reader-screen[hidden]{display:none!important}
+.reader-scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:24px 18px 32px}
+.view-kicker{font-size:12px;letter-spacing:.065em;text-transform:uppercase;color:var(--brand);font-weight:760;margin-bottom:10px}
+.view-heading{border-bottom:1px solid var(--border);padding-bottom:13px;margin-bottom:24px}
+.view-heading h2,.view-heading h3{margin:0;font-size:clamp(23px,6vw,29px);line-height:1.24;letter-spacing:-.025em;font-weight:750;color:var(--ink)}
+.reader-scroll h4{margin-top:27px}
+.reader-scroll p,.reader-scroll ul,.reader-scroll ol{margin-bottom:17px}
+.reader-scroll img{max-width:100%;height:auto;display:block;margin:18px auto;border-radius:9px}
+.reader-scroll p:has(>img[src*="/assets/crops/photos-"]) {max-width:650px;margin-left:auto;margin-right:auto}
+.reader-scroll pre{display:none}
+.screen-pager{flex:0 0 auto;min-height:67px;border-top:1px solid var(--border);background:rgba(255,255,255,.98);padding:9px 12px calc(9px + env(safe-area-inset-bottom));display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:9px}
+.pager-btn{min-height:44px;padding:8px 12px;border:1px solid #cfdbd6;background:#f2f7f4;color:#155641;border-radius:11px;font-size:15px;font-weight:750}
+.pager-btn.next{background:var(--brand);border-color:var(--brand);color:#fff}
+.screen-counter{font-size:12px;color:var(--sub);white-space:nowrap;font-variant-numeric:tabular-nums}
+#home .view-heading{display:none}
+.home-hero{margin-bottom:28px}
+.home-eyebrow{font-size:12px;letter-spacing:.06em;font-weight:740;color:var(--brand);text-transform:uppercase;margin:0 0 10px!important}
+.home-hero h1{font-size:clamp(29px,7.1vw,39px);font-weight:770;line-height:1.16;margin:0 0 13px}
+.home-hero .meta{font-size:13px;color:var(--sub)}
+.home-caption{margin:0 0 18px;font-size:16px;color:var(--sub)}
+.article-list{display:grid;gap:12px}
+.article-tile{width:100%;text-align:left;background:#fff;border:1px solid var(--border);border-radius:15px;padding:17px 18px;box-shadow:0 3px 14px rgba(0,0,0,.025);color:var(--ink)}
+.article-tile:active,.exercise-card button:active{background:var(--brand-soft)}
+.tile-number{display:block;color:var(--brand);font-size:12px;font-weight:780;letter-spacing:.05em;margin-bottom:7px}
+.tile-title{display:block;font-size:17px;font-weight:700;line-height:1.37}
+.tile-foot{display:block;color:var(--sub);font-size:13px;margin-top:9px}
+.source-front{margin:26px 0 0;border-top:1px solid var(--border);padding-top:16px}
+.source-front summary{cursor:pointer;color:var(--sub);font-size:14px;font-weight:650}
+.source-front .original{font-family:Georgia,"Times New Roman",serif;margin-top:20px;font-size:15px;line-height:1.55;overflow-wrap:anywhere}
+.source-front .original h1{font-size:22px}
+.source-front .original h2{font-size:19px}
+.exercise-card{border:1px solid var(--border);background:#fff;border-radius:var(--radius);margin:15px 0;padding:15px;box-shadow:0 4px 20px rgba(0,0,0,.04)}
+.exercise-card-inner{display:flex;align-items:center;gap:14px;min-width:0}
+.exercise-thumb{flex:0 0 84px;display:flex;justify-content:center;align-items:center;min-width:0}
+.exercise-thumb img{max-width:84px;max-height:122px;object-fit:contain;margin:0}
+.exercise-summary{flex:1;min-width:0}
+.exercise-tag{color:var(--brand);font-size:11px;font-weight:800;display:block;margin-bottom:6px}
+.exercise-name{font-size:16px;font-weight:730;line-height:1.35;margin:0;overflow-wrap:anywhere}
+.exercise-open{display:block;width:100%;background:var(--brand);color:#fff;border:0;border-radius:11px;min-height:45px;font-size:15px;font-weight:710;margin-top:13px}
+.exercise-payload{display:none}
+.exercise-screen{display:grid;grid-template-rows:minmax(0,33.3333%) minmax(0,1fr);height:100%;min-height:0;background:#fff}
+.exercise-figure{display:flex;flex-direction:column;min-height:0;background:#edf2ed;border-bottom:1px solid #dce4dd;padding:8px 14px 8px}
+.exercise-figurebar{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:38px}
+.exercise-type{font-size:12px;color:#3c6155;font-weight:750}
+.exercise-return{border:1px solid #cad7d0;border-radius:9px;background:#fff;color:#23513f;padding:7px 9px;font-size:13px;font-weight:710}
+.exercise-art{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.exercise-art img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;margin:0}
+.exercise-lower{display:flex;flex-direction:column;min-height:0}
+.exercise-head{flex:0 0 auto;padding:10px 16px;border-bottom:1px solid var(--border)}
+.exercise-head .exercise-label{display:block;color:var(--brand);font-size:12px;font-weight:750;margin:0 0 5px}
+.exercise-head h2{font-size:18px;line-height:1.3;margin:0;font-weight:760}
+.exercise-description{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:15px 17px 25px;line-height:1.58}
+.exercise-description p{margin:0 0 15px}
+.exercise-description >:last-child{margin-bottom:0}
+.exercise-nav{flex:0 0 auto;min-height:64px;border-top:1px solid var(--border);background:#fff;padding:8px 12px calc(8px + env(safe-area-inset-bottom));display:grid;grid-template-columns:1fr auto 1fr;gap:9px;align-items:center}
+.drawer[hidden]{display:none!important}
+.drawer{position:fixed;inset:0;z-index:100}
+.drawer-shade{position:absolute;inset:0;background:rgba(16,30,39,.55);border:0;width:100%;cursor:pointer}
+.drawer-panel{position:absolute;inset:0 auto 0 0;width:min(91vw,420px);background:#fff;display:flex;flex-direction:column;box-shadow:10px 0 40px rgba(0,0,0,.16)}
+.drawer-heading{flex:0 0 auto;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 15px;border-bottom:1px solid var(--border);font-size:18px;font-weight:750}
+.drawer-close{border:1px solid var(--border);background:#fff;color:var(--ink);border-radius:10px;min-width:44px;min-height:44px;font-size:21px}
+.drawer-scroll{overflow-y:auto;overscroll-behavior:contain;min-height:0;flex:1;padding:12px 12px 32px}
+.toc-home,.toc-main,.toc-sub,.toc-exercise{display:block;text-align:left;width:100%;border:0;background:transparent;color:var(--ink);border-radius:9px;padding:12px 11px;min-height:44px;line-height:1.35}
+.toc-home{font-weight:750;background:var(--brand-soft);color:#13523f;margin-bottom:13px}
+.toc-article{border-top:1px solid var(--border);padding:8px 0}
+.toc-main{font-size:15px;font-weight:730}
+.toc-serial{font-size:12px;color:var(--brand);font-weight:800;display:block;margin-bottom:4px}
+.toc-sub{font-size:14px;color:#3d4952;padding-left:21px}
+.toc-exercise{font-size:13px;color:#4f5d67;padding-left:31px}
+.toc-expander{margin:0 0 6px 9px}
+.toc-expander summary{font-size:13px;color:var(--sub);cursor:pointer;padding:7px 8px;min-height:32px}
+.toc-exgroup{margin:5px 0 7px 9px}
+.toc-exgroup summary{font-size:13px}
+.toc-home[aria-current],.toc-main[aria-current],.toc-sub[aria-current],.toc-exercise[aria-current]{background:var(--brand-soft);color:#11533e}
+.toc-main:hover,.toc-sub:hover,.toc-exercise:hover{background:#f1f5f2}
+@media(max-width:430px){
+ .header-location{display:none}
+ .reader-scroll{padding:20px 15px 28px}
+ .home-hero h1{font-size:29px}
+ .exercise-thumb{flex-basis:75px}
+ .exercise-thumb img{max-width:75px}
+ .exercise-head h2{font-size:17px}
+}
+@media(max-height:580px){
+ .exercise-figurebar{min-height:31px}
+ .exercise-head{padding:7px 13px}
+ .exercise-description{padding-top:11px}
+ .screen-pager,.exercise-nav{padding-top:5px;padding-bottom:calc(5px + env(safe-area-inset-bottom));min-height:54px}
+ .pager-btn{min-height:40px}
+}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{
+ .topbar,.drawer,.screen-pager,.exercise-screen,.exercise-open{display:none!important}
+ html,body,.app-ready body{height:auto;overflow:visible;background:#fff}
+ .publication,.app-ready .publication{height:auto;max-width:none;overflow:visible;border:0;margin:0;padding:0}
+ .reader-screen[hidden]{display:flex!important}
+ .reader-screen{height:auto;display:block;break-before:page}
+ .reader-scroll{height:auto;overflow:visible;padding:0}
+ .exercise-payload{display:block}
+}
+</style>
 </head>
 <body>
-<a class="skip" href="#publication">К сборнику</a>
-<header class="mast"><div class="mast-inner">
-  <span class="title">Особенности обучения технике и тактике настольного тенниса в КНР · 2011</span>
-  <nav class="mast-nav" aria-label="Ссылки">
-    <button type="button" id="open-reader" class="action" hidden>Упражнения</button>
-    <a href="https://github.com/t39s/dev-sandbox/blob/main/s88t/index.md">Markdown</a>
-    <a href="https://github.com/t39s/dev-sandbox/tree/main/s88t">Исходники</a>
-  </nav>
-</div></header>
-<nav id="chapters" class="chapter-nav" aria-label="Оглавление разделов"></nav>
-<main class="paper" id="publication">{{ content }}</main>
-<footer class="footer">Федерация настольного тенниса России · Москва, 2011. Иллюстрации — из исходного сборника.</footer>
-<div id="exercise-reader" class="reader" role="dialog" aria-modal="true" aria-label="Режим просмотра упражнений" aria-hidden="true">
- <div class="reader-bar">
-  <span class="reader-title" id="reader-title"></span>
-  <div class="reader-controls">
-   <button class="action" id="reader-prev" type="button" aria-label="Предыдущее упражнение">← Назад</button>
-   <span id="reader-count" aria-live="polite"></span>
-   <button class="action" id="reader-next" type="button" aria-label="Следующее упражнение">Далее →</button>
-   <button class="action" id="reader-close" type="button">Закрыть ✕</button>
-  </div>
- </div>
- <div class="reader-grid"><div class="reader-visual" id="reader-visual"></div><div class="reader-text" id="reader-text"></div></div>
+<a class="skip" href="#publication">К содержанию</a>
+<header class="topbar">
+  <button type="button" id="toc-toggle" class="toc-toggle" aria-controls="toc-drawer" aria-expanded="false" aria-label="Открыть оглавление"><span class="toc-icon" aria-hidden="true">☰</span> Оглавление</button>
+  <button type="button" id="home-button" class="brand">Сборник<small>Настольный теннис · ФНТР · 2011</small></button>
+  <span id="header-location" class="header-location" aria-live="polite"></span>
+</header>
+<main id="publication" class="publication">{{ content }}</main>
+<div id="toc-drawer" class="drawer" hidden>
+ <button type="button" id="toc-shade" class="drawer-shade" aria-label="Закрыть оглавление"></button>
+ <aside class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="toc-title">
+  <div class="drawer-heading"><span id="toc-title">Оглавление</span><button type="button" id="toc-close" class="drawer-close" aria-label="Закрыть оглавление">×</button></div>
+  <nav class="drawer-scroll" id="toc-tree" aria-label="Структура сборника"></nav>
+ </aside>
 </div>
 <script>
 (function () {
   'use strict';
-  const main=document.getElementById('publication');
-  const nav=document.getElementById('chapters');
-  const labels={
-   'a1-1':'Приложение 1 · 1. Начало атаки после короткого приема',
-   'a1-2':'Приложение 1 · 2. Топ-спин справа',
-   'a1-3':'Приложение 1 · 3. Передвижение',
-   'a1-4':'Приложение 1 · 4. Передвижение',
-   'a2-1':'Приложение 2 · 1. Скидка справа',
-   'a2-2':'Приложение 2 · 2. Передвижение и начало атаки',
-   'a2-3':'Приложение 2 · 3. Усиление после начала атаки',
-   'a2-4':'Приложение 2 · 4. Усиление после начала атаки',
-   'a2-5':'Приложение 2 · 5. Передвижение',
-   'a2-6':'Приложение 2 · 6. Передвижение',
-   'a2-7':'Приложение 2 · 7. Реакция и начало атаки справа',
-   'a2-8':'Приложение 2 · 8. Реакция и атака справа',
-   'a2-9':'Приложение 2 · 9. Начало атаки слева',
-   'a2-10':'Приложение 2 · 10. Усиление после начала атаки слева',
-   'a2-11':'Приложение 2 · 11. Координация и реакция'
-  };
+  const publication=document.getElementById('publication');
+  const tocToggle=document.getElementById('toc-toggle');
+  const tocDrawer=document.getElementById('toc-drawer');
+  const tocTree=document.getElementById('toc-tree');
+  const locationLabel=document.getElementById('header-location');
   const exercises=[];
-  const nodes=Array.from(main.childNodes);
-  let card=null,figure=null,copy=null,key=null;
-  for(const node of nodes){
-    const val=node.nodeType===8?node.nodeValue.trim():'';
-    const match=val.match(/^s88t-exercise-start:([a-z0-9-]+)$/);
-    if(match){
-      if(card)continue;
-      key=match[1];
-      card=document.createElement('section');
-      card.className='exercise-card';
-      card.id='exercise-'+key;
-      card.setAttribute('aria-label',labels[key]||key);
-      figure=document.createElement('div');figure.className='exercise-figure';
-      copy=document.createElement('div');copy.className='exercise-copy';
-      const meta=document.createElement('span');meta.className='exercise-meta';meta.textContent=labels[key]||key;copy.appendChild(meta);
-      card.append(figure,copy);
-      main.insertBefore(card,node);
+  const exerciseLabels={
+    'a1-1':'Совершенствование начала атаки после короткого приёма подачи',
+    'a1-2':'Совершенствование техники выполнения топ-спина справа',
+    'a1-3':'Совершенствование передвижения',
+    'a1-4':'Совершенствование передвижения',
+    'a2-1':'Совершенствование скидки справа',
+    'a2-2':'Совершенствование техники передвижения и начала атаки',
+    'a2-3':'Совершенствование передвижения и усиления атаки',
+    'a2-4':'Совершенствование передвижения и усиления атаки',
+    'a2-5':'Совершенствование передвижения',
+    'a2-6':'Совершенствование передвижения',
+    'a2-7':'Совершенствование реакции и начала атаки справа',
+    'a2-8':'Совершенствование реакции и атаки справа',
+    'a2-9':'Совершенствование начала атаки слева',
+    'a2-10':'Совершенствование передвижения и усиления атаки слева',
+    'a2-11':'Совершенствование координации и реакции'
+  };
+  const articleShort=[
+    'Как добиться победы в современном настольном теннисе',
+    'Особенности построения тренировочного процесса в КНР',
+    'Методические рекомендации по технике современного настольного тенниса',
+    'Стратегия подач в современном настольном теннисе'
+  ];
+  function el(tag,classes,text){
+    const n=document.createElement(tag);
+    if(classes)n.className=classes;
+    if(text!==undefined)n.textContent=text;
+    return n;
+  }
+  function normalCase(value){
+    const text=(value||'').trim();
+    const cyr=text.match(/[А-ЯЁа-яё]/g)||[];
+    const upper=(text.match(/[А-ЯЁ]/g)||[]).length;
+    if(cyr.length<5||upper/cyr.length<.78)return text;
+    let s=text.toLocaleLowerCase('ru-RU');
+    s=s.replace(/\bкнр\b/gi,'КНР').replace(/\bбкм\b/gi,'БКМ');
+    return s.replace(/[а-яё]/i,c=>c.toLocaleUpperCase('ru-RU'));
+  }
+  function pageNumber(node){
+    if(node.nodeType!==8)return null;
+    const m=node.nodeValue.trim().match(/^Страница оригинала:\s*(\d+)$/);
+    return m?Number(m[1]):null;
+  }
+  function marker(node){
+    return node.nodeType===8?node.nodeValue.trim():'';
+  }
+  // Convert explicit exercise boundaries in the Markdown to compact launch cards.
+  // Original exercise text is kept in hidden DOM and used verbatim in focus mode.
+  const transformed=document.createDocumentFragment();
+  let card=null,figure=null,payload=null,activeKey=null;
+  for(const node of Array.from(publication.childNodes)){
+    const token=marker(node);
+    const start=token.match(/^s88t-exercise-start:([a-z0-9-]+)$/);
+    if(start){
+      if(card)throw new Error('Nested exercise boundary');
+      activeKey=start[1];
+      card=el('section','exercise-card');
+      card.dataset.exercise=activeKey;
+      const inner=el('div','exercise-card-inner');
+      figure=el('div','exercise-thumb');
+      const summary=el('div','exercise-summary');
+      const tag=el('span','exercise-tag',activeKey.startsWith('a1-')?'Приложение 1':'Приложение 2');
+      const name=el('div','exercise-name',exerciseLabels[activeKey]||activeKey);
+      summary.append(tag,name);inner.append(figure,summary);
+      payload=el('div','exercise-payload');
+      payload.hidden=true;
+      card.append(inner);
+      transformed.appendChild(card);
       node.remove();
       continue;
     }
-    if(val==='s88t-exercise-end'&&card){
-      const a=document.createElement('a');
-      a.href='#exercise-'+key;a.textContent='Ссылка на упражнение';a.className='exercise-link';
-      copy.appendChild(a);
-      exercises.push({key,card,figure,copy});
-      card=null;key=null;figure=null;copy=null;node.remove();
+    if(token==='s88t-exercise-end'&&card){
+      const btn=el('button','exercise-open','Открыть упражнение →');
+      btn.type='button';
+      btn.dataset.openExercise=activeKey;
+      card.append(btn,payload);
+      exercises.push({key:activeKey,card,figure,payload,label:exerciseLabels[activeKey]||activeKey,screenId:null});
+      card=null;figure=null;payload=null;activeKey=null;
+      node.remove();
       continue;
     }
     if(card){
-      const img=node.nodeType===1 ? (node.matches('img')?node:node.querySelector('img')):null;
-      if(img&&img.getAttribute('src')&&img.getAttribute('src').indexOf('/assets/crops/exercise-')>=0) figure.appendChild(node);
-      else copy.appendChild(node);
+      const img=node.nodeType===1?(node.matches('img')?node:node.querySelector('img')):null;
+      if(img&&img.getAttribute('src')&&img.getAttribute('src').includes('/assets/crops/exercise-'))figure.appendChild(node);
+      else payload.appendChild(node);
+    } else transformed.appendChild(node);
+  }
+  if(card)throw new Error('Unclosed exercise boundary');
+  if(exercises.length!==15)throw new Error('Expected 15 exercises, found '+exercises.length);
+  publication.replaceChildren(transformed);
+
+  const original=Array.from(publication.childNodes);
+  const screens=[];
+  const articleGroups=[];
+  const homeNodes=[];
+  let current=null,articleIndex=0,subIndex=0;
+  function addScreen(id,title,article,heading,kind){
+    const section=el('section','reader-screen');
+    section.id=id;
+    section.hidden=true;
+    const scroller=el('div','reader-scroll');
+    const head=el('header','view-heading');
+    const kicker=el('div','view-kicker',article===0?'Сборник':'Статья '+article+' из 4');
+    head.appendChild(kicker);
+    const h=heading||el('h2','',normalCase(title));
+    h.textContent=normalCase(h.textContent);
+    h.classList.add('view-title');
+    h.tabIndex=-1;
+    head.appendChild(h);
+    scroller.appendChild(head);
+    const footer=el('nav','screen-pager');
+    footer.setAttribute('aria-label','Навигация по материалам');
+    const prev=el('button','pager-btn','← Назад');
+    const count=el('span','screen-counter');
+    const next=el('button','pager-btn next','Далее →');
+    prev.type=next.type='button';
+    footer.append(prev,count,next);
+    section.append(scroller,footer);
+    const record={id,title:normalCase(title),article,kind,element:section,scroller,prev,next,count,heading:h};
+    screens.push(record);
+    if(article>0)articleGroups[article-1].screens.push(record);
+    return record;
+  }
+  for(const node of original){
+    if(node.nodeType===1&&node.tagName==='H2'){
+      const text=node.textContent.trim();
+      if(text==='СОДЕРЖАНИЕ'&&articleIndex===0){
+        homeNodes.push(node);
+        continue;
+      }
+      articleIndex++;
+      if(articleIndex>4)throw new Error('Unexpected fifth article');
+      subIndex=0;
+      articleGroups.push({number:articleIndex,title:normalCase(text),screens:[]});
+      current=addScreen('article-'+articleIndex+'-intro',text,articleIndex,node,'article');
+      continue;
     }
+    if(articleIndex>0&&node.nodeType===1&&node.tagName==='H3'){
+      subIndex++;
+      current=addScreen('article-'+articleIndex+'-section-'+subIndex,node.textContent.trim(),articleIndex,node,'section');
+      continue;
+    }
+    if(articleIndex===4){
+      const p=pageNumber(node);
+      if(p!==null&&p>=45&&p<=48){
+        current=addScreen('article-4-page-'+p,'Материалы и диаграммы · страница '+p,4,null,'page');
+      }
+    }
+    if(current){
+      current.scroller.appendChild(node);
+      if(node.nodeType===1&&node.classList.contains('exercise-card')){
+        const ex=exercises.find(x=>x.card===node);
+        if(ex)ex.screenId=current.id;
+      }
+      // Hide the mechanically extracted axis labels behind each native diagram
+      // in human mode. The original text remains in index.md.
+      if(node.nodeType===1&&node.tagName==='PRE')node.hidden=true;
+    } else homeNodes.push(node);
   }
-  // Plain-text numeric chart transcripts remain in the Markdown for agents.
-  // Only the graph images are shown in the human-facing presentation.
-  main.querySelectorAll('pre').forEach(function(block){
-    block.classList.add('chart-transcript');
-  });
-  const headings=Array.from(main.querySelectorAll(':scope > h2'));
-  if(headings.length){
-    const t=document.createElement('strong');t.textContent='Разделы сборника';nav.appendChild(t);
-    headings.forEach(function(h,i){
-      h.id='chapter-'+(i+1);
-      const a=document.createElement('a');a.href='#'+h.id;a.textContent=h.textContent.trim();nav.appendChild(a);
+  if(articleIndex!==4||!exercises.every(x=>x.screenId))throw new Error('Incomplete article/exercise structure');
+
+  const cover=addScreen('home','Сборник',0,null,'home');
+  const hero=el('section','home-hero');
+  hero.append(el('p','home-eyebrow','Федерация настольного тенниса России'));
+  const h1=el('h1','',document.title);
+  h1.tabIndex=-1;
+  hero.appendChild(h1);
+  hero.append(el('p','meta','Сборник методических материалов № 1 · Москва, 2011'));
+  cover.scroller.appendChild(hero);
+  cover.scroller.append(el('p','home-caption','Выберите статью для чтения. Вторая статья включает интерактивные упражнения со схемами.'));
+  const articleList=el('div','article-list');
+  for(const group of articleGroups){
+    const b=el('button','article-tile');
+    b.type='button';
+    b.dataset.openScreen=group.screens[0].id;
+    b.append(el('span','tile-number','СТАТЬЯ '+group.number));
+    b.append(el('span','tile-title',group.title));
+    b.append(el('span','tile-foot','Открыть статью →'));
+    articleList.appendChild(b);
+  }
+  cover.scroller.appendChild(articleList);
+  const details=el('details','source-front');
+  details.append(el('summary','','Сведения об издании и печатное оглавление'));
+  const originalFront=el('div','original');
+  homeNodes.forEach(node=>originalFront.appendChild(node));
+  details.appendChild(originalFront);
+  cover.scroller.appendChild(details);
+  // Reading order, independent of the order in which the home screen was built.
+  screens.splice(screens.indexOf(cover),1);
+  screens.unshift(cover);
+  publication.replaceChildren(...screens.map(s=>s.element));
+
+  const exerciseView=el('section','exercise-screen');
+  exerciseView.id='exercise-view';
+  exerciseView.hidden=true;
+  const upper=el('div','exercise-figure');
+  const upperbar=el('div','exercise-figurebar');
+  const exerciseType=el('span','exercise-type');
+  const returnBtn=el('button','exercise-return','← К статье');returnBtn.type='button';
+  upperbar.append(exerciseType,returnBtn);
+  const art=el('div','exercise-art');
+  upper.append(upperbar,art);
+  const lower=el('div','exercise-lower');
+  const exHead=el('div','exercise-head');
+  const exLabel=el('span','exercise-label');
+  const exTitle=el('h2','');
+  exTitle.tabIndex=-1;
+  exHead.append(exLabel,exTitle);
+  const description=el('div','exercise-description');
+  description.tabIndex=0;
+  description.setAttribute('aria-label','Описание упражнения, прокрутка');
+  const exNav=el('nav','exercise-nav');
+  exNav.setAttribute('aria-label','Переключение упражнений');
+  const exPrev=el('button','pager-btn','← Назад');
+  const exCount=el('span','screen-counter');
+  const exNext=el('button','pager-btn next','Далее →');
+  exPrev.type=exNext.type='button';
+  exNav.append(exPrev,exCount,exNext);
+  lower.append(exHead,description,exNav);
+  exerciseView.append(upper,lower);
+  publication.appendChild(exerciseView);
+
+  let currentScreen=cover,exerciseIndex=-1,returnScreen=null;
+  function activateScreen(id){
+    const target=screens.find(s=>s.id===id);
+    if(!target)return false;
+    exerciseView.hidden=true;
+    exerciseIndex=-1;
+    screens.forEach(s=>s.element.hidden=s!==target);
+    currentScreen=target;
+    const pos=screens.indexOf(target);
+    target.prev.disabled=pos===0;
+    target.next.disabled=pos===screens.length-1;
+    target.count.textContent=(pos+1)+' / '+screens.length;
+    target.scroller.scrollTop=0;
+    locationLabel.textContent=target.article?'Статья '+target.article+' / 4':'Главная';
+    updateActiveToc();
+    return true;
+  }
+  function activateExercise(key){
+    const idx=exercises.findIndex(x=>x.key===key);
+    if(idx<0)return false;
+    const x=exercises[idx];
+    returnScreen=x.screenId;
+    exerciseIndex=idx;
+    screens.forEach(s=>s.element.hidden=true);
+    exerciseView.hidden=false;
+    exerciseType.textContent=x.key.startsWith('a1-')?'Приложение 1 · Один мяч':'Приложение 2 · БКМ';
+    exLabel.textContent='Упражнение '+x.key.split('-')[1]+' из '+(x.key.startsWith('a1-')?'4':'11');
+    exTitle.textContent=x.label;
+    art.replaceChildren();
+    const img=x.figure.querySelector('img');
+    if(img){const clone=img.cloneNode(true);clone.alt='Схема: '+x.label;art.appendChild(clone);}
+    description.replaceChildren();
+    Array.from(x.payload.childNodes).forEach(n=>description.appendChild(n.cloneNode(true)));
+    description.scrollTop=0;
+    exPrev.disabled=idx===0;
+    exNext.disabled=idx===exercises.length-1;
+    exCount.textContent=(idx+1)+' / '+exercises.length;
+    locationLabel.textContent='Упражнение '+(idx+1)+'/15';
+    updateActiveToc();
+    return true;
+  }
+  function getRoute(){
+    const hash=decodeURIComponent(location.hash.slice(1));
+    if(hash.startsWith('exercise-'))return {exercise:hash.slice(9)};
+    if(hash.startsWith('article-'))return {screen:hash};
+    return {screen:'home'};
+  }
+  function navigate(kind,id,write=true){
+    closeToc(false);
+    const valid=kind==='exercise'?activateExercise(id):activateScreen(id);
+    if(!valid)return false;
+    const hash=kind==='exercise'?'#exercise-'+id:(id==='home'?'#home':'#'+id);
+    if(write&&location.hash!==hash)history.pushState(null,'',hash);
+    return true;
+  }
+  function updateActiveToc(){
+    const focus=exerciseIndex>=0?'exercise-'+exercises[exerciseIndex].key:(currentScreen&&currentScreen.id);
+    tocTree.querySelectorAll('button[data-open-screen],button[data-open-exercise]').forEach(b=>{
+      const active=(b.dataset.openScreen||('exercise-'+b.dataset.openExercise))===focus;
+      if(active)b.setAttribute('aria-current','location');
+      else b.removeAttribute('aria-current');
     });
-    nav.classList.add('active');
   }
-  if(!exercises.length)return;
-  const reader=document.getElementById('exercise-reader');
-  const launch=document.getElementById('open-reader');
-  const prev=document.getElementById('reader-prev'),next=document.getElementById('reader-next');
-  const close=document.getElementById('reader-close'),title=document.getElementById('reader-title');
-  const count=document.getElementById('reader-count');
-  const visual=document.getElementById('reader-visual'),body=document.getElementById('reader-text');
-  let index=0,returnFocus=null;
-  function render(i){
-    index=Math.max(0,Math.min(exercises.length-1,i));
-    const ex=exercises[index];
-    title.textContent=labels[ex.key]||ex.key;
-    count.textContent=(index+1)+' / '+exercises.length;
-    prev.disabled=index===0;next.disabled=index===exercises.length-1;
-    visual.replaceChildren();
-    body.replaceChildren();
-    Array.from(ex.figure.children).forEach(n=>visual.appendChild(n.cloneNode(true)));
-    Array.from(ex.copy.children).forEach(n=>{
-      if(!n.classList.contains('exercise-link')&&!n.classList.contains('exercise-launch'))body.appendChild(n.cloneNode(true));
-    });
-    visual.scrollTop=0;body.scrollTop=0;
-    if(history.replaceState)history.replaceState(null,'','#exercise-'+ex.key);
+  function tocButton(className,text,kind,id){
+    const b=el('button',className,text);
+    b.type='button';
+    if(kind==='exercise')b.dataset.openExercise=id;
+    else b.dataset.openScreen=id;
+    return b;
   }
-  function open(i){
-    returnFocus=document.activeElement;
-    reader.classList.add('open');
-    reader.setAttribute('aria-hidden','false');
-    document.body.classList.add('reader-open');
-    render(i);close.focus();
+  const tocHome=tocButton('toc-home','⌂  Сборник · Главная','screen','home');
+  tocTree.appendChild(tocHome);
+  for(const group of articleGroups){
+    const container=el('section','toc-article');
+    const mainButton=tocButton('toc-main','', 'screen',group.screens[0].id);
+    mainButton.appendChild(el('span','toc-serial','СТАТЬЯ '+group.number));
+    mainButton.appendChild(el('span','',group.title));
+    container.appendChild(mainButton);
+    const subs=group.screens.slice(1);
+    if(subs.length){
+      const expanded=el('details','toc-expander');
+      expanded.append(el('summary','','Разделы статьи'));
+      for(const screen of subs){
+        const link=tocButton('toc-sub',screen.title,'screen',screen.id);
+        expanded.appendChild(link);
+        const localExercises=exercises.filter(x=>x.screenId===screen.id);
+        if(localExercises.length){
+          const subgroup=el('details','toc-exgroup');
+          subgroup.append(el('summary','','Упражнения · '+localExercises.length));
+          for(const x of localExercises){
+            const prefix=x.key.startsWith('a1-')?'1':'2';
+            subgroup.appendChild(tocButton('toc-exercise',prefix+'.'+x.key.split('-')[1]+' · '+x.label,'exercise',x.key));
+          }
+          expanded.appendChild(subgroup);
+        }
+      }
+      container.appendChild(expanded);
+    }
+    tocTree.appendChild(container);
   }
-  function shut(){
-    reader.classList.remove('open');reader.setAttribute('aria-hidden','true');
-    document.body.classList.remove('reader-open');
-    if(returnFocus&&returnFocus.focus)returnFocus.focus();
+  function openToc(){
+    tocDrawer.hidden=false;
+    tocToggle.setAttribute('aria-expanded','true');
+    document.getElementById('toc-close').focus();
   }
-  launch.hidden=false;
-  launch.textContent='Упражнения ('+exercises.length+')';
-  launch.addEventListener('click',()=>open(0));
-  prev.addEventListener('click',()=>render(index-1));
-  next.addEventListener('click',()=>render(index+1));
-  close.addEventListener('click',shut);
-  exercises.forEach((ex,i)=>{
-    const button=document.createElement('button');
-    button.type='button';button.className='action exercise-launch';
-    button.textContent='Открыть в режиме упражнений';
-    button.style.marginTop='.5rem';
-    button.addEventListener('click',()=>open(i));
-    ex.copy.appendChild(button);
+  function closeToc(returnFocus=true){
+    if(tocDrawer.hidden)return;
+    tocDrawer.hidden=true;
+    tocToggle.setAttribute('aria-expanded','false');
+    if(returnFocus)tocToggle.focus();
+  }
+  tocToggle.addEventListener('click',()=>tocDrawer.hidden?openToc():closeToc());
+  document.getElementById('toc-close').addEventListener('click',()=>closeToc());
+  document.getElementById('toc-shade').addEventListener('click',()=>closeToc());
+  document.getElementById('home-button').addEventListener('click',()=>navigate('screen','home'));
+  tocTree.addEventListener('click',e=>{
+    const b=e.target.closest('button[data-open-screen],button[data-open-exercise]');
+    if(!b)return;
+    if(b.dataset.openExercise)navigate('exercise',b.dataset.openExercise);
+    else navigate('screen',b.dataset.openScreen);
   });
-  document.addEventListener('keydown',function(e){
-    if(!reader.classList.contains('open'))return;
-    if(e.key==='Escape'){e.preventDefault();shut();}
-    if(e.key==='ArrowLeft'&&index>0){e.preventDefault();render(index-1);}
-    if(e.key==='ArrowRight'&&index<exercises.length-1){e.preventDefault();render(index+1);}
-    if(e.key==='Tab'){
-      const focusable=Array.from(reader.querySelectorAll('button:not([disabled])'));
-      if(e.shiftKey&&document.activeElement===focusable[0]){e.preventDefault();focusable[focusable.length-1].focus();}
-      else if(!e.shiftKey&&document.activeElement===focusable[focusable.length-1]){e.preventDefault();focusable[0].focus();}
+  publication.addEventListener('click',e=>{
+    const b=e.target.closest('button[data-open-screen],button[data-open-exercise]');
+    if(!b)return;
+    if(b.dataset.openExercise)navigate('exercise',b.dataset.openExercise);
+    else navigate('screen',b.dataset.openScreen);
+  });
+  screens.forEach((s,i)=>{
+    s.prev.disabled=i===0;
+    s.next.disabled=i===screens.length-1;
+    s.count.textContent=(i+1)+' / '+screens.length;
+    s.prev.addEventListener('click',()=>{if(i>0)navigate('screen',screens[i-1].id);});
+    s.next.addEventListener('click',()=>{if(i+1<screens.length)navigate('screen',screens[i+1].id);});
+  });
+  returnBtn.addEventListener('click',()=>navigate('screen',returnScreen||exercises[exerciseIndex].screenId));
+  exPrev.addEventListener('click',()=>{if(exerciseIndex>0)navigate('exercise',exercises[exerciseIndex-1].key);});
+  exNext.addEventListener('click',()=>{if(exerciseIndex+1<exercises.length)navigate('exercise',exercises[exerciseIndex+1].key);});
+  function restoreRoute(){
+    const route=getRoute();
+    let success=false;
+    if(route.exercise)success=activateExercise(route.exercise);
+    else success=activateScreen(route.screen);
+    if(!success)activateScreen('home');
+  }
+  window.addEventListener('popstate',restoreRoute);
+  window.addEventListener('hashchange',restoreRoute);
+  document.addEventListener('keydown',e=>{
+    if(!tocDrawer.hidden){
+      if(e.key==='Escape'){e.preventDefault();closeToc();}
+      if(e.key==='Tab'){
+        const controls=Array.from(tocDrawer.querySelectorAll('button:not([disabled]),summary')).filter(n=>n.getClientRects().length);
+        const first=controls[0],last=controls[controls.length-1];
+        if(first&&last){
+          if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+          else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+        }
+      }
+      return;
+    }
+    if(exerciseIndex>=0&&e.key==='Escape'){e.preventDefault();navigate('screen',returnScreen||exercises[exerciseIndex].screenId);}
+    if(exerciseIndex>=0&&['ArrowLeft','ArrowRight'].includes(e.key)&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName)){
+      if(e.key==='ArrowLeft'&&exerciseIndex>0){e.preventDefault();navigate('exercise',exercises[exerciseIndex-1].key);}
+      if(e.key==='ArrowRight'&&exerciseIndex<exercises.length-1){e.preventDefault();navigate('exercise',exercises[exerciseIndex+1].key);}
     }
   });
-  const hash=(location.hash||'').replace('#exercise-','');
-  const start=exercises.findIndex(x=>x.key===hash);
-  if(location.hash.startsWith('#exercise-')&&start>=0)main.querySelector('#exercise-'+hash)?.scrollIntoView();
+  restoreRoute();
+  document.documentElement.classList.add('app-ready');
 })();
 </script>
 </body>
