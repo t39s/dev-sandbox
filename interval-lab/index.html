@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#08111b">
+  <meta name="description" content="Автономный секундомер интервалов с анализом двух упражнений и локальной историей.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Интервалы">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="./icon.svg">
+  <link rel="stylesheet" href="./styles.css">
+  <title>Interval Lab — секундомер интервалов</title>
+</head>
+<body>
+  <div id="app">
+    <section id="capture" class="capture-view" aria-label="Секундомер">
+      <div class="capture-toolbar" id="captureToolbar">
+        <div class="wordmark"><span class="mark">◉</span> <span>INTERVAL <b>LAB</b></span></div>
+        <div class="toolbar-actions">
+          <button type="button" class="icon-button" id="historyBtn" aria-label="История" title="История"><span aria-hidden="true">▤</span></button>
+          <button type="button" class="icon-button" id="settingsBtn" aria-label="Настройки" title="Настройки"><span aria-hidden="true">⚙</span></button>
+        </div>
+      </div>
+      <button type="button" id="tapZone" class="tap-zone" aria-describedby="tapHint">
+        <div class="capture-content">
+          <div class="micro-label" id="phaseLabel">УПРАЖНЕНИЕ 01 / 02</div>
+          <div class="dial"><div class="dial-inner">
+            <div class="dial-kicker" id="stateLabel">ГОТОВ К ИЗМЕРЕНИЮ</div>
+            <div class="big-time" id="timeDisplay" aria-label="Общее время">00:00.00</div>
+            <div class="tap-instruction" id="tapInstruction">КОСНИТЕСЬ ДЛЯ СТАРТА</div>
+          </div></div>
+          <div class="progress-area">
+            <div class="progress-count"><span id="intervalText">0 / 10 интервалов</span><span id="pressText">1-е из 11 нажатий</span></div>
+            <div class="progress-track" id="progressTrack" aria-label="Прогресс интервалов"></div>
+            <div class="last-interval"><span>ПОСЛЕДНИЙ ИНТЕРВАЛ</span><strong id="lastInterval">—</strong></div>
+          </div>
+        </div>
+      </button>
+      <div class="capture-foot" id="captureFoot"><span class="status-dot"></span><span>Данные остаются на этом устройстве</span></div>
+    </section>
+
+    <section id="review" class="page hidden" aria-label="Результаты">
+      <header class="page-header"><button class="back-button" type="button" data-go="capture">← Секундомер</button><span class="eyebrow">INTERVAL LAB</span></header>
+      <div class="page-body">
+        <div class="section-overline">АНАЛИЗ УПРАЖНЕНИЯ</div>
+        <h1 id="reviewTitle">Результаты</h1>
+        <p id="reviewSub" class="muted"></p>
+        <div id="reviewSummary"></div>
+        <div id="reviewActions" class="action-stack"></div>
+        <article class="panel"><div class="panel-heading"><h2>Динамика интервалов</h2><span class="panel-tag">секунды / интервал</span></div><div id="chartWrap"></div></article>
+        <article class="panel"><div class="panel-heading"><h2>Поминутная детализация</h2><span class="panel-tag">все интервалы</span></div><div id="intervalTable" class="table-wrap"></div></article>
+        <article class="panel" id="baselinePanel"><div class="panel-heading"><h2>Сравнение с историей</h2></div><div id="baselineWrap"></div></article>
+      </div>
+    </section>
+
+    <section id="history" class="page hidden" aria-label="История">
+      <header class="page-header"><button class="back-button" type="button" data-go="capture">← Секундомер</button><span class="eyebrow">АРХИВ ИЗМЕРЕНИЙ</span></header>
+      <div class="page-body"><div class="section-overline">НА ЭТОМ УСТРОЙСТВЕ</div><h1>История</h1>
+        <p class="muted">Каждое упражнение сохраняется сразу после завершения. Пары сгруппированы по сеансам.</p>
+        <div id="historyList" class="history-list"></div>
+        <button type="button" class="secondary-button full" data-go="settings">Экспорт и импорт истории →</button>
+      </div>
+    </section>
+
+    <section id="settings" class="page hidden" aria-label="Настройки">
+      <header class="page-header"><button class="back-button" type="button" data-go="capture">← Секундомер</button><span class="eyebrow">ПАРАМЕТРЫ</span></header>
+      <div class="page-body"><div class="section-overline">НАСТРОЙКИ ИЗМЕРЕНИЯ</div><h1>Настройки</h1>
+        <form id="settingsForm" class="panel settings-form">
+          <label for="targetInput">Число интервалов в упражнении</label>
+          <div class="input-row"><input id="targetInput" type="number" inputmode="numeric" min="1" max="200" step="1" required><button type="submit" class="primary-button">Сохранить</button></div>
+          <p id="pressExplanation" class="help-text"></p>
+          <p class="help-text">Первое нажатие запускает отсчёт. Каждое следующее завершает один интервал. После заданного числа интервалов измерение заканчивается автоматически.</p>
+          <p id="settingsNotice" class="inline-note" role="status"></p>
+        </form>
+        <article class="panel"><div class="panel-heading"><h2>Данные</h2></div>
+          <p class="muted small">Результаты хранятся в localStorage браузера. Они не передаются на сервер и не синхронизируются между устройствами. Сохраните резервную копию перед очисткой браузера.</p>
+          <div class="button-grid"><button id="exportBtn" type="button" class="secondary-button">Скачать JSON</button><button id="csvBtn" type="button" class="secondary-button">Скачать CSV</button></div>
+          <label class="secondary-button file-label" for="importInput">Импортировать JSON</label><input type="file" id="importInput" accept="application/json,.json" hidden>
+          <button type="button" id="clearBtn" class="danger-button">Удалить всю историю</button>
+        </article>
+        <article class="panel"><div class="panel-heading"><h2>О точности</h2></div>
+          <p class="muted small">Отсечки измеряются монотонными часами браузера (<code>performance.now()</code>). Дисплей показывает сотые доли секунды, история сохраняет миллисекунды. Это не сертифицированный измерительный прибор. Держите приложение на переднем плане и не блокируйте телефон во время упражнения. Приложение пытается удерживать экран активным там, где браузер поддерживает Wake Lock.</p>
+        </article>
+      </div>
+    </section>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="./model.js"></script>
+  <script src="./app.js" defer></script>
+</body>
+</html>
