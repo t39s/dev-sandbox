@@ -87,7 +87,7 @@
   }
   async function acquireWakeLock() {
     if (!('wakeLock' in navigator) || !run) return;
-    try { wakeLock = await navigator.wakeLock.request('screen'); } catch (error) { /* unsupported or denied */ }
+    try { const lock = await navigator.wakeLock.request('screen'); if (run) wakeLock = lock; else await lock.release(); } catch (error) { /* unsupported or denied */ }
   }
   async function releaseWakeLock() { const lock = wakeLock; wakeLock = null; if (lock) try { await lock.release(); } catch (error) {} }
   function recordTap() {

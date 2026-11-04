@@ -41,7 +41,7 @@
   }
   function createExercise(intervals, startedAt, endedAt) {
     if (!Array.isArray(intervals) || !intervals.length || intervals.some(x => !Number.isFinite(x) || x < 0)) throw new TypeError('Некорректные интервалы');
-    return { startedAt, endedAt, intervals: intervals.map(x => Math.round(x * 1000) / 1000) };
+    return { startedAt, endedAt, intervals: intervals.map(x => Math.round(x)) };
   }
   function isISO(value) { return typeof value === 'string' && value.length <= 50 && Number.isFinite(Date.parse(value)); }
   function isExercise(e, target) {
@@ -71,7 +71,7 @@
     if (a.sessions.length + additions.length > MAX_SESSIONS) throw new Error('Слишком много измерений');
     return { data: { version: 1, target: a.target, sessions: [...a.sessions, ...additions] }, added: additions.length };
   }
-  function datesDiffer(a, b) { return a.slice(0, 10) !== b.slice(0, 10); }
+  function datesDiffer(a, b) { return new Date(a).toLocaleDateString() !== new Date(b).toLocaleDateString(); }
   function findBaseline(sessions, current) {
     const candidates = sessions.filter(s => s.id !== current.id && s.target === current.target &&
       Date.parse(s.createdAt) < Date.parse(current.createdAt));
