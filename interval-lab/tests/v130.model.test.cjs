@@ -58,6 +58,6 @@ test('backup import merges archive and mixed-mode pair without duplication',()=>
 test('tampered data rejected: total cannot disagree with intervals',()=>{
  const s=M.createSession(2,t0);const e=M.createExercise([2001,2202],t0,t1);s.exercises=[{...e,totalMs:1}];
  assert.throws(()=>M.validateStore({...base(),sessions:[s]}));
- assert.throws(()=>M.createStopwatchExercise(999,t0,t1));
+ assert.throws(()=>M.createStopwatchExercise(0,t0,t1)); assert.equal(M.createStopwatchExercise(999,t0,t1).totalMs,999);
  assert.throws(()=>M.validateStore({...base(),mode:'unknown'}));
 });

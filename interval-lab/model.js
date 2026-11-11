@@ -47,9 +47,9 @@
     return { mode: MODE_INTERVALS, startedAt, endedAt, intervals: times, totalMs: sum(times) };
   }
   function createStopwatchExercise(totalMs, startedAt, endedAt) {
-    if (!Number.isFinite(totalMs) || totalMs < 1000 || totalMs > 24 * 60 * 60 * 1000)
+    if (!Number.isFinite(totalMs) || totalMs <= 0 || totalMs > 24 * 60 * 60 * 1000)
       throw new TypeError('Некорректное время Старт–Стоп');
-    return { mode: MODE_STOPWATCH, startedAt, endedAt, intervals: [], totalMs: Math.round(totalMs) };
+    return { mode: MODE_STOPWATCH, startedAt, endedAt, intervals: [], totalMs: Math.max(1, Math.round(totalMs)) };
   }
   function exerciseTotal(e) { return e.mode === MODE_STOPWATCH ? e.totalMs : sum(e.intervals); }
   function bestTotal(s) { return (s.status === 'closed' || s.exercises.length === 2) && s.exercises.length >= 1 ? Math.min(...s.exercises.map(exerciseTotal)) : null; }
@@ -100,7 +100,7 @@
       if (version >= 3 && e.totalMs !== totalMs) throw new Error('Несогласованное общее время');
       return { mode, startedAt: e.startedAt, endedAt: e.endedAt, intervals: e.intervals.slice(), totalMs };
     }
-    if (!Array.isArray(e.intervals) || e.intervals.length !== 0 || !Number.isInteger(e.totalMs) || e.totalMs < 1000 || e.totalMs > 86400000)
+    if (!Array.isArray(e.intervals) || e.intervals.length !== 0 || !Number.isInteger(e.totalMs) || e.totalMs < 1 || e.totalMs > 86400000)
       throw new Error('Некорректная попытка Старт–Стоп');
     return { mode, startedAt: e.startedAt, endedAt: e.endedAt, intervals: [], totalMs: e.totalMs };
   }

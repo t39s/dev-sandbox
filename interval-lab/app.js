@@ -5,7 +5,7 @@
   const storage = { version: 4, target: 10, mode: M.MODE_INTERVALS, athletes: [M.defaultAthlete()], selectedAthleteId: M.DEFAULT_ATHLETE_ID, sessions: [], archived: [], incomplete: [] };
   let activeId = null, viewingId = null, baselineId = null;
   let currentView = 'capture', run = null, frameId = null, wakeLock = null;
-  const MAX_CONFIGURED_TAP_GAP_MS = 3600000;
+  const MAX_CONFIGURED_TAP_GAP_MS = 60000;
   let minTapGapMs = null;
   let configurationState = 'loading';
   const TAP_FLASH_MS = 150;
@@ -23,7 +23,7 @@
     if (!config || typeof config !== 'object' || Array.isArray(config) ||
         !Number.isSafeInteger(config.minTapGapMs) ||
         config.minTapGapMs < 0 || config.minTapGapMs > MAX_CONFIGURED_TAP_GAP_MS) {
-      throw new Error('config.json: minTapGapMs должен быть целым числом от 0 до 3600000 мс');
+      throw new Error('config.json: minTapGapMs должен быть целым числом от 0 до 60000 мс');
     }
     return config.minTapGapMs;
   }

@@ -40,7 +40,7 @@ function harness(store=new Map(), tapConfig={minTapGapMs:1000}) {
  const ready=(async()=>{
    for(let i=0;i<25 && get('tapZone').disabled;i++)await Promise.resolve();
    if(tapConfig && Number.isSafeInteger(tapConfig.minTapGapMs) && tapConfig.minTapGapMs>=0 &&
-      tapConfig.minTapGapMs<=3600000 && get('tapZone').disabled) throw new Error('Config load not complete');
+      tapConfig.minTapGapMs<=60000 && get('tapZone').disabled) throw new Error('Config load not complete');
  })();
  return {get,tap,advance,nav,store,window,ready};
 }
@@ -309,4 +309,18 @@ test('zero gap only rejects exactly simultaneous timestamps',async()=>{
  const h=harness(new Map(),{minTapGapMs:0});await h.ready;
  h.tap(0);h.tap(0);assert.equal(h.get('intervalDigit').textContent,'0');
  h.tap(1);assert.equal(h.get('intervalDigit').textContent,'1');
+});
+
+test('too large gate is rejected to protect bounded exercise data',async()=>{
+ const h=harness(new Map(),{minTapGapMs:60001});await h.ready;
+ assert.equal(h.get('tapZone').disabled,true);
+ h.tap(60002);assert.equal(h.get('stateLabel').textContent,'ОШИБКА КОНФИГУРАЦИИ');
+});
+test('short stopwatch result survives validation and persistence',async()=>{
+ const h=harness(new Map(),{minTapGapMs:250});await h.ready;
+ h.get('modeBtn').dispatch('click');h.get('selectStopwatch').dispatch('click');
+ h.tap(0);h.tap(251);
+ const saved=JSON.parse(h.store.get(model.STORAGE_KEY));
+ assert.equal(saved.sessions[0].exercises[0].totalMs,251);
+ assert.equal(model.validateStore(saved).sessions[0].exercises[0].totalMs,251);
 });
