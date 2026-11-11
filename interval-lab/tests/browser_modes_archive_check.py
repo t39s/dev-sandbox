@@ -43,7 +43,7 @@ with sync_playwright() as p:
     assert page.locator('#tapInstruction').inner_text()=='КОСНИТЕСЬ ДЛЯ СТОПА'
     page.screenshot(path=str(SHOTS/'startstop-flash.png'))
     page.wait_for_timeout(200)
-    tap(999)
+    tap(499)
     assert page.locator('#review').is_hidden()
     assert not page.locator('#capture').evaluate("el=>el.classList.contains('tap-flash')")
     tap(1)
@@ -54,7 +54,7 @@ with sync_playwright() as p:
     assert not page.locator('#chartPanel').is_visible()
     assert not page.locator('#tablePanel').is_visible()
     state=page.evaluate('JSON.parse(localStorage.getItem("interval-lab:data:v1"))')
-    assert state['version']==4 and state['sessions'][0]['exercises'][0]['totalMs']==1300
+    assert state['version']==4 and state['sessions'][0]['exercises'][0]['totalMs']==800
     assert state['sessions'][0]['exercises'][0]['mode']=='stopwatch'
     page.locator('#reviewActions').get_by_role('button',name='История').click()
     page.locator('#archiveDate').fill('2026-10-18')
@@ -71,7 +71,7 @@ with sync_playwright() as p:
     page.wait_for_timeout(740)
     assert page.locator('#reviewTitle').inner_text()=='Сравнение упражнений'
     assert not page.locator('#tablePanel').is_visible()
-    assert '1.300' in page.locator('#reviewSummary').inner_text()
+    assert '0.800' in page.locator('#reviewSummary').inner_text()
     assert '1.500' in page.locator('#baselineWrap').inner_text()
     page.screenshot(path=str(SHOTS/'stopwatch-best-review.png'),full_page=True)
     page.get_by_role('button',name='Секундомер').click()

@@ -59,7 +59,7 @@ try:
         page.screenshot(path=str(SHOTS/'start-flash.png'))
         time.sleep(0.20)
         assert not page.locator('#capture').evaluate('(e) => e.classList.contains("tap-flash")')
-        tick_tap(999)
+        tick_tap(499)
         assert page.locator('#intervalDigit').inner_text() == '0'
         assert not page.locator('#capture').evaluate('(e) => e.classList.contains("tap-flash")')
         tick_tap(1)
@@ -114,7 +114,7 @@ try:
         assert rects['d']['x'] >= 0 and rects['d']['x']+rects['d']['width'] <= rects['innerWidth'], rects
         page.screenshot(path=str(SHOTS/'small-100.png'))
         assert not errors, errors
-        print('CHROMIUM PASS: flash 150ms; 0→10; 1000ms gate; pair; persistence; new target; zero JS errors')
+        print('CHROMIUM PASS: flash 150ms; 0→10; 500ms gate; pair; persistence; new target; zero JS errors')
         context.close()
         browser.close()
 finally:

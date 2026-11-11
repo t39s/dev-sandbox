@@ -1,7 +1,7 @@
 Interval Lab 1.4.2
 Release date: 2026-11-11
 Changes: config.json / minTapGapMs; validated async config loading; fail-closed measurement startup.
-Allowed minTapGapMs: integer 0..60000, default file value 1000.
+Allowed minTapGapMs: integer 0..60000, current file value 500.
 Semantics: next accepted touch must occur strictly later than configured milliseconds since previous accepted touch.
 Both intervals and stopwatch use the same setting, frozen for each attempt.
 Offline shell: cache v7, includes config.json. Local use requires HTTP server.
