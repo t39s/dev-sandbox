@@ -14,7 +14,7 @@ class Node {
   addEventListener(type,fn){(this.events[type]??=[]).push(fn);}dispatch(type,props={}){for(const fn of this.events[type]??[])fn({preventDefault(){},stopPropagation(){},...props});}
   setAttribute(k,v){this.attributes[k]=v;}
 }
-function harness(store=new Map(), tapConfig={minTapGapMs:1000}) {
+function harness(store=new Map(), tapConfig={minTapGapMs:500,intervalCount:10}) {
  const nodes=new Map();const get=id=>{if(!nodes.has(id))nodes.set(id,new Node());return nodes.get(id);};
  const nav=['capture','capture','settings'].map(go=>{const n=new Node('button');n.dataset.go=go;return n;});
  const document={getElementById:get,createElement:tag=>new Node(tag),createElementNS:(_ns,tag)=>new Node(tag),createTextNode:s=>({textContent:s}),querySelectorAll:()=>nav,body:new Node('body'),addEventListener(){}};
@@ -40,7 +40,7 @@ function harness(store=new Map(), tapConfig={minTapGapMs:1000}) {
  const ready=(async()=>{
    for(let i=0;i<25 && get('tapZone').disabled;i++)await Promise.resolve();
    if(tapConfig && Number.isSafeInteger(tapConfig.minTapGapMs) && tapConfig.minTapGapMs>=0 &&
-      tapConfig.minTapGapMs<=60000 && get('tapZone').disabled) throw new Error('Config load not complete');
+      tapConfig.minTapGapMs<=60000 && model.validTarget(tapConfig.intervalCount) && get('tapZone').disabled) throw new Error('Config load not complete');
  })();
  return {get,tap,advance,nav,store,window,ready};
 }
@@ -65,17 +65,18 @@ test('app runs 11 taps per exercise, persists two full exercises, reopens histor
  const reloaded=harness(h.store);await reloaded.ready;reloaded.get('historyBtn').dispatch('click');
  assert.equal(reloaded.get('historyList').children.length,1);
 });
-test('settings target determines taps independently for next pair',async()=>{
- const h=harness();await h.ready;h.get('settingsBtn').dispatch('click');h.get('targetInput').value='2';
- h.get('settingsForm').dispatch('submit');
+test('config intervalCount=2 controls new series and canonicalizes legacy store target',async()=>{
+ const h=harness(new Map(),{minTapGapMs:500,intervalCount:2});await h.ready;
+ assert.equal(h.get('intervalText').textContent,'0 / 2 интервалов');
  assert.equal(JSON.parse(h.store.get(model.STORAGE_KEY)).target,2);
- h.nav[0].dispatch('click');assert.equal(h.get('intervalText').textContent,'0 / 2 интервалов');
  for(let i=0;i<3;i++)h.tap();h.advance(650);
- assert.equal(JSON.parse(h.store.get(model.STORAGE_KEY)).sessions[0].exercises[0].intervals.length,2);
+ const data=JSON.parse(h.store.get(model.STORAGE_KEY));
+ assert.equal(data.sessions[0].target,2);
+ assert.equal(data.sessions[0].exercises[0].intervals.length,2);
 });
 
 test('strict >1000 ms tap gate: rejected taps do not count, flash, or reset timer',async()=>{
- const h=harness();await h.ready;
+ const h=harness(new Map(),{minTapGapMs:1000,intervalCount:10});await h.ready;
  h.tap(0);
  assert.equal(h.get('intervalDigit').textContent,'0');
  assert.equal(h.get('capture').classList.contains('tap-flash'),true);
@@ -98,8 +99,7 @@ test('strict >1000 ms tap gate: rejected taps do not count, flash, or reset time
  assert.equal(data, undefined, 'no history saved before final interval');
 });
 test('last interval stays visible briefly and ignores extra taps while finishing',async()=>{
- const h=harness();await h.ready;h.get('settingsBtn').dispatch('click');h.get('targetInput').value='1';
- h.get('settingsForm').dispatch('submit');h.nav[0].dispatch('click');
+ const h=harness(new Map(),{minTapGapMs:500,intervalCount:1});await h.ready;
  h.tap();assert.equal(h.get('intervalDigit').textContent,'0');
  h.tap(1200);assert.equal(h.get('intervalDigit').textContent,'1');
  assert.equal(h.get('capture').classList.contains('hidden'),false);
@@ -110,10 +110,8 @@ test('last interval stays visible briefly and ignores extra taps while finishing
 });
 
 test('interleaved athlete1/athlete2: each first attempt waits for own second attempt',async()=>{
-  const h=harness();await h.ready;
-  // New short target applies to both athlete pairs.
-  h.get('settingsBtn').dispatch('click'); h.get('targetInput').value='2'; h.get('settingsForm').dispatch('submit');
-  h.nav[0].dispatch('click');
+  const h=harness(new Map(),{minTapGapMs:500,intervalCount:2});await h.ready;
+  // Both athletes share the configured target.
   const complete=()=>{for(let i=0;i<3;i++)h.tap(1300);h.advance(700);};
   complete();
   let data=JSON.parse(h.store.get(model.STORAGE_KEY));
@@ -166,7 +164,7 @@ test('v1 application data migrates in-place without losing pending pair',async()
 });
 
 test('start-stop uses separate interface; exactly two accepted taps and >1000ms gate',async()=>{
-  const h=harness();await h.ready;h.get('modeBtn').dispatch('click');
+  const h=harness(new Map(),{minTapGapMs:1000,intervalCount:10});await h.ready;h.get('modeBtn').dispatch('click');
   assert.equal(h.get('modes').classList.contains('hidden'),false);
   h.get('selectStopwatch').dispatch('click');
   assert.equal(h.get('capture').classList.contains('mode-stopwatch'),true);
@@ -187,26 +185,27 @@ test('start-stop uses separate interface; exactly two accepted taps and >1000ms 
   assert.equal(data.sessions[0].exercises[0].totalMs,1151);
 });
 
-test('pair may switch from start-stop to intervals, compares only best total',async()=>{
-  const h=harness();await h.ready;h.get('modeBtn').dispatch('click');h.get('selectStopwatch').dispatch('click');
-  h.tap(0);h.tap(1400);h.advance(700);
-  const first=JSON.parse(h.store.get(model.STORAGE_KEY));
-  assert.equal(first.sessions[0].exercises[0].totalMs,1400);
-  h.get('reviewActions').children.find(x=>x.textContent==='Запустить упражнение 2 →').dispatch('click');
-  h.get('modeBtn').dispatch('click');h.get('selectIntervals').dispatch('click');
-  h.get('settingsBtn').dispatch('click');h.get('targetInput').value='2';h.get('settingsForm').dispatch('submit');
-  h.nav[0].dispatch('click');
-  // Current pair retains original target: 10 intervals.
-  for(let i=0;i<11;i++)h.tap(1300);
-  h.advance(700);
-  const data=JSON.parse(h.store.get(model.STORAGE_KEY));
-  assert.equal(data.sessions.length,1);
-  assert.equal(data.sessions[0].exercises[0].mode,'stopwatch');
-  assert.equal(data.sessions[0].exercises[1].mode,'intervals');
-  assert.equal(data.sessions[0].exercises[1].intervals.length,10);
-  assert.equal(model.bestTotal(data.sessions[0]),1400);
-  assert.equal(h.get('tablePanel').classList.contains('hidden'),false);
-  assert.equal(h.get('intervalTable').children[0].children[0].children.length,1);
+test('pending series retains old interval count after config reload',async()=>{
+ const first=harness();await first.ready;
+ first.get('modeBtn').dispatch('click');first.get('selectStopwatch').dispatch('click');
+ first.tap(0);first.tap(1400);first.advance(700);
+ assert.equal(JSON.parse(first.store.get(model.STORAGE_KEY)).sessions[0].target,10);
+ const h=harness(first.store,{minTapGapMs:500,intervalCount:2});await h.ready;
+ assert.equal(JSON.parse(h.store.get(model.STORAGE_KEY)).target,2);
+ h.get('modeBtn').dispatch('click');h.get('selectIntervals').dispatch('click');
+ assert.equal(h.get('intervalText').textContent,'0 / 10 интервалов');
+ for(let i=0;i<11;i++)h.tap(1300);
+ h.advance(700);
+ const data=JSON.parse(h.store.get(model.STORAGE_KEY));
+ assert.equal(data.sessions.length,1);
+ assert.equal(data.sessions[0].target,10);
+ assert.equal(data.sessions[0].exercises[0].mode,'stopwatch');
+ assert.equal(data.sessions[0].exercises[1].mode,'intervals');
+ assert.equal(data.sessions[0].exercises[1].intervals.length,10);
+ assert.equal(model.bestTotal(data.sessions[0]),1400);
+ assert.equal(h.get('tablePanel').classList.contains('hidden'),false);
+ h.nav[0].dispatch('click');
+ assert.equal(h.get('intervalText').textContent,'0 / 2 интервалов');
 });
 
 test('manual historical result assigned to selected athlete, survives reload, excludes other athletes',async()=>{
@@ -227,7 +226,7 @@ test('manual historical result assigned to selected athlete, survives reload, ex
 
 // 1.4.0: an early finish is a retained, non-scored attempt and does not consume a slot.
 test('early finish saves only partial intervals and allows the same scored slot to be retried',async()=>{
- const h=harness();await h.ready;h.get('settingsBtn').dispatch('click');h.get('targetInput').value='2';h.get('settingsForm').dispatch('submit');h.nav[0].dispatch('click');
+ const h=harness(new Map(),{minTapGapMs:500,intervalCount:2});await h.ready;
  assert.equal(h.get('earlyFinishBtn').classList.contains('hidden'),true);
  h.tap(0);assert.equal(h.get('earlyFinishBtn').classList.contains('hidden'),false);
  h.tap(1400);h.get('earlyFinishBtn').dispatch('pointerdown');h.get('earlyFinishBtn').dispatch('click');
@@ -249,7 +248,7 @@ test('early finish saves only partial intervals and allows the same scored slot 
  const reload=harness(h.store);await reload.ready;assert.equal(reload.get('phaseLabel').textContent.includes('ПОПЫТКА 02'),true);
 });
 test('declining second attempt closes a one-attempt scored series and can start a new series',async()=>{
- const h=harness();await h.ready;h.get('settingsBtn').dispatch('click');h.get('targetInput').value='1';h.get('settingsForm').dispatch('submit');h.nav[0].dispatch('click');
+ const h=harness(new Map(),{minTapGapMs:500,intervalCount:1});await h.ready;
  h.tap(0);h.tap(1450);h.advance(700);
  assert.equal(h.get('reviewTitle').textContent,'Первое упражнение');
  const finish=h.get('reviewActions').children.find(x=>x.textContent?.includes('Завершить серию без второй'));assert.ok(finish);finish.dispatch('click');
@@ -260,7 +259,7 @@ test('declining second attempt closes a one-attempt scored series and can start 
  reloaded.get('historyBtn').dispatch('click');assert.equal(reloaded.get('historyList').children.length,1);
 });
 test('decline and deletion demand confirmation and remove only chosen records',async()=>{
- const h=harness();await h.ready;h.get('settingsBtn').dispatch('click');h.get('targetInput').value='1';h.get('settingsForm').dispatch('submit');h.nav[0].dispatch('click');
+ const h=harness(new Map(),{minTapGapMs:500,intervalCount:1});await h.ready;
  h.tap(0);h.tap(1500);h.advance(700);
  const skip=h.get('reviewActions').children.find(x=>x.textContent?.includes('Завершить серию без второй'));
  h.window.confirm=()=>false;skip.dispatch('click');
@@ -285,7 +284,7 @@ test('decline and deletion demand confirmation and remove only chosen records',a
 });
 
 test('config 500ms: 500 rejected and 501 accepted without resetting on ignored taps',async()=>{
- const h=harness(new Map(),{minTapGapMs:500});await h.ready;
+ const h=harness(new Map(),{minTapGapMs:500,intervalCount:10});await h.ready;
  h.tap(0);h.tap(400);h.tap(100);
  assert.equal(h.get('intervalDigit').textContent,'0');
  h.tap(1);assert.equal(h.get('intervalDigit').textContent,'1');
@@ -293,34 +292,58 @@ test('config 500ms: 500 rejected and 501 accepted without resetting on ignored t
  h.tap(1);assert.equal(h.get('intervalDigit').textContent,'2');
 });
 test('configured 250ms gate also applies to stopwatch',async()=>{
- const h=harness(new Map(),{minTapGapMs:250});await h.ready;
+ const h=harness(new Map(),{minTapGapMs:250,intervalCount:10});await h.ready;
  h.get('modeBtn').dispatch('click');h.get('selectStopwatch').dispatch('click');
  h.tap(0);h.tap(250);
  assert.equal(JSON.parse(h.store.get(model.STORAGE_KEY)).sessions.length,0);
  h.tap(1);assert.equal(JSON.parse(h.store.get(model.STORAGE_KEY)).sessions.length,1);
 });
 test('invalid config blocks the entire capture surface',async()=>{
- const h=harness(new Map(),{minTapGapMs:-1});await h.ready;
+ const h=harness(new Map(),{minTapGapMs:-1,intervalCount:10});await h.ready;
  assert.equal(h.get('tapZone').disabled,true);
  assert.equal(h.get('stateLabel').textContent,'ОШИБКА КОНФИГУРАЦИИ');
  h.tap(5000);assert.equal(h.store.get(model.STORAGE_KEY),undefined);
 });
 test('zero gap only rejects exactly simultaneous timestamps',async()=>{
- const h=harness(new Map(),{minTapGapMs:0});await h.ready;
+ const h=harness(new Map(),{minTapGapMs:0,intervalCount:10});await h.ready;
  h.tap(0);h.tap(0);assert.equal(h.get('intervalDigit').textContent,'0');
  h.tap(1);assert.equal(h.get('intervalDigit').textContent,'1');
 });
 
 test('too large gate is rejected to protect bounded exercise data',async()=>{
- const h=harness(new Map(),{minTapGapMs:60001});await h.ready;
+ const h=harness(new Map(),{minTapGapMs:60001,intervalCount:10});await h.ready;
  assert.equal(h.get('tapZone').disabled,true);
  h.tap(60002);assert.equal(h.get('stateLabel').textContent,'ОШИБКА КОНФИГУРАЦИИ');
 });
 test('short stopwatch result survives validation and persistence',async()=>{
- const h=harness(new Map(),{minTapGapMs:250});await h.ready;
+ const h=harness(new Map(),{minTapGapMs:250,intervalCount:10});await h.ready;
  h.get('modeBtn').dispatch('click');h.get('selectStopwatch').dispatch('click');
  h.tap(0);h.tap(251);
  const saved=JSON.parse(h.store.get(model.STORAGE_KEY));
  assert.equal(saved.sessions[0].exercises[0].totalMs,251);
  assert.equal(model.validateStore(saved).sessions[0].exercises[0].totalMs,251);
+});
+
+test('invalid or missing intervalCount blocks measurement rather than using a fallback',async()=>{
+ for(const v of [undefined,0,-1,201,1.5,'10',null]) {
+   const cfg={minTapGapMs:500};if(v!==undefined)cfg.intervalCount=v;
+   const h=harness(new Map(),cfg);await h.ready;
+   assert.equal(h.get('tapZone').disabled,true);
+   assert.equal(h.get('stateLabel').textContent,'ОШИБКА КОНФИГУРАЦИИ');
+   h.tap(5000);assert.equal(h.store.get(model.STORAGE_KEY),undefined);
+ }
+});
+test('invalid intervalCount cannot be rescued by legacy stored target',async()=>{
+ const store=new Map(),athlete=model.defaultAthlete();
+ store.set(model.STORAGE_KEY,JSON.stringify({version:4,target:8,mode:'intervals',athletes:[athlete],
+   selectedAthleteId:athlete.id,sessions:[],archived:[],incomplete:[]}));
+ const h=harness(store,{minTapGapMs:500,intervalCount:0});await h.ready;
+ assert.equal(h.get('tapZone').disabled,true);
+ assert.equal(JSON.parse(store.get(model.STORAGE_KEY)).target,8);
+ h.tap(9000);assert.equal(JSON.parse(store.get(model.STORAGE_KEY)).sessions.length,0);
+});
+test('settings UI has no editable interval count',()=>{
+ const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
+ assert.doesNotMatch(html,/id="targetInput"|id="settingsForm"|id="pressExplanation"|id="settingsNotice"/);
+ assert.match(html,/intervalCount/);
 });
