@@ -5,7 +5,9 @@
   const storage = { version: 4, target: 10, mode: M.MODE_INTERVALS, athletes: [M.defaultAthlete()], selectedAthleteId: M.DEFAULT_ATHLETE_ID, sessions: [], archived: [], incomplete: [] };
   let activeId = null, viewingId = null, baselineId = null;
   let currentView = 'capture', run = null, frameId = null, wakeLock = null;
-  const MIN_TAP_GAP_MS = 1000;
+  const MAX_CONFIGURED_TAP_GAP_MS = 3600000;
+  let minTapGapMs = null;
+  let configurationState = 'loading';
   const TAP_FLASH_MS = 150;
   const FINAL_DISPLAY_MS = 650;
   let toastTimer = null, restStart = null, restFrame = null;
@@ -16,6 +18,28 @@
     tapZone: $('tapZone'), time: $('timeDisplay'), digit: $('intervalDigit'), phase: $('phaseLabel'), state: $('stateLabel'),
     instruction: $('tapInstruction'), progress: $('progressTrack'), count: $('intervalText')
   };
+
+  function parseTapGap(config) {
+    if (!config || typeof config !== 'object' || Array.isArray(config) ||
+        !Number.isSafeInteger(config.minTapGapMs) ||
+        config.minTapGapMs < 0 || config.minTapGapMs > MAX_CONFIGURED_TAP_GAP_MS) {
+      throw new Error('config.json: minTapGapMs должен быть целым числом от 0 до 3600000 мс');
+    }
+    return config.minTapGapMs;
+  }
+  async function loadConfiguration() {
+    try {
+      const response = await fetch('./config.json', {cache: 'no-cache'});
+      if (!response.ok) throw new Error('config.json: HTTP ' + response.status);
+      minTapGapMs = parseTapGap(await response.json());
+      configurationState = 'ready';
+    } catch (error) {
+      minTapGapMs = null;
+      configurationState = 'error';
+      console.error('Interval Lab: конфигурация не загружена; измерение заблокировано.', error);
+    }
+    renderCapture();
+  }
 
   function toast(message) {
     const el = $('toast'); el.textContent = message; el.classList.add('show');
@@ -94,6 +118,11 @@
     html.instruction.textContent = finishing ? 'ИЗМЕРЕНИЕ ЗАВЕРШЕНО' : run ?
       (stopwatch ? 'КОСНИТЕСЬ ДЛЯ СТОПА' : 'КОСНИТЕСЬ ДЛЯ ОТСЕЧКИ') :
       (stopwatch ? 'КОСНИТЕСЬ ДЛЯ СТАРТА' : phase === 2 ? 'КОСНИТЕСЬ ДЛЯ 2-ГО УПРАЖНЕНИЯ' : 'КОСНИТЕСЬ ДЛЯ СТАРТА');
+    if (configurationState !== 'ready') {
+      html.state.textContent = configurationState === 'loading' ? 'ЧТЕНИЕ КОНФИГУРАЦИИ' : 'ОШИБКА КОНФИГУРАЦИИ';
+      html.instruction.textContent = configurationState === 'loading' ? 'ПОДГОТОВКА СЕКУНДОМЕРА' : 'ПРОВЕРЬТЕ config.json И ОБНОВИТЕ';
+    }
+    html.tapZone.disabled = configurationState !== 'ready';
     html.digit.textContent = stopwatch ? '' : String(done);
     html.digit.classList.toggle('digits-3', done >= 100);
     html.time.textContent = run ? M.formatClock(performance.now() - run.start) : finishing ?
@@ -131,7 +160,7 @@
   }
   async function releaseWakeLock() { const lock = wakeLock; wakeLock = null; if (lock) try { await lock.release(); } catch (error) {} }
   function recordTap() {
-    if (finishing) return;
+    if (finishing || configurationState !== 'ready') return;
     const now = performance.now();
     if (!run) {
       clearTimeout(toastTimer); $('toast').classList.remove('show'); // Never cover the early-finish control during timing.
@@ -139,7 +168,7 @@
       if (!session || session.exercises.length !== 1) session = null;
       const target = session ? session.target : storage.target;
       const phase = session ? 2 : 1;
-      run = { start: now, last: now, target: storage.mode === M.MODE_STOPWATCH ? 1 : target, sessionTarget: target, mode: storage.mode, phase, intervals: [], startedAt: new Date().toISOString(), sessionId: session?.id || null, athleteId: storage.selectedAthleteId };
+      run = { start: now, last: now, minTapGapMs, target: storage.mode === M.MODE_STOPWATCH ? 1 : target, sessionTarget: target, mode: storage.mode, phase, intervals: [], startedAt: new Date().toISOString(), sessionId: session?.id || null, athleteId: storage.selectedAthleteId };
       flashAcceptedTap();
       acquireWakeLock();
       renderCapture();
@@ -148,7 +177,7 @@
     }
     const interval = now - run.last;
     // Strictly more than 1 second between two accepted taps; rejected taps do not reset the clock.
-    if (interval <= MIN_TAP_GAP_MS) return;
+    if (interval <= run.minTapGapMs) return;
     run.intervals.push(interval);
     run.last = now;
     flashAcceptedTap();
@@ -585,5 +614,6 @@
   load();
   activeId=pendingFor(storage.selectedAthleteId)?.id||null;
   renderCapture();
+  loadConfiguration();
   if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('./sw.js').catch(()=>{});
 })();
