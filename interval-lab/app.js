@@ -14,8 +14,7 @@
   const html = {
     capture: $('capture'), review: $('review'), history: $('history'), settings: $('settings'), athletes: $('athletes'), modes: $('modes'),
     tapZone: $('tapZone'), time: $('timeDisplay'), digit: $('intervalDigit'), phase: $('phaseLabel'), state: $('stateLabel'),
-    instruction: $('tapInstruction'), progress: $('progressTrack'), count: $('intervalText'),
-    presses: $('pressText'), last: $('lastInterval')
+    instruction: $('tapInstruction'), progress: $('progressTrack'), count: $('intervalText')
   };
 
   function toast(message) {
@@ -95,14 +94,12 @@
     html.instruction.textContent = finishing ? 'ИЗМЕРЕНИЕ ЗАВЕРШЕНО' : run ?
       (stopwatch ? 'КОСНИТЕСЬ ДЛЯ СТОПА' : 'КОСНИТЕСЬ ДЛЯ ОТСЕЧКИ') :
       (stopwatch ? 'КОСНИТЕСЬ ДЛЯ СТАРТА' : phase === 2 ? 'КОСНИТЕСЬ ДЛЯ 2-ГО УПРАЖНЕНИЯ' : 'КОСНИТЕСЬ ДЛЯ СТАРТА');
-    html.digit.textContent = measured && !stopwatch ? String(done) : '—';
+    html.digit.textContent = stopwatch ? '' : String(done);
     html.digit.classList.toggle('digits-3', done >= 100);
     html.time.textContent = run ? M.formatClock(performance.now() - run.start) : finishing ?
       M.formatClock(M.sum(finishing.intervals)) : '00:00.00';
     html.time.classList.toggle('long-clock', html.time.textContent.length > 8);
     html.count.textContent = `${done} / ${n} интервалов`;
-    html.presses.textContent = finishing ? `${M.requiredPresses(n)} из ${M.requiredPresses(n)} нажатий` : `${run ? done + 2 : 1}-е из ${M.requiredPresses(n)} нажатий`;
-    html.last.textContent = done ? sec(measured.intervals[done - 1]) : '—';
     if (!stopwatch) drawProgress(n, done);
     html.tapZone.setAttribute('aria-label', finishing ? 'Измерение завершено' : run ?
       (stopwatch ? 'Остановить секундомер' : `Отсечь интервал ${done + 1} из ${n}`) :

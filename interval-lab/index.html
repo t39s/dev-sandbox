@@ -11,7 +11,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" type="image/svg+xml" href="./icon.svg">
   <link rel="stylesheet" href="./styles.css">
-  <title>Interval Lab 1.4 — измерение времени</title>
+  <title>Interval Lab 1.4.1 — измерение времени</title>
 </head>
 <body>
   <div id="app">
@@ -29,14 +29,13 @@
           <div class="micro-label" id="phaseLabel">УПРАЖНЕНИЕ 01 / 02</div>
           <div class="dial"><div class="dial-inner">
             <div class="dial-kicker" id="stateLabel">ГОТОВ К ИЗМЕРЕНИЮ</div>
-            <div class="interval-digit" id="intervalDigit" aria-label="Завершено интервалов" aria-live="polite" aria-atomic="true">—</div>
+            <div class="interval-digit" id="intervalDigit" aria-label="Завершено интервалов" aria-live="polite" aria-atomic="true">0</div>
             <div class="big-time" id="timeDisplay" aria-label="Общее время">00:00.00</div>
             <div class="tap-instruction" id="tapInstruction">КОСНИТЕСЬ ДЛЯ СТАРТА</div>
           </div></div>
           <div class="progress-area" id="intervalProgressArea">
-            <div class="progress-count"><span id="intervalText">0 / 10 интервалов</span><span id="pressText">1-е из 11 нажатий</span></div>
+            <div class="progress-count"><span id="intervalText">0 / 10 интервалов</span></div>
             <div class="progress-track" id="progressTrack" aria-label="Прогресс интервалов"></div>
-            <div class="last-interval"><span>ПОСЛЕДНИЙ ИНТЕРВАЛ</span><strong id="lastInterval">—</strong></div>
           </div>
         </div>
       </button>

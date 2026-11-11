@@ -36,8 +36,8 @@ function harness(store=new Map()) {
  return {get,tap,advance,nav,store,window};
 }
 test('app runs 11 taps per exercise, persists two full exercises, reopens history',()=>{
- const h=harness();assert.equal(h.get('pressText').textContent,'1-е из 11 нажатий');
- assert.equal(h.get('intervalDigit').textContent,'—');
+ const h=harness();assert.equal(h.get('intervalText').textContent,'0 / 10 интервалов');
+ assert.equal(h.get('intervalDigit').textContent,'0');
  h.tap();assert.equal(h.get('intervalDigit').textContent,'0');
  for(let i=1;i<11;i++){h.tap();assert.equal(h.get('intervalDigit').textContent,String(i));}
  assert.equal(h.get('capture').classList.contains('tap-flash'),true);
@@ -60,7 +60,7 @@ test('settings target determines taps independently for next pair',()=>{
  const h=harness();h.get('settingsBtn').dispatch('click');h.get('targetInput').value='2';
  h.get('settingsForm').dispatch('submit');
  assert.equal(JSON.parse(h.store.get(model.STORAGE_KEY)).target,2);
- h.nav[0].dispatch('click');assert.equal(h.get('pressText').textContent,'1-е из 3 нажатий');
+ h.nav[0].dispatch('click');assert.equal(h.get('intervalText').textContent,'0 / 2 интервалов');
  for(let i=0;i<3;i++)h.tap();h.advance(650);
  assert.equal(JSON.parse(h.store.get(model.STORAGE_KEY)).sessions[0].exercises[0].intervals.length,2);
 });

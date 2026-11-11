@@ -1,7 +1,6 @@
-Interval Lab 1.4.0
+Interval Lab 1.4.1
 Release date: 2026-11-11
-Changes: per-record history deletion, early finish as unscored partial, optional second attempt.
-Storage schema: 4, key interval-lab:data:v1. Imports/migrates v1–v4.
-Automated tests: 31/31 PASS (node --test tests/*.test.cjs)
-Chromium tests: 4/4 PASS (DOM injection; sizes 390x844 and 320x568)
-Caveats: GitHub Pages, service worker and physical smartphone timing not verified here.
+Changes: numeric zero at rest; removed press counter and last-interval panel from timing screen.
+Timing, analytics, history and storage schema v4: unchanged.
+PWA cache: interval-lab-shell-v6.
+Source consistency checked; browser test execution not confirmed in this environment.

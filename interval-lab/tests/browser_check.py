@@ -4,7 +4,7 @@ from playwright.sync_api import sync_playwright
 import subprocess, time, re
 
 ROOT = Path(__file__).resolve().parents[1]
-SHOTS = Path('/mnt/data/interval-lab_1.2.0/qa-shots')
+SHOTS = Path('/mnt/data/interval-lab_1.4.1/qa-shots')
 SHOTS.mkdir(parents=True, exist_ok=True)
 PORT = 18765
 server = subprocess.Popen(['python3', '-m', 'http.server', str(PORT), '--bind', '127.0.0.1'],cwd=ROOT,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
@@ -45,8 +45,10 @@ try:
         def tick_tap(ms):
             page.evaluate('(ms) => window.__clock += ms', ms)
             page.locator('#tapZone').tap()
-        assert page.locator('#intervalDigit').inner_text() == '—'
-        assert page.locator('#pressText').inner_text() == '1-е из 11 нажатий'
+        assert page.locator('#intervalDigit').inner_text() == '0'
+        assert page.locator('#intervalText').inner_text() == '0 / 10 интервалов'
+        assert page.locator('#pressText').count() == 0
+        assert page.locator('.last-interval').count() == 0
         page.screenshot(path=str(SHOTS/'waiting.png'))
         tick_tap(0)
         assert page.locator('#intervalDigit').inner_text() == '0'
