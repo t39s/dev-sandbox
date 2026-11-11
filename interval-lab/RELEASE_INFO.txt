@@ -1,9 +1,11 @@
-Interval Lab 1.4.2
+Interval Lab 1.4.3
 Release date: 2026-11-11
-Changes: config.json / minTapGapMs; validated async config loading; fail-closed measurement startup.
-Allowed minTapGapMs: integer 0..60000, current file value 500.
-Semantics: next accepted touch must occur strictly later than configured milliseconds since previous accepted touch.
-Both intervals and stopwatch use the same setting, frozen for each attempt.
-Offline shell: cache v7, includes config.json. Local use requires HTTP server.
-Short Stopwatch durations >0 ms are persisted with a minimum of 1 ms after rounding. Storage schema: 4, key interval-lab:data:v1; no migration.
-Regression checks updated; physical smartphone timing and GitHub Pages availability unverified.
+Changes: config.json gains intervalCount=10; interval target editing removed from UI.
+Config schema: minTapGapMs (integer 0..60000; current 500), intervalCount (integer 1..200; current 10).
+10 intervals mean 11 accepted taps (one start plus ten intervals).
+Configuration is validated before measurement starts; invalid/missing fields block measurement.
+Pending two-attempt series retain their stored interval count until completed; new series use config.
+Legacy storage.target is kept in schema v4, synchronized after loading valid config, not a settings source.
+Stopwatch mode and existing measurements are preserved.
+Offline shell cache: interval-lab-shell-v8, includes config.json.
+Checks: integration and Chromium regression scripts updated; physical smartphone timing and GitHub Pages not re-verified.
