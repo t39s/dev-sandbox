@@ -24,7 +24,7 @@ with sync_playwright() as p:
     page.add_style_tag(content=(ROOT/'styles.css').read_text(encoding='utf-8'))
     page.evaluate('''() => {let store=new Map();window.__fakeStore=store;Object.defineProperty(window,'localStorage',{configurable:true,value:{getItem:k=>store.get(k)??null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)}})}''')
     page.add_script_tag(content=(ROOT/'model.js').read_text(encoding='utf-8'))
-    page.evaluate("(cfg) => { window.fetch = async () => ({ok: true, status: 200, json: async () => cfg}); }", json.loads((ROOT/'config.json').read_text(encoding='utf-8')))
+    page.evaluate("(cfg) => { window.fetch = async () => ({ok: true, status: 200, json: async () => cfg}); }", {**json.loads((ROOT/'config.json').read_text(encoding='utf-8')), 'intervalCount':3})
     page.add_script_tag(content=(ROOT/'app.js').read_text(encoding='utf-8'))
     page.wait_for_function("document.getElementById('tapZone').disabled === false")
     def snapshot():return page.evaluate('JSON.parse(localStorage.getItem("interval-lab:data:v1"))')
@@ -32,10 +32,6 @@ with sync_playwright() as p:
         return page.evaluate('''(ms)=>{window.__clock+=ms;let e=document.getElementById('tapZone');e.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,isPrimary:true,button:0}));return document.getElementById('intervalDigit').textContent}''',ms)
     def go_capture():
         page.get_by_role('button',name='Секундомер').click()
-    page.locator('#settingsBtn').click()
-    page.locator('#targetInput').fill('3')
-    page.locator('#settingsForm button[type="submit"]').click()
-    go_capture()
     assert tap(0)=='0';assert page.locator('#earlyFinishBtn').is_visible()
     tap(1400);tap(1300)
     assert page.locator('#intervalDigit').inner_text()=='2'

@@ -94,13 +94,11 @@ try:
         page.get_by_role('button',name='История',exact=True).click()
         assert page.locator('.history-card').count() == 1
         page.get_by_role('button',name='Секундомер').click()
-        page.get_by_role('button',name='Настройки').click()
-        page.locator('#targetInput').fill('2')
-        page.get_by_role('button',name='Сохранить').click()
-        page.get_by_role('button',name='Секундомер').click()
-        for i in range(3):tick_tap(1600)
+        assert page.locator('#targetInput').count() == 0
+        assert page.locator('#intervalText').inner_text() == '0 / 10 интервалов'
+        for i in range(11):tick_tap(1600)
         time.sleep(0.75)
-        assert page.locator('#intervalTable tbody tr').count() == 2
+        assert page.locator('#intervalTable tbody tr').count() == 10
         assert page.evaluate('JSON.parse(localStorage.getItem("interval-lab:data:v1")).sessions.length') == 2
         page.get_by_role('button',name='Секундомер').click()
         page.get_by_role('button',name='История').click()

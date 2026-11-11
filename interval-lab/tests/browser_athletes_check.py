@@ -29,7 +29,7 @@ with sync_playwright() as p:
     }""")
     page.add_style_tag(content=(ROOT/'styles.css').read_text())
     page.add_script_tag(content=(ROOT/'model.js').read_text())
-    page.evaluate("(cfg) => { window.fetch = async () => ({ok: true, status: 200, json: async () => cfg}); }", json.loads((ROOT/'config.json').read_text(encoding='utf-8')))
+    page.evaluate("(cfg) => { window.fetch = async () => ({ok: true, status: 200, json: async () => cfg}); }", {**json.loads((ROOT/'config.json').read_text(encoding='utf-8')), 'intervalCount':2})
     page.add_script_tag(content=(ROOT/'app.js').read_text())
     page.wait_for_function("document.getElementById('tapZone').disabled === false")
     assert page.locator('#athleteBtn').inner_text()=='Спортсмен 1 ▾'
@@ -43,10 +43,6 @@ with sync_playwright() as p:
     page.screenshot(path=str(SHOTS/'profiles-two.png'))
     # Choose first again to run the A1 B1 A2 B2 sequence.
     page.locator('.athlete-choose').nth(0).click()
-    page.locator('#settingsBtn').click()
-    page.locator('#targetInput').fill('2')
-    page.get_by_role('button',name='Сохранить').click()
-    page.get_by_role('button',name='Секундомер').click()
     def exercise():
         for i in range(3):
             page.evaluate('window.__clock+=1300')
