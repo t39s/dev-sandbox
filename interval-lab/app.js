@@ -2,7 +2,7 @@
   'use strict';
   const M = window.IntervalModel;
   const $ = id => document.getElementById(id);
-  const storage = { version: 2, target: 10, athletes: [M.defaultAthlete()], selectedAthleteId: M.DEFAULT_ATHLETE_ID, sessions: [] };
+  const storage = { version: 3, target: 10, mode: M.MODE_INTERVALS, athletes: [M.defaultAthlete()], selectedAthleteId: M.DEFAULT_ATHLETE_ID, sessions: [], archived: [] };
   let activeId = null, viewingId = null, baselineId = null;
   let currentView = 'capture', run = null, frameId = null, wakeLock = null;
   const MIN_TAP_GAP_MS = 1000;
@@ -12,7 +12,7 @@
   let finishing = null, flashTimer = null;
 
   const html = {
-    capture: $('capture'), review: $('review'), history: $('history'), settings: $('settings'), athletes: $('athletes'),
+    capture: $('capture'), review: $('review'), history: $('history'), settings: $('settings'), athletes: $('athletes'), modes: $('modes'),
     tapZone: $('tapZone'), time: $('timeDisplay'), digit: $('intervalDigit'), phase: $('phaseLabel'), state: $('stateLabel'),
     instruction: $('tapInstruction'), progress: $('progressTrack'), count: $('intervalText'),
     presses: $('pressText'), last: $('lastInterval')
@@ -30,7 +30,7 @@
     try {
       const raw = localStorage.getItem(M.STORAGE_KEY);
       if (raw) { const parsed = JSON.parse(raw); Object.assign(storage, M.validateStore(parsed));
-        if (parsed.version === 1) save(); // v1 → v2, preserving every original exercise
+        if (parsed.version < 3) save(); // v1/v2 → v3, preserving all original intervals
       }
     } catch (error) { toast('Не удалось прочитать историю. Старые данные не перезаписаны.');
       // Never overwrite unreadable storage automatically.
@@ -64,34 +64,48 @@
   function show(view) {
     currentView = view;
     if (run || finishing) { if (view !== 'capture') return; }
-    for (const name of ['capture', 'review', 'history', 'settings', 'athletes']) html[name].classList.toggle('hidden', name !== view);
+    for (const name of ['capture', 'review', 'history', 'settings', 'athletes', 'modes']) html[name].classList.toggle('hidden', name !== view);
     if (view === 'capture') renderCapture();
     if (view === 'review') renderReview();
     if (view === 'history') renderHistory();
     if (view === 'settings') renderSettings();
     if (view === 'athletes') renderAthletes();
+    if (view === 'modes') renderModes();
     window.scrollTo(0, 0);
   }
   function currentTarget() { return activeSession()?.exercises.length === 1 ? activeSession().target : storage.target; }
   function capturePhase() { return activeSession()?.exercises.length === 1 ? 2 : 1; }
   function renderCapture() {
     const measured = run || finishing;
+    const mode = measured?.mode || storage.mode;
+    const stopwatch = mode === M.MODE_STOPWATCH;
     const n = measured ? measured.target : currentTarget();
     const phase = measured ? measured.phase : capturePhase();
     const done = measured ? measured.intervals.length : 0;
     html.capture.classList.toggle('running', !!measured);
+    html.capture.classList.toggle('mode-stopwatch', stopwatch);
     $('athleteBtn').textContent = selectedAthlete().name + ' ▾';
-    html.phase.textContent = `${selectedAthlete().name.toUpperCase()} · УПРАЖНЕНИЕ 0${phase} / 02`;
-    html.state.textContent = finishing ? 'ИНТЕРВАЛЫ ЗАВЕРШЕНЫ' : run ? 'ИДЁТ ИЗМЕРЕНИЕ' : 'ГОТОВ К ИЗМЕРЕНИЮ';
-    html.instruction.textContent = finishing ? 'ИЗМЕРЕНИЕ ЗАВЕРШЕНО' : run ? 'КОСНИТЕСЬ ДЛЯ ОТСЕЧКИ' : phase === 2 ? 'КОСНИТЕСЬ ДЛЯ 2-ГО УПРАЖНЕНИЯ' : 'КОСНИТЕСЬ ДЛЯ СТАРТА';
-    html.digit.textContent = measured ? String(done) : '—';
+    $('modeBtn').setAttribute('title', stopwatch ? 'Старт–Стоп · сменить режим' : 'С отсечками · сменить режим');
+    $('modeBtn').setAttribute('aria-label', stopwatch ? 'Сменить режим Старт–Стоп' : 'Сменить режим с отсечками');
+    $('modeBtn').textContent = stopwatch ? '◷' : '▥';
+    html.phase.textContent = `${selectedAthlete().name.toUpperCase()} · ПОПЫТКА 0${phase} / 02 · ${stopwatch ? 'СТАРТ–СТОП' : 'С ОТСЕЧКАМИ'}`;
+    html.state.textContent = stopwatch ? (finishing ? 'ВРЕМЯ ЗАФИКСИРОВАНО' : run ? 'ИДЁТ ИЗМЕРЕНИЕ' : 'ГОТОВ К СТАРТУ') :
+      (finishing ? 'ИНТЕРВАЛЫ ЗАВЕРШЕНЫ' : run ? 'ИДЁТ ИЗМЕРЕНИЕ' : 'ГОТОВ К ИЗМЕРЕНИЮ');
+    html.instruction.textContent = finishing ? 'ИЗМЕРЕНИЕ ЗАВЕРШЕНО' : run ?
+      (stopwatch ? 'КОСНИТЕСЬ ДЛЯ СТОПА' : 'КОСНИТЕСЬ ДЛЯ ОТСЕЧКИ') :
+      (stopwatch ? 'КОСНИТЕСЬ ДЛЯ СТАРТА' : phase === 2 ? 'КОСНИТЕСЬ ДЛЯ 2-ГО УПРАЖНЕНИЯ' : 'КОСНИТЕСЬ ДЛЯ СТАРТА');
+    html.digit.textContent = measured && !stopwatch ? String(done) : '—';
     html.digit.classList.toggle('digits-3', done >= 100);
-    html.time.textContent = run ? M.formatClock(performance.now() - run.start) : finishing ? M.formatClock(M.sum(finishing.intervals)) : '00:00.00';
+    html.time.textContent = run ? M.formatClock(performance.now() - run.start) : finishing ?
+      M.formatClock(M.sum(finishing.intervals)) : '00:00.00';
+    html.time.classList.toggle('long-clock', html.time.textContent.length > 8);
     html.count.textContent = `${done} / ${n} интервалов`;
     html.presses.textContent = finishing ? `${M.requiredPresses(n)} из ${M.requiredPresses(n)} нажатий` : `${run ? done + 2 : 1}-е из ${M.requiredPresses(n)} нажатий`;
     html.last.textContent = done ? sec(measured.intervals[done - 1]) : '—';
-    drawProgress(n, done);
-    html.tapZone.setAttribute('aria-label', finishing ? `Завершено ${n} интервалов` : run ? `Отсечь интервал ${done + 1} из ${n}` : `Начать упражнение ${phase}. ${n} интервалов`);
+    if (!stopwatch) drawProgress(n, done);
+    html.tapZone.setAttribute('aria-label', finishing ? 'Измерение завершено' : run ?
+      (stopwatch ? 'Остановить секундомер' : `Отсечь интервал ${done + 1} из ${n}`) :
+      (stopwatch ? `Начать попытку ${phase}, режим Старт–Стоп` : `Начать упражнение ${phase}. ${n} интервалов`));
   }
   function flashAcceptedTap() {
     clearTimeout(flashTimer);
@@ -110,6 +124,7 @@
   function tick() {
     if (!run) return;
     html.time.textContent = M.formatClock(performance.now() - run.start);
+    html.time.classList.toggle('long-clock', html.time.textContent.length > 8);
     frameId = requestAnimationFrame(tick);
   }
   async function acquireWakeLock() {
@@ -125,7 +140,7 @@
       if (!session || session.exercises.length !== 1) session = null;
       const target = session ? session.target : storage.target;
       const phase = session ? 2 : 1;
-      run = { start: now, last: now, target, phase, intervals: [], startedAt: new Date().toISOString(), sessionId: session?.id || null, athleteId: storage.selectedAthleteId };
+      run = { start: now, last: now, target: storage.mode === M.MODE_STOPWATCH ? 1 : target, sessionTarget: target, mode: storage.mode, phase, intervals: [], startedAt: new Date().toISOString(), sessionId: session?.id || null, athleteId: storage.selectedAthleteId };
       flashAcceptedTap();
       acquireWakeLock();
       renderCapture();
@@ -151,9 +166,10 @@
     releaseWakeLock();
     // Keep the last number and the final confirmation flash visible before opening analysis.
     renderCapture();
-    const exercise = M.createExercise(finishing.intervals, finishing.startedAt, new Date().toISOString());
+    const exercise = finishing.mode === M.MODE_STOPWATCH ? M.createStopwatchExercise(M.sum(finishing.intervals), finishing.startedAt, new Date().toISOString()) :
+      M.createExercise(finishing.intervals, finishing.startedAt, new Date().toISOString());
     let session = finishing.sessionId ? findSession(finishing.sessionId) : null;
-    if (!session) { session = M.createSession(finishing.target, finishing.startedAt, finishing.athleteId); storage.sessions.push(session); }
+    if (!session) { session = M.createSession(finishing.sessionTarget, finishing.startedAt, finishing.athleteId); storage.sessions.push(session); }
     if (session.exercises.length < 2) session.exercises.push(exercise);
     activeId = session.exercises.length === 1 ? session.id : null;
     viewingId = session.id; baselineId = null;
@@ -177,6 +193,20 @@
   $('athleteBtn').addEventListener('click', () => show('athletes'));
   $('historyBtn').addEventListener('click', () => show('history'));
   $('settingsBtn').addEventListener('click', () => show('settings'));
+  $('modeBtn').addEventListener('click', () => show('modes'));
+  $('settingsModeBtn').addEventListener('click', () => show('modes'));
+  function chooseMode(mode) {
+    if (run || finishing || !M.validMode(mode)) return;
+    storage.mode = mode; persist(); show('capture');
+  }
+  $('selectIntervals').addEventListener('click', () => chooseMode(M.MODE_INTERVALS));
+  $('selectStopwatch').addEventListener('click', () => chooseMode(M.MODE_STOPWATCH));
+  function renderModes() {
+    for (const [id,mode,stateId] of [['selectIntervals',M.MODE_INTERVALS,'modeIntervalsState'],['selectStopwatch',M.MODE_STOPWATCH,'modeStopwatchState']]) {
+      const selected = storage.mode === mode;
+      $(id).classList.toggle('selected', selected); $(stateId).textContent = selected ? 'ВЫБРАН' : 'ВЫБРАТЬ';
+    }
+  }
   document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => show(b.dataset.go)));
 
   function metric(label, value, note, highlighted) {
@@ -184,27 +214,30 @@
     m.append(make('div', 'metric-label', label), make('strong', '', value), make('small', '', note));
     return m;
   }
+  function modeLabel(mode) { return mode === M.MODE_STOPWATCH ? 'Старт–Стоп' : 'С отсечками'; }
   function renderReview() {
     const session = findSession(viewingId) || sortedSessions()[0];
     if (!session) return show('history');
     viewingId = session.id;
     const ex = session.exercises, complete = ex.length === 2;
     $('reviewTitle').textContent = complete ? 'Сравнение упражнений' : 'Первое упражнение';
-    $('reviewSub').textContent = `${athleteName(session.athleteId)} · ${dateLabel(session.createdAt)} · ${session.target} интервалов · ${complete ? 'пара завершена' : 'ожидает второе упражнение'}`;
+    $('reviewSub').textContent = `${athleteName(session.athleteId)} · ${dateLabel(session.createdAt)} · ${complete ? 'пара завершена' : 'ожидает второе упражнение'}`;
     const summary = clear($('reviewSummary'));
     const metrics = make('div', 'metrics');
-    const a = M.stats(ex[0].intervals), b = complete ? M.stats(ex[1].intervals) : null;
-    metrics.append(metric('Упражнение 1 · всего', sec(a.total), `Средний интервал ${sec(a.avg)}`, true));
-    if (b) metrics.append(metric('Упражнение 2 · всего', sec(b.total), `Средний интервал ${sec(b.avg)}`, true));
-    else metrics.append(metric('Быстрый интервал', sec(a.min), `Медленный ${sec(a.max)}`));
-    if (b) {
-      const d = b.avg - a.avg;
-      metrics.append(metric('Изменение среднего', signed(d), `${signedPct(M.percentageDelta(b.avg, a.avg))} относительно 1-го`));
+    metrics.append(metric('Попытка 1 · всего', sec(M.exerciseTotal(ex[0])), modeLabel(ex[0].mode), true));
+    if (complete) {
+      metrics.append(metric('Попытка 2 · всего', sec(M.exerciseTotal(ex[1])), modeLabel(ex[1].mode), true));
+      const best = M.bestTotal(session);
+      metrics.append(metric('ЛУЧШИЙ РЕЗУЛЬТАТ ПАРЫ', sec(best), `Попытка ${M.exerciseTotal(ex[0]) <= M.exerciseTotal(ex[1]) ? 1 : 2} · меньше — лучше`, true));
       const rest = Math.max(0, Date.parse(ex[1].startedAt) - Date.parse(ex[0].endedAt));
-      metrics.append(metric('Пауза между упражнениями', sec(rest), 'Не входит во время упражнений'));
+      metrics.append(metric('Пауза между попытками', sec(rest), 'Не входит во время упражнений'));
     } else {
-      metrics.append(metric('Первый → последний', a.delta === null ? '—' : signed(a.delta), `Динамика ${signedPct(a.deltaPercent)}`));
-      metrics.append(metric('Разброс (CV)', `${a.cv.toFixed(1)}%`, 'Относительная вариативность интервалов'));
+      metrics.append(metric('Вторая попытка', '—', 'Ожидает выполнения'));
+      if (ex[0].mode === M.MODE_INTERVALS) {
+        const a = M.stats(ex[0].intervals);
+        metrics.append(metric('Быстрый интервал', sec(a.min), `Медленный ${sec(a.max)}`));
+        metrics.append(metric('Разброс (CV)', `${a.cv.toFixed(1)}%`, 'Вариативность интервалов'));
+      }
     }
     summary.append(metrics);
     const actions = clear($('reviewActions'));
@@ -230,26 +263,33 @@
         restFrame = requestAnimationFrame(restTick);
       }; restTick();
     }
-    drawChart($('chartWrap'), ex.map((e, i) => ({ name: `Упражнение ${i + 1}`, values: e.intervals.map(x => x / 1000), color: i ? '#77a9ff' : '#66e3c4' })));
-    renderIntervalTable(ex, session.target);
+    const detailed = ex.filter(e => e.mode === M.MODE_INTERVALS);
+    $('chartPanel').classList.toggle('hidden', !detailed.length);
+    $('tablePanel').classList.toggle('hidden', !detailed.length);
+    if (detailed.length) {
+      drawChart($('chartWrap'), ex.filter(e => e.mode === M.MODE_INTERVALS).map(e => ({
+        name: `Попытка ${ex.indexOf(e)+1}`, values: e.intervals.map(x=>x/1000), color: ex.indexOf(e) ? '#77a9ff' : '#66e3c4'
+      })));
+      renderIntervalTable(ex, session.target);
+    } else { clear($('chartWrap')); clear($('intervalTable')); }
     renderBaseline(session);
   }
   function renderIntervalTable(ex, count) {
-    const table = make('table');
-    const head = make('thead'), h = make('tr');
-    ['№', 'Упр. 1', ...(ex.length === 2 ? ['Упр. 2', 'Δ (2 − 1)'] : [])].forEach(v => h.append(make('th', '', v)));
-    head.append(h); table.append(head);
+    const indexed = ex.map((e,i)=>({e,i})).filter(x=>x.e.mode === M.MODE_INTERVALS);
+    const table = make('table'), head = make('thead'), h = make('tr');
+    ['№', ...indexed.map(x=>`Попытка ${x.i+1}`), ...(indexed.length === 2 ? ['Δ (2 − 1)'] : [])].forEach(v=>h.append(make('th','',v)));
+    head.append(h);table.append(head);
     const body = make('tbody');
-    for (let i = 0; i < count; i++) {
-      const tr = make('tr'); tr.append(make('td', '', String(i + 1)), make('td', '', M.formatSeconds(ex[0].intervals[i])));
-      if (ex[1]) {
-        tr.append(make('td', '', M.formatSeconds(ex[1].intervals[i])));
-        const diff = ex[1].intervals[i] - ex[0].intervals[i];
-        tr.append(make('td', diff > 0 ? 'positive' : diff < 0 ? 'negative' : '', signed(diff).replace(' с', '')));
+    for (let i=0;i<count;i++) {
+      const tr=make('tr');tr.append(make('td','',String(i+1)));
+      for (const x of indexed) tr.append(make('td','',M.formatSeconds(x.e.intervals[i])));
+      if (indexed.length===2) {
+        const diff=indexed[1].e.intervals[i]-indexed[0].e.intervals[i];
+        tr.append(make('td',diff>0?'positive':diff<0?'negative':'',signed(diff).replace(' с','')));
       }
       body.append(tr);
     }
-    table.append(body); clear($('intervalTable')).append(table);
+    table.append(body);clear($('intervalTable')).append(table);
   }
   function svgEl(tag, attrs = {}, textContent) {
     const e = document.createElementNS('http://www.w3.org/2000/svg', tag);
@@ -291,53 +331,82 @@
     }
     target.append(svg, legend);
   }
+  function historicalBestRecords(athleteId) {
+    const measured = storage.sessions.filter(s => s.athleteId === athleteId && s.exercises.length === 2).map(s=>({
+      id:s.id, timestamp:Date.parse(s.createdAt), date:new Date(s.createdAt).toLocaleDateString('ru-RU'),
+      bestMs:M.bestTotal(s), label:'Измерение · '+dateLabel(s.createdAt)
+    }));
+    const archive = storage.archived.filter(a=>a.athleteId===athleteId).map(a=>({
+      id:a.id, timestamp:Date.parse(a.date+'T12:00:00Z'), date:a.date.split('-').reverse().join('.'),
+      bestMs:a.bestMs, label:'Архив · '+a.date.split('-').reverse().join('.')
+    }));
+    return [...measured,...archive].sort((a,b)=>a.timestamp-b.timestamp);
+  }
   function renderBaseline(session) {
-    const wrap = clear($('baselineWrap'));
-    const earlier = sortedSessions().filter(s => s.id !== session.id && s.athleteId === session.athleteId && s.target === session.target && Date.parse(s.createdAt) < Date.parse(session.createdAt));
-    const defaultBaseline = M.findBaseline(storage.sessions, session);
-    if (!earlier.length) {
-      wrap.append(make('p','muted small','Пока нет предыдущих измерений с таким же числом интервалов. После следующих тренировок здесь появится сравнение.'));
+    const wrap=clear($('baselineWrap'));
+    if(session.exercises.length<2){
+      wrap.append(make('p','muted small','Сравнение лучших результатов доступно после второй попытки. Незавершённые пары не участвуют в долгосрочной аналитике.'));
       return;
     }
-    let baseline = earlier.find(s => s.id === baselineId) || defaultBaseline || earlier[0];
-    const label = make('label','muted small','Выберите предыдущий сеанс (предпочтительно другой день)');
-    const select = make('select','baseline-select'); select.setAttribute('aria-label','Сеанс для сравнения');
-    for (const s of earlier) {
-      const option = make('option','',`${dateLabel(s.createdAt)} · ${s.exercises.length} упр.`); option.value = s.id; option.selected = s.id === baseline.id;
-      select.append(option);
+    const records=historicalBestRecords(session.athleteId);
+    const previous=records.filter(x=>x.id!==session.id && x.timestamp<Date.parse(session.createdAt));
+    if(!previous.length){wrap.append(make('p','muted small','Предыдущих завершённых пар или архивных результатов пока нет.'));return;}
+    const reference=previous.find(x=>x.id===baselineId)||previous[previous.length-1];
+    const select=make('select','baseline-select');select.setAttribute('aria-label','Предыдущий результат для сравнения');
+    for(const entry of [...previous].reverse()){
+      const opt=make('option','',`${entry.label} · ${sec(entry.bestMs)}`);opt.value=entry.id;opt.selected=entry.id===reference.id;select.append(opt);
     }
-    select.addEventListener('change', () => { baselineId = select.value; renderBaseline(session); });
-    wrap.append(label, select);
-    const g = make('div','compare-grid');
-    session.exercises.forEach((e,i) => {
-      if (!baseline.exercises[i]) return;
-      const current = M.stats(e.intervals), past = M.stats(baseline.exercises[i].intervals);
-      const d = current.avg - past.avg;
-      const item = make('div','compare-item'); item.append(make('small','',`Упр. ${i+1} · средний интервал`), make('strong', d > 0 ? 'positive' : d < 0 ? 'negative' : '', signed(d)));
-      item.append(make('small','',signedPct(M.percentageDelta(current.avg, past.avg)) + ' к выбранному сеансу')); g.append(item);
-    });
-    wrap.append(g);
-    const p = make('p','muted small','Отрицательная разница означает более короткие интервалы. Сравниваются только сеансы с одинаковым числом интервалов.');
-    p.style.marginTop='13px'; wrap.append(p);
-    const plot = make('div');
-    const series = session.exercises.map((e,i) => ({name:`Сейчас · упр. ${i+1}`,values:e.intervals.map(x=>x/1000),color:i?'#77a9ff':'#66e3c4'}));
-    baseline.exercises.forEach((e,i) => series.push({name:`Ранее · упр. ${i+1}`,values:e.intervals.map(x=>x/1000),color:i?'#77a9ff':'#66e3c4',dashed:true}));
-    drawChart(plot,series);wrap.append(plot);
+    select.addEventListener('change',()=>{baselineId=select.value;renderBaseline(session);});
+    const diff=M.bestTotal(session)-reference.bestMs;
+    const g=make('div','compare-grid');
+    const old=make('div','compare-item');old.append(make('small','','Ранее · лучший результат'),make('strong','',sec(reference.bestMs)));
+    const newer=make('div','compare-item');newer.append(make('small','','Разница (сейчас − ранее)'),make('strong',diff>0?'positive':diff<0?'negative':'',signed(diff)));
+    g.append(old,newer);wrap.append(make('p','muted small','Сравнивается лучшее общее время из двух попыток с выбранным предыдущим результатом. Архивные записи также участвуют.'),select,g);
+    const plot=make('div');const plotted=[...previous,{id:session.id,timestamp:Date.parse(session.createdAt),bestMs:M.bestTotal(session)}].sort((a,b)=>a.timestamp-b.timestamp);
+    drawChart(plot,[{name:'Лучшее время пары / архива',values:plotted.map(x=>x.bestMs/1000),color:'#66e3c4'}]);wrap.append(plot);
+    wrap.append(make('p','muted small','Точки графика упорядочены по дате (включая архив). Меньшее время — лучший результат.'));
   }
   function renderHistory() {
-    const list = clear($('historyList'));
-    const sessions = sortedSessions().filter(s => s.athleteId === storage.selectedAthleteId);
-    $('historyAthlete').textContent = selectedAthlete().name;
-    if (!sessions.length) { list.append(make('div','empty-state','У этого спортсмена пока нет измерений.')); return; }
-    for (const s of sessions) {
-      const card = action('', 'history-card', () => { viewingId = s.id; baselineId = null; show('review'); });
-      const head = make('div','history-head'); head.append(make('strong','',dateLabel(s.createdAt)),make('span','pill',`${s.exercises.length}/2 упражнения`));
-      const details = make('p','muted',`${s.target} интервалов · ${M.requiredPresses(s.target)} нажатий на упражнение`);
-      const stats = make('div','history-stats');
-      s.exercises.forEach((e,i)=>{const d=make('div');d.append(document.createTextNode(`Упр. ${i+1}: `),make('span','',sec(M.sum(e.intervals))));stats.append(d);});
-      card.append(head,details,stats);list.append(card);
+    const list=clear($('historyList'));
+    $('historyAthlete').textContent=selectedAthlete().name;
+    const records=[...sortedSessions().filter(s=>s.athleteId===storage.selectedAthleteId).map(s=>({type:'session',s,time:Date.parse(s.createdAt)})),
+      ...storage.archived.filter(a=>a.athleteId===storage.selectedAthleteId).map(a=>({type:'archive',a,time:Date.parse(a.date+'T12:00:00Z')}))]
+      .sort((a,b)=>b.time-a.time);
+    if(!records.length)list.append(make('div','empty-state','У этого спортсмена пока нет результатов.'));
+    for(const r of records){
+      if(r.type==='session'){
+        const s=r.s,card=action('','history-card',()=>{viewingId=s.id;baselineId=null;show('review');});
+        const head=make('div','history-head');head.append(make('strong','',dateLabel(s.createdAt)),make('span','pill',`${s.exercises.length}/2 попытки`));
+        const details=make('p','muted',s.exercises.map((e,i)=>`Попытка ${i+1} · ${modeLabel(e.mode)}`).join(' · '));
+        const stat=make('div','history-stats');
+        s.exercises.forEach((e,i)=>{const x=make('div');x.append(document.createTextNode(`Попытка ${i+1}: `),make('span','',sec(M.exerciseTotal(e))));stat.append(x);});
+        card.append(head,details,stat);
+        if(s.exercises.length===2){const best=make('p','muted');best.append(document.createTextNode('Лучшее из двух: '),make('strong','',sec(M.bestTotal(s))));card.append(best);}
+        else card.append(make('p','muted small','Ожидает вторую попытку — не участвует в рейтинге лучших результатов.'));
+        list.append(card);
+      } else {
+        const a=r.a,card=make('div','archive-entry');
+        const header=make('div','archive-title');header.append(make('strong','',a.date.split('-').reverse().join('.')),make('span','pill','Внесено вручную'));
+        card.append(header,make('div','archive-time',sec(a.bestMs)),make('p','muted small','Лучшее общее время · без детализации попыток'));
+        card.append(action('Удалить архивную запись','small-button danger-outline',()=>{
+          if(!window.confirm(`Удалить архивную запись от ${a.date} (${sec(a.bestMs)})?`))return;
+          storage.archived=storage.archived.filter(x=>x.id!==a.id);persist();renderHistory();
+        }));list.append(card);
+      }
     }
+    const date=$('archiveDate');if(!date.value){const d=new Date();date.value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
   }
+  $('archiveForm').addEventListener('submit',event=>{
+    event.preventDefault();
+    const date=$('archiveDate').value;
+    const raw=$('archiveSeconds').value.trim().replace(',','.');
+    if(!/^\d+(?:\.\d{1,3})?$/.test(raw))return toast('Укажите время в секундах: например, 12,345');
+    const ms=Math.round(Number(raw)*1000);
+    if(!M.validDate(date)||!Number.isSafeInteger(ms)||ms<1||ms>86400000)return toast('Проверьте дату и время (от 0,001 до 86400 с)');
+    if(storage.archived.length>=M.MAX_ARCHIVED)return toast('Достигнут предел архивных записей');
+    storage.archived.push(M.createArchived(storage.selectedAthleteId,date,ms));
+    $('archiveSeconds').value='';persist();renderHistory();toast('Архивный результат сохранён');
+  });
   function renderAthletes() {
     const list = clear($('athleteList'));
     $('athleteCount').textContent = `${storage.athletes.length} из ${M.MAX_ATHLETES} профилей`;
@@ -348,7 +417,8 @@
       const choose = action('', 'athlete-choose', () => switchAthlete(athlete.id));
       choose.append(make('strong','',athlete.name), make('small','',pending ? 'Первое упражнение готово · ожидает второе' : 'Следующая пара · упражнение 1'));
       const count = storage.sessions.filter(s => s.athleteId === athlete.id).length;
-      choose.append(make('small','',`${count} пар в истории${isSelected ? ' · выбран' : ''}`));
+      const archiveCount = storage.archived.filter(a => a.athleteId === athlete.id).length;
+      choose.append(make('small','',`${count} пар · ${archiveCount} архивных записей${isSelected ? ' · выбран' : ''}`));
       const controls = make('div','athlete-controls');
       controls.append(action('Переименовать', 'small-button', () => {
         const value = window.prompt('Новое имя спортсмена', athlete.name);
@@ -359,10 +429,12 @@
       const remove = action('Удалить', 'small-button danger-outline', () => {
         if (storage.athletes.length === 1) return toast('Нельзя удалить единственный профиль');
         const sessions = storage.sessions.filter(s => s.athleteId === athlete.id);
-        if (sessions.length && !window.confirm(`Удалить «${athlete.name}» и ВСЕ ${sessions.length} пар(ы) этого спортсмена? Сделайте резервную копию.`)) return;
-        if (!window.confirm(`Подтвердите удаление профиля «${athlete.name}»${sessions.length ? ' вместе с историей' : ''}. Отменить нельзя.`)) return;
+        const archived = storage.archived.filter(a => a.athleteId === athlete.id);
+        if ((sessions.length || archived.length) && !window.confirm(`Удалить «${athlete.name}»: ${sessions.length} пар и ${archived.length} архивных записей? Сделайте резервную копию.`)) return;
+        if (!window.confirm(`Подтвердите удаление профиля «${athlete.name}» вместе с его результатами. Отменить нельзя.`)) return;
         storage.athletes = storage.athletes.filter(a => a.id !== athlete.id);
         storage.sessions = storage.sessions.filter(s => s.athleteId !== athlete.id);
+        storage.archived = storage.archived.filter(a => a.athleteId !== athlete.id);
         if (isSelected) { storage.selectedAthleteId = storage.athletes[0].id; activeId = pendingFor(storage.selectedAthleteId)?.id || null; }
         if (viewingId && !findSession(viewingId)) viewingId = null;
         persist(); renderAthletes();
@@ -394,7 +466,7 @@
     if (!M.validTarget(n)) return toast('Введите целое число от 1 до 200');
     storage.target = n; persist();
     const pending = activeSession();
-    $('settingsNotice').textContent = pending?.exercises.length === 1 ? `Настройка сохранена для новой пары. Второе упражнение текущей пары содержит ${pending.target} интервалов.` : 'Настройка сохранена.';
+    $('settingsNotice').textContent = pending?.exercises.length === 1 ? `Настройка сохранена для новой пары. Если в текущей паре выбран режим с отсечками, в нём будет ${pending.target} интервалов.` : 'Настройка сохранена.';
     toast('Настройка сохранена');
   });
   function download(name,mime,data) {
@@ -406,8 +478,13 @@
   $('exportBtn').addEventListener('click',()=>download(backupName('json'),'application/json',JSON.stringify(M.validateStore(storage),null,2)));
   function csvCell(v) {let s=String(v??'');if(/^[=+@-]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"';}
   $('csvBtn').addEventListener('click',()=>{
-    const rows=[['athlete_id','athlete_name','session_id','date','exercise','interval_number','interval_ms','interval_sec','total_ms']];
-    for(const s of sortedSessions()) s.exercises.forEach((e,i)=>e.intervals.forEach((ms,j)=>rows.push([s.athleteId,athleteName(s.athleteId),s.id,s.createdAt,i+1,j+1,ms,(ms/1000).toFixed(3),M.sum(e.intervals)])));
+    const rows=[['athlete_id','athlete_name','record_id','date','record_type','exercise','mode','interval_number','interval_ms','total_ms','best_of_two_ms']];
+    for(const s of sortedSessions())s.exercises.forEach((e,i)=>{
+      const base=[s.athleteId,athleteName(s.athleteId),s.id,s.createdAt,'measured',i+1,e.mode];
+      if(e.mode===M.MODE_INTERVALS)e.intervals.forEach((ms,j)=>rows.push([...base,j+1,ms,M.exerciseTotal(e),M.bestTotal(s)??'']));
+      else rows.push([...base,'','',M.exerciseTotal(e),M.bestTotal(s)??'']);
+    });
+    for(const a of storage.archived)rows.push([a.athleteId,athleteName(a.athleteId),a.id,a.date,'manual_archive','','','','','',a.bestMs]);
     download(backupName('csv'),'text/csv;charset=utf-8','\ufeff'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n'));
   });
   $('importInput').addEventListener('change',async event=>{
@@ -417,18 +494,18 @@
       const imported=JSON.parse(await file.text());
       const merged=M.mergeStores(storage,imported);
       Object.assign(storage,merged.data); activeId=pendingFor(storage.selectedAthleteId)?.id || null;
-      persist();toast(`Импорт: ${merged.added} новых пар, ${merged.athletesAdded} спортсменов`);
+      persist();toast(`Импорт: ${merged.added} новых пар, ${merged.archivedAdded} архивных записей, ${merged.athletesAdded} спортсменов`);
     }catch(error){toast('Импорт отклонён: '+(error.message||'некорректный JSON'));}
   });
   $('clearBtn').addEventListener('click',()=>{
     if(!window.confirm('Удалить ВСЕ измерения на этом устройстве? Отменить нельзя. Сначала экспортируйте JSON.'))return;
     if(!window.confirm('Подтвердите безвозвратное удаление истории.'))return;
-    storage.sessions=[];activeId=null;viewingId=null;baselineId=null;persist();show('settings');toast('История удалена');
+    storage.sessions=[];storage.archived=[];activeId=null;viewingId=null;baselineId=null;persist();show('settings');toast('История удалена');
   });
   window.addEventListener('storage',event=>{
     if(event.key!==M.STORAGE_KEY || run || finishing)return;
     try {const incoming=M.validateStore(JSON.parse(event.newValue));Object.assign(storage,incoming);activeId=pendingFor(storage.selectedAthleteId)?.id||null;
-      if(currentView==='history')renderHistory();if(currentView==='capture')renderCapture();if(currentView==='review'&&viewingId)renderReview();if(currentView==='athletes')renderAthletes();}
+      if(currentView==='history')renderHistory();if(currentView==='capture')renderCapture();if(currentView==='review'&&viewingId)renderReview();if(currentView==='athletes')renderAthletes();if(currentView==='modes')renderModes();}
     catch(error){/* Another tab has transient/invalid data; do not overwrite. */}
   });
   load();

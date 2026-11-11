@@ -115,7 +115,7 @@ test('interleaved athlete1/athlete2: each first attempt waits for own second att
   h.get('athleteNameInput').value='Спортсмен 2';h.get('athleteForm').dispatch('submit');
   data=JSON.parse(h.store.get(model.STORAGE_KEY));
   const secondAthlete=data.selectedAthleteId;assert.notEqual(secondAthlete,firstAthlete);
-  assert.equal(h.get('phaseLabel').textContent,'СПОРТСМЕН 2 · УПРАЖНЕНИЕ 01 / 02');
+  assert.equal(h.get('phaseLabel').textContent,'СПОРТСМЕН 2 · ПОПЫТКА 01 / 02 · С ОТСЕЧКАМИ');
   complete();
   data=JSON.parse(h.store.get(model.STORAGE_KEY));
   assert.equal(data.sessions.length,2);
@@ -123,7 +123,7 @@ test('interleaved athlete1/athlete2: each first attempt waits for own second att
   // Return to athlete 1 for exercise 2 (athlete 2 remains pending).
   h.get('reviewActions').children.find(x=>x.textContent==='Сменить спортсмена').dispatch('click');
   h.get('athleteList').children[0].children[0].dispatch('click');
-  assert.equal(h.get('phaseLabel').textContent,'СПОРТСМЕН 1 · УПРАЖНЕНИЕ 02 / 02');
+  assert.equal(h.get('phaseLabel').textContent,'СПОРТСМЕН 1 · ПОПЫТКА 02 / 02 · С ОТСЕЧКАМИ');
   complete();
   data=JSON.parse(h.store.get(model.STORAGE_KEY));
   assert.equal(data.sessions.find(s=>s.athleteId===firstAthlete).exercises.length,2);
@@ -134,14 +134,14 @@ test('interleaved athlete1/athlete2: each first attempt waits for own second att
   // Then athlete 2 completes his second exercise.
   h.get('historyChangeAthlete').dispatch('click');
   h.get('athleteList').children[1].children[0].dispatch('click');
-  assert.equal(h.get('phaseLabel').textContent,'СПОРТСМЕН 2 · УПРАЖНЕНИЕ 02 / 02');
+  assert.equal(h.get('phaseLabel').textContent,'СПОРТСМЕН 2 · ПОПЫТКА 02 / 02 · С ОТСЕЧКАМИ');
   complete();
   data=JSON.parse(h.store.get(model.STORAGE_KEY));
   assert.equal(data.sessions.length,2);
   assert.equal(data.sessions.every(s=>s.exercises.length===2),true);
   assert.equal(h.get('reviewTitle').textContent,'Сравнение упражнений');
   const reload=harness(h.store);
-  assert.equal(reload.get('phaseLabel').textContent,'СПОРТСМЕН 2 · УПРАЖНЕНИЕ 01 / 02');
+  assert.equal(reload.get('phaseLabel').textContent,'СПОРТСМЕН 2 · ПОПЫТКА 01 / 02 · С ОТСЕЧКАМИ');
   reload.get('historyBtn').dispatch('click');assert.equal(reload.get('historyList').children.length,1);
 });
 test('v1 application data migrates in-place without losing pending pair',()=>{
@@ -150,8 +150,68 @@ test('v1 application data migrates in-place without losing pending pair',()=>{
   legacy.exercises.push(model.createExercise([1100,1200],'2026-11-04T08:00:00.000Z','2026-11-04T08:00:02.300Z'));
   store.set(model.STORAGE_KEY,JSON.stringify({version:1,target:2,sessions:[legacy]}));
   const h=harness(store);
-  assert.equal(h.get('phaseLabel').textContent,'СПОРТСМЕН 1 · УПРАЖНЕНИЕ 02 / 02');
+  assert.equal(h.get('phaseLabel').textContent,'СПОРТСМЕН 1 · ПОПЫТКА 02 / 02 · С ОТСЕЧКАМИ');
   const migrated=JSON.parse(store.get(model.STORAGE_KEY));
-  assert.equal(migrated.version,2);assert.equal(migrated.sessions[0].id,legacy.id);
+  assert.equal(migrated.version,3);assert.equal(migrated.sessions[0].id,legacy.id);
   assert.deepEqual(migrated.sessions[0].exercises[0].intervals,[1100,1200]);
+});
+
+test('start-stop uses separate interface; exactly two accepted taps and >1000ms gate',()=>{
+  const h=harness();h.get('modeBtn').dispatch('click');
+  assert.equal(h.get('modes').classList.contains('hidden'),false);
+  h.get('selectStopwatch').dispatch('click');
+  assert.equal(h.get('capture').classList.contains('mode-stopwatch'),true);
+  assert.equal(h.get('tapInstruction').textContent,'КОСНИТЕСЬ ДЛЯ СТАРТА');
+  assert.equal(h.get('timeDisplay').textContent,'00:00.00');
+  h.tap(0);assert.equal(h.get('tapInstruction').textContent,'КОСНИТЕСЬ ДЛЯ СТОПА');
+  h.advance(150);h.tap(850);
+  assert.equal(h.get('capture').classList.contains('tap-flash'),false);
+  assert.equal(h.store.get(model.STORAGE_KEY) === undefined,false,'mode saved');
+  assert.equal(JSON.parse(h.store.get(model.STORAGE_KEY)).sessions.length,0);
+  h.tap(151);assert.equal(h.get('capture').classList.contains('tap-flash'),true);
+  h.advance(700);
+  assert.equal(h.get('reviewTitle').textContent,'Первое упражнение');
+  assert.equal(h.get('chartPanel').classList.contains('hidden'),true);
+  assert.equal(h.get('tablePanel').classList.contains('hidden'),true);
+  const data=JSON.parse(h.store.get(model.STORAGE_KEY));
+  assert.equal(data.sessions[0].exercises[0].mode,model.MODE_STOPWATCH);
+  assert.equal(data.sessions[0].exercises[0].totalMs,1151);
+});
+
+test('pair may switch from start-stop to intervals, compares only best total',()=>{
+  const h=harness();h.get('modeBtn').dispatch('click');h.get('selectStopwatch').dispatch('click');
+  h.tap(0);h.tap(1400);h.advance(700);
+  const first=JSON.parse(h.store.get(model.STORAGE_KEY));
+  assert.equal(first.sessions[0].exercises[0].totalMs,1400);
+  h.get('reviewActions').children.find(x=>x.textContent==='Запустить упражнение 2 →').dispatch('click');
+  h.get('modeBtn').dispatch('click');h.get('selectIntervals').dispatch('click');
+  h.get('settingsBtn').dispatch('click');h.get('targetInput').value='2';h.get('settingsForm').dispatch('submit');
+  h.nav[0].dispatch('click');
+  // Current pair retains original target: 10 intervals.
+  for(let i=0;i<11;i++)h.tap(1300);
+  h.advance(700);
+  const data=JSON.parse(h.store.get(model.STORAGE_KEY));
+  assert.equal(data.sessions.length,1);
+  assert.equal(data.sessions[0].exercises[0].mode,'stopwatch');
+  assert.equal(data.sessions[0].exercises[1].mode,'intervals');
+  assert.equal(data.sessions[0].exercises[1].intervals.length,10);
+  assert.equal(model.bestTotal(data.sessions[0]),1400);
+  assert.equal(h.get('tablePanel').classList.contains('hidden'),false);
+  assert.equal(h.get('intervalTable').children[0].children[0].children.length,1);
+});
+
+test('manual historical result assigned to selected athlete, survives reload, excludes other athletes',()=>{
+  const h=harness();h.get('historyBtn').dispatch('click');
+  h.get('archiveDate').value='2026-10-18';h.get('archiveSeconds').value='12,345';
+  h.get('archiveForm').dispatch('submit');
+  let data=JSON.parse(h.store.get(model.STORAGE_KEY));
+  assert.equal(data.archived.length,1);assert.equal(data.archived[0].bestMs,12345);
+  assert.equal(h.get('historyList').children.length,1);
+  const reloaded=harness(h.store);reloaded.get('historyBtn').dispatch('click');
+  assert.equal(reloaded.get('historyList').children.length,1);
+  reloaded.get('historyChangeAthlete').dispatch('click');
+  reloaded.get('athleteNameInput').value='Другая';reloaded.get('athleteForm').dispatch('submit');
+  reloaded.get('historyBtn').dispatch('click');
+  assert.equal(reloaded.get('historyList').children.length,1); // empty state
+  assert.equal(reloaded.get('historyList').children[0].textContent,'У этого спортсмена пока нет результатов.');
 });

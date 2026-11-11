@@ -33,6 +33,7 @@ test('import merges unique sessions and retains local target',()=>{
 test('historical comparison picks latest same-count earlier day',()=>{
   function s(day,target){const o=M.createSession(target,`2026-11-${day}T10:00:00Z`);o.exercises.push(M.createExercise(Array(target).fill(100),t0,t1));return o;}
   const today=s('04',10), earlierToday=s('04',10), yesterday=s('03',10), wrongTarget=s('03',5);
+  for(const session of [today,earlierToday,yesterday,wrongTarget]) session.exercises.push(M.createExercise(Array(session.target).fill(110),t0,t1));
   earlierToday.createdAt='2026-11-04T09:00:00Z';
   assert.equal(M.findBaseline([earlierToday,yesterday,wrongTarget,today],today).id,yesterday.id);
 });
@@ -41,16 +42,19 @@ test('v1 migration retains exact measurements and pairs under default athlete',(
   const legacy = M.createSession(2,t0); delete legacy.athleteId;
   legacy.exercises.push(M.createExercise([1101,1144],t0,t1));
   const migrated = M.validateStore({version:1,target:10,sessions:[legacy]});
-  assert.equal(migrated.version,2);
+  assert.equal(migrated.version,3);
   assert.equal(migrated.athletes.length,1);
   assert.equal(migrated.sessions[0].athleteId,M.DEFAULT_ATHLETE_ID);
   assert.deepEqual(migrated.sessions[0].exercises[0].intervals,[1101,1144]);
+  assert.equal(migrated.sessions[0].exercises[0].mode,M.MODE_INTERVALS);
+  assert.equal(migrated.sessions[0].exercises[0].totalMs,2245);
   assert.deepEqual(M.validateStore(migrated),migrated);
 });
 test('two athletes retain independent pending pairs and separated baseline',()=>{
   const a=M.createAthlete('Алексей'),b=M.createAthlete('Борис');
   const a1=M.createSession(2,t0,a.id),b1=M.createSession(2,t0,b.id),a2=M.createSession(2,'2026-11-06T08:00:00.000Z',a.id);
   for(const s of [a1,b1,a2])s.exercises.push(M.createExercise([1200,1300],t0,t1));
+  a1.exercises.push(M.createExercise([1300,1400],t0,t1));
   const store={version:2,target:2,selectedAthleteId:a.id,athletes:[a,b],sessions:[a1,b1,a2]};
   assert.equal(M.validateStore(store).sessions.length,3);
   assert.equal(M.findBaseline(store.sessions,a2).id,a1.id);

@@ -1,7 +1,7 @@
-Interval Lab 1.2.0
+Interval Lab 1.3.0
 Release date: 2026-11-11
-Scope: multi-athlete, single-device independent two-exercise pairs.
-Automated tests: 14/14 PASS (node --test tests/*.test.cjs).
-Chromium: PASS (browser_check.py and browser_athletes_check.py, DOM injection mode).
-Note: Offline Service Worker and live GitHub Pages availability are not verified by these browser tests.
-Storage migration: old v1 records are assigned to athlete-default; all intervals preserved.
+Scope: separate Start–Stop interface; interval capture; best-of-two comparison; manual athlete archives.
+Data storage schema: v3; automatic migration of v1/v2.
+Node tests: 23/23 PASS.
+Chromium: three browser scenarios PASS (DOM injection mode; HTTP/Service Worker not tested).
+Source publish: GitHub t39s/dev-sandbox /interval-lab/.

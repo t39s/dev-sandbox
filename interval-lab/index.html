@@ -4,14 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
   <meta name="theme-color" content="#08111b">
-  <meta name="description" content="Автономный секундомер интервалов с анализом двух упражнений и локальной историей.">
+  <meta name="description" content="Два режима измерения, пары попыток спортсменов и архив лучших результатов.">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Интервалы">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" type="image/svg+xml" href="./icon.svg">
   <link rel="stylesheet" href="./styles.css">
-  <title>Interval Lab — секундомер интервалов</title>
+  <title>Interval Lab 1.3 — измерение времени</title>
 </head>
 <body>
   <div id="app">
@@ -19,6 +19,7 @@
       <div class="capture-toolbar" id="captureToolbar">
         <button type="button" class="athlete-switch" id="athleteBtn" aria-label="Выбрать спортсмена">Спортсмен 1 ▾</button>
         <div class="toolbar-actions">
+          <button type="button" class="icon-button" id="modeBtn" aria-label="Выбрать режим" title="Режим измерения"><span aria-hidden="true">◷</span></button>
           <button type="button" class="icon-button" id="historyBtn" aria-label="История" title="История"><span aria-hidden="true">▤</span></button>
           <button type="button" class="icon-button" id="settingsBtn" aria-label="Настройки" title="Настройки"><span aria-hidden="true">⚙</span></button>
         </div>
@@ -32,7 +33,7 @@
             <div class="big-time" id="timeDisplay" aria-label="Общее время">00:00.00</div>
             <div class="tap-instruction" id="tapInstruction">КОСНИТЕСЬ ДЛЯ СТАРТА</div>
           </div></div>
-          <div class="progress-area">
+          <div class="progress-area" id="intervalProgressArea">
             <div class="progress-count"><span id="intervalText">0 / 10 интервалов</span><span id="pressText">1-е из 11 нажатий</span></div>
             <div class="progress-track" id="progressTrack" aria-label="Прогресс интервалов"></div>
             <div class="last-interval"><span>ПОСЛЕДНИЙ ИНТЕРВАЛ</span><strong id="lastInterval">—</strong></div>
@@ -50,8 +51,8 @@
         <p id="reviewSub" class="muted"></p>
         <div id="reviewSummary"></div>
         <div id="reviewActions" class="action-stack"></div>
-        <article class="panel"><div class="panel-heading"><h2>Динамика интервалов</h2><span class="panel-tag">секунды / интервал</span></div><div id="chartWrap"></div></article>
-        <article class="panel"><div class="panel-heading"><h2>Детализация интервалов</h2><span class="panel-tag">все интервалы</span></div><div id="intervalTable" class="table-wrap"></div></article>
+        <article class="panel" id="chartPanel"><div class="panel-heading"><h2>Динамика интервалов</h2><span class="panel-tag">секунды / интервал</span></div><div id="chartWrap"></div></article>
+        <article class="panel" id="tablePanel"><div class="panel-heading"><h2>Детализация интервалов</h2><span class="panel-tag">все интервалы</span></div><div id="intervalTable" class="table-wrap"></div></article>
         <article class="panel" id="baselinePanel"><div class="panel-heading"><h2>Сравнение с историей</h2></div><div id="baselineWrap"></div></article>
       </div>
     </section>
@@ -59,10 +60,28 @@
     <section id="history" class="page hidden" aria-label="История">
       <header class="page-header"><button class="back-button" type="button" data-go="capture">← Секундомер</button><span class="eyebrow">АРХИВ ИЗМЕРЕНИЙ</span></header>
       <div class="page-body"><div class="section-overline">НА ЭТОМ УСТРОЙСТВЕ</div><h1>История</h1>
-        <p class="muted">История выбранного спортсмена: <strong id="historyAthlete"></strong>. Каждое упражнение сохраняется после завершения.</p>
+        <p class="muted">История выбранного спортсмена: <strong id="historyAthlete"></strong>. Итог пары — лучшее время из двух попыток; архивные записи введены вручную.</p>
         <button id="historyChangeAthlete" type="button" class="secondary-button">Сменить спортсмена</button>
+        <form id="archiveForm" class="panel settings-form">
+          <div class="panel-heading"><h2>Добавить архивный результат</h2><span class="panel-tag">ВРУЧНУЮ</span></div>
+          <p class="muted small">Для выбранного спортсмена. Укажите дату и лучшее общее время; отдельные попытки не требуются.</p>
+          <label for="archiveDate">Дата упражнения</label>
+          <input id="archiveDate" type="date" required>
+          <label for="archiveSeconds">Лучшее время, секунд</label>
+          <input id="archiveSeconds" type="text" inputmode="decimal" placeholder="Например, 12,345" required maxlength="20">
+          <button class="primary-button full" type="submit">Сохранить в архив</button>
+        </form>
         <div id="historyList" class="history-list"></div>
         <button type="button" class="secondary-button full" data-go="settings">Экспорт и импорт истории →</button>
+      </div>
+    </section>
+
+    <section id="modes" class="page hidden" aria-label="Выбор режима">
+      <header class="page-header"><button class="back-button" type="button" data-go="capture">← Секундомер</button><span class="eyebrow">РЕЖИМ ИЗМЕРЕНИЯ</span></header>
+      <div class="page-body"><div class="section-overline">ВЫБЕРИТЕ ПЕРЕД СТАРТОМ</div><h1>Два режима</h1>
+        <p class="muted">Режим можно менять между попытками одного спортсмена. Сравнение определяется только общим временем.</p>
+        <button id="selectIntervals" class="mode-choice" type="button"><strong>С отсечками</strong><span>Первое касание — старт; далее отсечки. Крупная цифра 0, 1, 2…</span><small id="modeIntervalsState"></small></button>
+        <button id="selectStopwatch" class="mode-choice" type="button"><strong>Старт–Стоп</strong><span>Отдельный экран с крупным временем. Первое касание — старт, второе — стоп.</span><small id="modeStopwatchState"></small></button>
       </div>
     </section>
 
@@ -83,8 +102,9 @@
       <header class="page-header"><button class="back-button" type="button" data-go="capture">← Секундомер</button><span class="eyebrow">ПАРАМЕТРЫ</span></header>
       <div class="page-body"><div class="section-overline">НАСТРОЙКИ ИЗМЕРЕНИЯ</div><h1>Настройки</h1>
         <button id="settingsManageAthletes" class="secondary-button full" type="button">Управление спортсменами →</button>
+        <button id="settingsModeBtn" class="secondary-button full" type="button">Выбрать режим измерения →</button>
         <form id="settingsForm" class="panel settings-form">
-          <label for="targetInput">Число интервалов в упражнении</label>
+          <label for="targetInput">Число интервалов (только режим с отсечками)</label>
           <div class="input-row"><input id="targetInput" type="number" inputmode="numeric" min="1" max="200" step="1" required><button type="submit" class="primary-button">Сохранить</button></div>
           <p id="pressExplanation" class="help-text"></p>
           <p class="help-text">Первое нажатие запускает отсчёт и показывает 0. Каждое следующее увеличивает крупную цифру на 1. При завершении последнего интервала измерение заканчивается автоматически. Принятое касание подтверждается контрастной вспышкой фона на 150 мс. Повторные касания с паузой не более 1 секунды игнорируются.</p>

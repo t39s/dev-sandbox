@@ -34,3 +34,26 @@
 .athlete-input-row input{width:100%;flex:1 1 140px;font-size:14px}
 .athlete-input-row button{flex:1 1 160px}
 .micro-label{overflow-wrap:anywhere;max-width:100%}
+
+/* v1.3.0: separate stopwatch composition: no interval counter or progress UI. */
+.capture-view.mode-stopwatch{background:radial-gradient(ellipse at 50% 45%,#1c314e 0%,#112338 41%,#08111b 85%)}
+.capture-view.mode-stopwatch .dial{width:min(94vw,47vh,490px);aspect-ratio:1;border-radius:26%;background:radial-gradient(circle,#172d48,#0a2135);border-color:#77a9ff6b;box-shadow:0 0 0 12px #77a9ff0a,0 0 60px #77a9ff1d}
+.capture-view.mode-stopwatch .interval-digit,.capture-view.mode-stopwatch .progress-area{display:none!important}
+.capture-view.mode-stopwatch .big-time{font-size:clamp(45px,12.4vw,80px);font-weight:830;letter-spacing:-3px;color:#fff;line-height:1.2}
+.capture-view.mode-stopwatch .dial-kicker{font-size:11px;letter-spacing:2.5px;color:#77a9ff}
+.capture-view.mode-stopwatch .tap-instruction{font-size:12px;letter-spacing:1px;border-color:#77a9ff5e;background:#77a9ff1a;padding:14px 17px}
+.capture-view.mode-stopwatch.tap-flash{background:#f4c76c}
+.capture-view.mode-stopwatch.tap-flash .dial{background:#ffe3a3;border-color:#754b0b;box-shadow:none}
+.capture-view.mode-stopwatch.tap-flash .dial-kicker,.capture-view.mode-stopwatch.tap-flash .big-time{color:#091923}
+.mode-choice{width:100%;border:1px solid #355365;border-radius:19px;background:#14283a;padding:21px 19px;text-align:left;color:var(--text);display:grid;gap:9px;margin:14px 0}
+.mode-choice strong{font-size:22px}.mode-choice span{font-size:13px;color:#b7c8d2;line-height:1.6}.mode-choice small{font-size:11px;color:var(--aqua);font-weight:800}
+.mode-choice.selected{border-color:var(--aqua);box-shadow:inset 0 0 0 1px var(--aqua)}
+#archiveForm input{display:block;width:100%;min-height:50px;margin-bottom:20px;background:#0b202d;color:#f1f9fa;border:1px solid #507486;border-radius:12px;padding:11px 13px;font-size:17px}
+.archive-entry{padding:17px;border-radius:17px;background:#162b3b;border:1px solid #365364;display:grid;gap:10px}
+.archive-entry .archive-title{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.archive-entry strong{font-size:17px}.archive-entry .archive-time{font-size:24px;color:var(--aqua);font-variant-numeric:tabular-nums;font-weight:800}
+.archive-entry .small-button{justify-self:start}
+@media(max-width:420px){.capture-toolbar{padding-left:12px;padding-right:12px;gap:6px}.athlete-switch{max-width:37vw;padding:8px}.toolbar-actions{gap:5px}.icon-button{width:39px;height:39px}}
+@media(max-height:620px){.capture-view.mode-stopwatch .dial{width:min(88vw,50vh)}.capture-view.mode-stopwatch .big-time{font-size:clamp(38px,12vw,68px)}.capture-view.mode-stopwatch .capture-content{padding-top:63px}}
+
+.capture-view.mode-stopwatch .big-time.long-clock{font-size:clamp(34px,9.5vw,65px);letter-spacing:-2px}
