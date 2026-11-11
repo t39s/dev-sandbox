@@ -28,6 +28,7 @@
           <div class="micro-label" id="phaseLabel">УПРАЖНЕНИЕ 01 / 02</div>
           <div class="dial"><div class="dial-inner">
             <div class="dial-kicker" id="stateLabel">ГОТОВ К ИЗМЕРЕНИЮ</div>
+            <div class="interval-digit" id="intervalDigit" aria-label="Завершено интервалов" aria-live="polite" aria-atomic="true">—</div>
             <div class="big-time" id="timeDisplay" aria-label="Общее время">00:00.00</div>
             <div class="tap-instruction" id="tapInstruction">КОСНИТЕСЬ ДЛЯ СТАРТА</div>
           </div></div>
@@ -71,7 +72,7 @@
           <label for="targetInput">Число интервалов в упражнении</label>
           <div class="input-row"><input id="targetInput" type="number" inputmode="numeric" min="1" max="200" step="1" required><button type="submit" class="primary-button">Сохранить</button></div>
           <p id="pressExplanation" class="help-text"></p>
-          <p class="help-text">Первое нажатие запускает отсчёт. Каждое следующее завершает один интервал. После заданного числа интервалов измерение заканчивается автоматически.</p>
+          <p class="help-text">Первое нажатие запускает отсчёт и показывает 0. Каждое следующее увеличивает крупную цифру на 1. При завершении последнего интервала измерение заканчивается автоматически. Принятое касание подтверждается контрастной вспышкой фона на 150 мс. Повторные касания с паузой не более 1 секунды игнорируются.</p>
           <p id="settingsNotice" class="inline-note" role="status"></p>
         </form>
         <article class="panel"><div class="panel-heading"><h2>Данные</h2></div>

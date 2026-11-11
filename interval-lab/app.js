@@ -5,11 +5,15 @@
   const storage = { version: 1, target: 10, sessions: [] };
   let activeId = null, viewingId = null, baselineId = null;
   let currentView = 'capture', run = null, frameId = null, wakeLock = null;
+  const MIN_TAP_GAP_MS = 1000;
+  const TAP_FLASH_MS = 150;
+  const FINAL_DISPLAY_MS = 650;
   let toastTimer = null, restStart = null, restFrame = null;
+  let finishing = null, flashTimer = null;
 
   const html = {
     capture: $('capture'), review: $('review'), history: $('history'), settings: $('settings'),
-    tapZone: $('tapZone'), time: $('timeDisplay'), phase: $('phaseLabel'), state: $('stateLabel'),
+    tapZone: $('tapZone'), time: $('timeDisplay'), digit: $('intervalDigit'), phase: $('phaseLabel'), state: $('stateLabel'),
     instruction: $('tapInstruction'), progress: $('progressTrack'), count: $('intervalText'),
     presses: $('pressText'), last: $('lastInterval')
   };
@@ -58,18 +62,27 @@
   function currentTarget() { return activeSession()?.exercises.length === 1 ? activeSession().target : storage.target; }
   function capturePhase() { return activeSession()?.exercises.length === 1 ? 2 : 1; }
   function renderCapture() {
-    const n = run ? run.target : currentTarget();
-    const phase = run ? run.phase : capturePhase();
-    html.capture.classList.toggle('running', !!run);
+    const measured = run || finishing;
+    const n = measured ? measured.target : currentTarget();
+    const phase = measured ? measured.phase : capturePhase();
+    const done = measured ? measured.intervals.length : 0;
+    html.capture.classList.toggle('running', !!measured);
     html.phase.textContent = `УПРАЖНЕНИЕ 0${phase} / 02`;
-    html.state.textContent = run ? 'ИДЁТ ИЗМЕРЕНИЕ' : 'ГОТОВ К ИЗМЕРЕНИЮ';
-    html.instruction.textContent = run ? 'КОСНИТЕСЬ ДЛЯ ОТСЕЧКИ' : phase === 2 ? 'КОСНИТЕСЬ ДЛЯ 2-ГО УПРАЖНЕНИЯ' : 'КОСНИТЕСЬ ДЛЯ СТАРТА';
-    html.time.textContent = run ? M.formatClock(performance.now() - run.start) : '00:00.00';
-    html.count.textContent = `${run ? run.intervals.length : 0} / ${n} интервалов`;
-    html.presses.textContent = `${run ? run.intervals.length + 2 : 1}-е из ${M.requiredPresses(n)} нажатий`;
-    html.last.textContent = run && run.intervals.length ? sec(run.intervals[run.intervals.length - 1]) : '—';
-    drawProgress(n, run ? run.intervals.length : 0);
-    html.tapZone.setAttribute('aria-label', run ? `Отсечь интервал ${run.intervals.length + 1} из ${n}` : `Начать упражнение ${phase}. ${n} интервалов`);
+    html.state.textContent = finishing ? 'ИНТЕРВАЛЫ ЗАВЕРШЕНЫ' : run ? 'ИДЁТ ИЗМЕРЕНИЕ' : 'ГОТОВ К ИЗМЕРЕНИЮ';
+    html.instruction.textContent = finishing ? 'ИЗМЕРЕНИЕ ЗАВЕРШЕНО' : run ? 'КОСНИТЕСЬ ДЛЯ ОТСЕЧКИ' : phase === 2 ? 'КОСНИТЕСЬ ДЛЯ 2-ГО УПРАЖНЕНИЯ' : 'КОСНИТЕСЬ ДЛЯ СТАРТА';
+    html.digit.textContent = measured ? String(done) : '—';
+    html.digit.classList.toggle('digits-3', done >= 100);
+    html.time.textContent = run ? M.formatClock(performance.now() - run.start) : finishing ? M.formatClock(M.sum(finishing.intervals)) : '00:00.00';
+    html.count.textContent = `${done} / ${n} интервалов`;
+    html.presses.textContent = finishing ? `${M.requiredPresses(n)} из ${M.requiredPresses(n)} нажатий` : `${run ? done + 2 : 1}-е из ${M.requiredPresses(n)} нажатий`;
+    html.last.textContent = done ? sec(measured.intervals[done - 1]) : '—';
+    drawProgress(n, done);
+    html.tapZone.setAttribute('aria-label', finishing ? `Завершено ${n} интервалов` : run ? `Отсечь интервал ${done + 1} из ${n}` : `Начать упражнение ${phase}. ${n} интервалов`);
+  }
+  function flashAcceptedTap() {
+    clearTimeout(flashTimer);
+    html.capture.classList.add('tap-flash');
+    flashTimer = setTimeout(() => html.capture.classList.remove('tap-flash'), TAP_FLASH_MS);
   }
   function drawProgress(n, complete) {
     clear(html.progress);
@@ -91,6 +104,7 @@
   }
   async function releaseWakeLock() { const lock = wakeLock; wakeLock = null; if (lock) try { await lock.release(); } catch (error) {} }
   function recordTap() {
+    if (finishing) return;
     const now = performance.now();
     if (!run) {
       let session = activeSession();
@@ -98,35 +112,44 @@
       const target = session ? session.target : storage.target;
       const phase = session ? 2 : 1;
       run = { start: now, last: now, target, phase, intervals: [], startedAt: new Date().toISOString(), sessionId: session?.id || null };
+      flashAcceptedTap();
       acquireWakeLock();
       renderCapture();
       cancelAnimationFrame(frameId); tick();
       return;
     }
-    const interval = Math.max(0, now - run.last);
+    const interval = now - run.last;
+    // Strictly more than 1 second between two accepted taps; rejected taps do not reset the clock.
+    if (interval <= MIN_TAP_GAP_MS) return;
     run.intervals.push(interval);
     run.last = now;
+    flashAcceptedTap();
     if (run.intervals.length === run.target) {
       finishRun();
     } else {
-      html.last.textContent = sec(interval);
-      html.count.textContent = `${run.intervals.length} / ${run.target} интервалов`;
-      html.presses.textContent = `${run.intervals.length + 2}-е из ${M.requiredPresses(run.target)} нажатий`;
-      drawProgress(run.target, run.intervals.length);
-      html.tapZone.setAttribute('aria-label', `Отсечь интервал ${run.intervals.length + 1} из ${run.target}`);
+      renderCapture();
     }
   }
   function finishRun() {
-    const finished = run;
-    run = null; cancelAnimationFrame(frameId); releaseWakeLock();
-    const exercise = M.createExercise(finished.intervals, finished.startedAt, new Date().toISOString());
-    let session = finished.sessionId ? findSession(finished.sessionId) : null;
-    if (!session) { session = M.createSession(finished.target, finished.startedAt); storage.sessions.push(session); }
+    finishing = run;
+    run = null;
+    cancelAnimationFrame(frameId);
+    releaseWakeLock();
+    // Keep the last number and the final confirmation flash visible before opening analysis.
+    renderCapture();
+    const exercise = M.createExercise(finishing.intervals, finishing.startedAt, new Date().toISOString());
+    let session = finishing.sessionId ? findSession(finishing.sessionId) : null;
+    if (!session) { session = M.createSession(finishing.target, finishing.startedAt); storage.sessions.push(session); }
     if (session.exercises.length < 2) session.exercises.push(exercise);
     activeId = session.exercises.length === 1 ? session.id : null;
     viewingId = session.id; baselineId = null;
     persist();
-    show('review'); toast('Упражнение сохранено');
+    setTimeout(() => {
+      finishing = null;
+      html.capture.classList.remove('tap-flash');
+      show('review');
+      toast('Упражнение сохранено');
+    }, FINAL_DISPLAY_MS);
   }
   html.tapZone.addEventListener('pointerdown', event => {
     if (!event.isPrimary || event.button !== 0) return;
