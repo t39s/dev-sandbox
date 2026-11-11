@@ -22,7 +22,7 @@ function harness(store=new Map()) {
  let clock=100000;
  let nextTimer=0;
  const timers=new Map();
- const window={IntervalModel:model,scrollTo(){},addEventListener(){},confirm:()=>true};
+ const window={IntervalModel:model,scrollTo(){},addEventListener(){},confirm:()=>true,prompt:(_label,old)=>old+' новое'};
  const context={window,document,navigator:{},localStorage,performance:{now:()=>clock},Date,Intl,Math,JSON,Number,
    Blob,URL,setTimeout:(fn,ms=0)=>{const id=++nextTimer;timers.set(id,{at:clock+ms,fn});return id;},
    clearTimeout:id=>timers.delete(id),requestAnimationFrame:()=>1,cancelAnimationFrame(){},console};
@@ -98,4 +98,60 @@ test('last interval stays visible briefly and ignores extra taps while finishing
  h.tap(3000);assert.equal(h.get('intervalDigit').textContent,'1');
  assert.equal(JSON.parse(h.store.get(model.STORAGE_KEY)).sessions[0].exercises.length,1);
  h.advance(650);assert.equal(h.get('reviewTitle').textContent,'Первое упражнение');
+});
+
+test('interleaved athlete1/athlete2: each first attempt waits for own second attempt',()=>{
+  const h=harness();
+  // New short target applies to both athlete pairs.
+  h.get('settingsBtn').dispatch('click'); h.get('targetInput').value='2'; h.get('settingsForm').dispatch('submit');
+  h.nav[0].dispatch('click');
+  const complete=()=>{for(let i=0;i<3;i++)h.tap(1300);h.advance(700);};
+  complete();
+  let data=JSON.parse(h.store.get(model.STORAGE_KEY));
+  assert.equal(data.sessions.length,1); assert.equal(data.sessions[0].exercises.length,1);
+  const firstAthlete=data.selectedAthleteId;
+  h.get('reviewActions').children.find(x=>x.textContent==='Сменить спортсмена').dispatch('click');
+  assert.equal(h.get('athletes').classList.contains('hidden'),false);
+  h.get('athleteNameInput').value='Спортсмен 2';h.get('athleteForm').dispatch('submit');
+  data=JSON.parse(h.store.get(model.STORAGE_KEY));
+  const secondAthlete=data.selectedAthleteId;assert.notEqual(secondAthlete,firstAthlete);
+  assert.equal(h.get('phaseLabel').textContent,'СПОРТСМЕН 2 · УПРАЖНЕНИЕ 01 / 02');
+  complete();
+  data=JSON.parse(h.store.get(model.STORAGE_KEY));
+  assert.equal(data.sessions.length,2);
+  assert.equal(data.sessions.filter(s=>s.exercises.length===1).length,2);
+  // Return to athlete 1 for exercise 2 (athlete 2 remains pending).
+  h.get('reviewActions').children.find(x=>x.textContent==='Сменить спортсмена').dispatch('click');
+  h.get('athleteList').children[0].children[0].dispatch('click');
+  assert.equal(h.get('phaseLabel').textContent,'СПОРТСМЕН 1 · УПРАЖНЕНИЕ 02 / 02');
+  complete();
+  data=JSON.parse(h.store.get(model.STORAGE_KEY));
+  assert.equal(data.sessions.find(s=>s.athleteId===firstAthlete).exercises.length,2);
+  assert.equal(data.sessions.find(s=>s.athleteId===secondAthlete).exercises.length,1);
+  // Athlete 1 history contains only his pair.
+  h.get('reviewActions').children.find(x=>x.textContent==='История').dispatch('click');
+  assert.equal(h.get('historyList').children.length,1);
+  // Then athlete 2 completes his second exercise.
+  h.get('historyChangeAthlete').dispatch('click');
+  h.get('athleteList').children[1].children[0].dispatch('click');
+  assert.equal(h.get('phaseLabel').textContent,'СПОРТСМЕН 2 · УПРАЖНЕНИЕ 02 / 02');
+  complete();
+  data=JSON.parse(h.store.get(model.STORAGE_KEY));
+  assert.equal(data.sessions.length,2);
+  assert.equal(data.sessions.every(s=>s.exercises.length===2),true);
+  assert.equal(h.get('reviewTitle').textContent,'Сравнение упражнений');
+  const reload=harness(h.store);
+  assert.equal(reload.get('phaseLabel').textContent,'СПОРТСМЕН 2 · УПРАЖНЕНИЕ 01 / 02');
+  reload.get('historyBtn').dispatch('click');assert.equal(reload.get('historyList').children.length,1);
+});
+test('v1 application data migrates in-place without losing pending pair',()=>{
+  const store=new Map();
+  const legacy=model.createSession(2,'2026-11-04T08:00:00.000Z');delete legacy.athleteId;
+  legacy.exercises.push(model.createExercise([1100,1200],'2026-11-04T08:00:00.000Z','2026-11-04T08:00:02.300Z'));
+  store.set(model.STORAGE_KEY,JSON.stringify({version:1,target:2,sessions:[legacy]}));
+  const h=harness(store);
+  assert.equal(h.get('phaseLabel').textContent,'СПОРТСМЕН 1 · УПРАЖНЕНИЕ 02 / 02');
+  const migrated=JSON.parse(store.get(model.STORAGE_KEY));
+  assert.equal(migrated.version,2);assert.equal(migrated.sessions[0].id,legacy.id);
+  assert.deepEqual(migrated.sessions[0].exercises[0].intervals,[1100,1200]);
 });

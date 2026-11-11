@@ -25,7 +25,7 @@ test('completed exercise and valid exported data',()=>{
 test('import merges unique sessions and retains local target',()=>{
   const s=M.createSession(2,t0);s.exercises.push(M.createExercise([100,250],t0,t1));
   const base={version:1,target:10,sessions:[s]};const incoming={version:1,target:5,sessions:[s]};
-  assert.deepEqual(M.mergeStores(base,incoming).data,base);
+  assert.deepEqual(M.mergeStores(base,incoming).data,M.validateStore(base));
   const newer=M.createSession(2,'2026-11-05T09:00:00Z');newer.exercises.push(M.createExercise([120,220],t0,t1));
   const r=M.mergeStores(base,{...incoming,sessions:[s,newer]});
   assert.equal(r.added,1);assert.equal(r.data.target,10);assert.equal(r.data.sessions.length,2);
@@ -35,4 +35,39 @@ test('historical comparison picks latest same-count earlier day',()=>{
   const today=s('04',10), earlierToday=s('04',10), yesterday=s('03',10), wrongTarget=s('03',5);
   earlierToday.createdAt='2026-11-04T09:00:00Z';
   assert.equal(M.findBaseline([earlierToday,yesterday,wrongTarget,today],today).id,yesterday.id);
+});
+
+test('v1 migration retains exact measurements and pairs under default athlete',()=>{
+  const legacy = M.createSession(2,t0); delete legacy.athleteId;
+  legacy.exercises.push(M.createExercise([1101,1144],t0,t1));
+  const migrated = M.validateStore({version:1,target:10,sessions:[legacy]});
+  assert.equal(migrated.version,2);
+  assert.equal(migrated.athletes.length,1);
+  assert.equal(migrated.sessions[0].athleteId,M.DEFAULT_ATHLETE_ID);
+  assert.deepEqual(migrated.sessions[0].exercises[0].intervals,[1101,1144]);
+  assert.deepEqual(M.validateStore(migrated),migrated);
+});
+test('two athletes retain independent pending pairs and separated baseline',()=>{
+  const a=M.createAthlete('Алексей'),b=M.createAthlete('Борис');
+  const a1=M.createSession(2,t0,a.id),b1=M.createSession(2,t0,b.id),a2=M.createSession(2,'2026-11-06T08:00:00.000Z',a.id);
+  for(const s of [a1,b1,a2])s.exercises.push(M.createExercise([1200,1300],t0,t1));
+  const store={version:2,target:2,selectedAthleteId:a.id,athletes:[a,b],sessions:[a1,b1,a2]};
+  assert.equal(M.validateStore(store).sessions.length,3);
+  assert.equal(M.findBaseline(store.sessions,a2).id,a1.id);
+  assert.equal(M.findBaseline(store.sessions,b1),null);
+  assert.throws(()=>M.validateStore({...store, sessions:[{...a1,athleteId:'not-in-athletes'}]}));
+});
+test('backup import merges athletes and sessions; legacy backup goes to default profile',()=>{
+  const x=M.createAthlete('А'), y=M.createAthlete('Б');
+  const mk=(athlete)=>{const s=M.createSession(2,t0,athlete);s.exercises.push(M.createExercise([1200,1400],t0,t1));return s;};
+  const local={version:2,target:10,selectedAthleteId:x.id,athletes:[x],sessions:[mk(x.id)]};
+  const imported={version:2,target:2,selectedAthleteId:y.id,athletes:[y],sessions:[mk(y.id)]};
+  const result=M.mergeStores(local,imported);
+  assert.equal(result.added,1);assert.equal(result.athletesAdded,1);
+  assert.deepEqual(result.data.athletes.map(x=>x.id),[x.id,y.id]);
+  assert.equal(result.data.selectedAthleteId,x.id);
+  const legacySession=M.createSession(2,t0); delete legacySession.athleteId;legacySession.exercises.push(M.createExercise([1300,1400],t0,t1));
+  const withLegacy=M.mergeStores(result.data,{version:1,target:10,sessions:[legacySession]});
+  assert.equal(withLegacy.athletesAdded,1);
+  assert.equal(withLegacy.data.sessions.at(-1).athleteId,M.DEFAULT_ATHLETE_ID);
 });

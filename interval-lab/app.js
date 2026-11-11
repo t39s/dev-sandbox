@@ -2,7 +2,7 @@
   'use strict';
   const M = window.IntervalModel;
   const $ = id => document.getElementById(id);
-  const storage = { version: 1, target: 10, sessions: [] };
+  const storage = { version: 2, target: 10, athletes: [M.defaultAthlete()], selectedAthleteId: M.DEFAULT_ATHLETE_ID, sessions: [] };
   let activeId = null, viewingId = null, baselineId = null;
   let currentView = 'capture', run = null, frameId = null, wakeLock = null;
   const MIN_TAP_GAP_MS = 1000;
@@ -12,7 +12,7 @@
   let finishing = null, flashTimer = null;
 
   const html = {
-    capture: $('capture'), review: $('review'), history: $('history'), settings: $('settings'),
+    capture: $('capture'), review: $('review'), history: $('history'), settings: $('settings'), athletes: $('athletes'),
     tapZone: $('tapZone'), time: $('timeDisplay'), digit: $('intervalDigit'), phase: $('phaseLabel'), state: $('stateLabel'),
     instruction: $('tapInstruction'), progress: $('progressTrack'), count: $('intervalText'),
     presses: $('pressText'), last: $('lastInterval')
@@ -29,14 +29,25 @@
   function load() {
     try {
       const raw = localStorage.getItem(M.STORAGE_KEY);
-      if (raw) Object.assign(storage, M.validateStore(JSON.parse(raw)));
+      if (raw) { const parsed = JSON.parse(raw); Object.assign(storage, M.validateStore(parsed));
+        if (parsed.version === 1) save(); // v1 → v2, preserving every original exercise
+      }
     } catch (error) { toast('Не удалось прочитать историю. Старые данные не перезаписаны.');
       // Never overwrite unreadable storage automatically.
       storage.readOnly = true;
     }
   }
   function persist() { if (!storage.readOnly) save(); else toast('Хранилище недоступно: экспортируйте результат вручную.'); }
-  function activeSession() { return storage.sessions.find(s => s.id === activeId) || null; }
+  function selectedAthlete() { return storage.athletes.find(a => a.id === storage.selectedAthleteId) || storage.athletes[0]; }
+  function athleteName(id) { return storage.athletes.find(a => a.id === id)?.name || 'Неизвестный спортсмен'; }
+  function pendingFor(id) { return sortedSessions().find(s => s.athleteId === id && s.exercises.length === 1) || null; }
+  function activeSession() { return storage.sessions.find(s => s.id === activeId && s.athleteId === storage.selectedAthleteId) || null; }
+  function switchAthlete(id) {
+    if (run || finishing) return toast('Переключение доступно только между упражнениями');
+    if (!storage.athletes.some(a => a.id === id)) return;
+    storage.selectedAthleteId = id; activeId = pendingFor(id)?.id || null; viewingId = null; baselineId = null;
+    persist(); show('capture');
+  }
   function findSession(id) { return storage.sessions.find(s => s.id === id) || null; }
   function sortedSessions() { return [...storage.sessions].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)); }
   function dateLabel(value) { return new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)); }
@@ -52,11 +63,13 @@
   function action(text, cls, handler) { const b = make('button', cls, text); b.type = 'button'; b.addEventListener('click', handler); return b; }
   function show(view) {
     currentView = view;
-    for (const name of ['capture', 'review', 'history', 'settings']) html[name].classList.toggle('hidden', name !== view);
+    if (run || finishing) { if (view !== 'capture') return; }
+    for (const name of ['capture', 'review', 'history', 'settings', 'athletes']) html[name].classList.toggle('hidden', name !== view);
     if (view === 'capture') renderCapture();
     if (view === 'review') renderReview();
     if (view === 'history') renderHistory();
     if (view === 'settings') renderSettings();
+    if (view === 'athletes') renderAthletes();
     window.scrollTo(0, 0);
   }
   function currentTarget() { return activeSession()?.exercises.length === 1 ? activeSession().target : storage.target; }
@@ -67,7 +80,8 @@
     const phase = measured ? measured.phase : capturePhase();
     const done = measured ? measured.intervals.length : 0;
     html.capture.classList.toggle('running', !!measured);
-    html.phase.textContent = `УПРАЖНЕНИЕ 0${phase} / 02`;
+    $('athleteBtn').textContent = selectedAthlete().name + ' ▾';
+    html.phase.textContent = `${selectedAthlete().name.toUpperCase()} · УПРАЖНЕНИЕ 0${phase} / 02`;
     html.state.textContent = finishing ? 'ИНТЕРВАЛЫ ЗАВЕРШЕНЫ' : run ? 'ИДЁТ ИЗМЕРЕНИЕ' : 'ГОТОВ К ИЗМЕРЕНИЮ';
     html.instruction.textContent = finishing ? 'ИЗМЕРЕНИЕ ЗАВЕРШЕНО' : run ? 'КОСНИТЕСЬ ДЛЯ ОТСЕЧКИ' : phase === 2 ? 'КОСНИТЕСЬ ДЛЯ 2-ГО УПРАЖНЕНИЯ' : 'КОСНИТЕСЬ ДЛЯ СТАРТА';
     html.digit.textContent = measured ? String(done) : '—';
@@ -111,7 +125,7 @@
       if (!session || session.exercises.length !== 1) session = null;
       const target = session ? session.target : storage.target;
       const phase = session ? 2 : 1;
-      run = { start: now, last: now, target, phase, intervals: [], startedAt: new Date().toISOString(), sessionId: session?.id || null };
+      run = { start: now, last: now, target, phase, intervals: [], startedAt: new Date().toISOString(), sessionId: session?.id || null, athleteId: storage.selectedAthleteId };
       flashAcceptedTap();
       acquireWakeLock();
       renderCapture();
@@ -139,7 +153,7 @@
     renderCapture();
     const exercise = M.createExercise(finishing.intervals, finishing.startedAt, new Date().toISOString());
     let session = finishing.sessionId ? findSession(finishing.sessionId) : null;
-    if (!session) { session = M.createSession(finishing.target, finishing.startedAt); storage.sessions.push(session); }
+    if (!session) { session = M.createSession(finishing.target, finishing.startedAt, finishing.athleteId); storage.sessions.push(session); }
     if (session.exercises.length < 2) session.exercises.push(exercise);
     activeId = session.exercises.length === 1 ? session.id : null;
     viewingId = session.id; baselineId = null;
@@ -160,6 +174,7 @@
   });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && run) acquireWakeLock(); });
   window.addEventListener('pagehide', () => { if (run) releaseWakeLock(); });
+  $('athleteBtn').addEventListener('click', () => show('athletes'));
   $('historyBtn').addEventListener('click', () => show('history'));
   $('settingsBtn').addEventListener('click', () => show('settings'));
   document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => show(b.dataset.go)));
@@ -175,7 +190,7 @@
     viewingId = session.id;
     const ex = session.exercises, complete = ex.length === 2;
     $('reviewTitle').textContent = complete ? 'Сравнение упражнений' : 'Первое упражнение';
-    $('reviewSub').textContent = `${dateLabel(session.createdAt)} · ${session.target} интервалов · ${complete ? 'пара завершена' : 'ожидает второе упражнение'}`;
+    $('reviewSub').textContent = `${athleteName(session.athleteId)} · ${dateLabel(session.createdAt)} · ${session.target} интервалов · ${complete ? 'пара завершена' : 'ожидает второе упражнение'}`;
     const summary = clear($('reviewSummary'));
     const metrics = make('div', 'metrics');
     const a = M.stats(ex[0].intervals), b = complete ? M.stats(ex[1].intervals) : null;
@@ -197,9 +212,14 @@
       actions.append(action('Запустить упражнение 2 →', 'primary-button', () => show('capture')));
       const rest = make('span', 'muted small'); rest.id = 'restIndicator'; actions.append(rest);
     } else if (!complete) {
-      actions.append(action('Продолжить эту пару →', 'primary-button', () => { activeId = session.id; show('capture'); }));
+      actions.append(action('Продолжить эту пару →', 'primary-button', () => {
+        storage.selectedAthleteId = session.athleteId; activeId = session.id; persist(); show('capture');
+      }));
     }
-    actions.append(action('Новая пара', complete ? 'primary-button' : 'secondary-button', () => { activeId = null; show('capture'); }));
+    actions.append(action('Новая пара', complete ? 'primary-button' : 'secondary-button', () => {
+      storage.selectedAthleteId = session.athleteId; activeId = null; persist(); show('capture');
+    }));
+    actions.append(action('Сменить спортсмена', 'secondary-button', () => show('athletes')));
     actions.append(action('История', 'secondary-button', () => show('history')));
     if (restFrame) cancelAnimationFrame(restFrame);
     if (!complete && activeId === session.id) {
@@ -273,7 +293,7 @@
   }
   function renderBaseline(session) {
     const wrap = clear($('baselineWrap'));
-    const earlier = sortedSessions().filter(s => s.id !== session.id && s.target === session.target && Date.parse(s.createdAt) < Date.parse(session.createdAt));
+    const earlier = sortedSessions().filter(s => s.id !== session.id && s.athleteId === session.athleteId && s.target === session.target && Date.parse(s.createdAt) < Date.parse(session.createdAt));
     const defaultBaseline = M.findBaseline(storage.sessions, session);
     if (!earlier.length) {
       wrap.append(make('p','muted small','Пока нет предыдущих измерений с таким же числом интервалов. После следующих тренировок здесь появится сравнение.'));
@@ -306,8 +326,9 @@
   }
   function renderHistory() {
     const list = clear($('historyList'));
-    const sessions = sortedSessions();
-    if (!sessions.length) { list.append(make('div','empty-state','История пока пуста. Начните первое упражнение.')); return; }
+    const sessions = sortedSessions().filter(s => s.athleteId === storage.selectedAthleteId);
+    $('historyAthlete').textContent = selectedAthlete().name;
+    if (!sessions.length) { list.append(make('div','empty-state','У этого спортсмена пока нет измерений.')); return; }
     for (const s of sessions) {
       const card = action('', 'history-card', () => { viewingId = s.id; baselineId = null; show('review'); });
       const head = make('div','history-head'); head.append(make('strong','',dateLabel(s.createdAt)),make('span','pill',`${s.exercises.length}/2 упражнения`));
@@ -317,6 +338,48 @@
       card.append(head,details,stats);list.append(card);
     }
   }
+  function renderAthletes() {
+    const list = clear($('athleteList'));
+    $('athleteCount').textContent = `${storage.athletes.length} из ${M.MAX_ATHLETES} профилей`;
+    for (const athlete of storage.athletes) {
+      const isSelected = athlete.id === storage.selectedAthleteId;
+      const pending = pendingFor(athlete.id);
+      const card = make('div', 'athlete-card' + (isSelected ? ' athlete-current' : ''));
+      const choose = action('', 'athlete-choose', () => switchAthlete(athlete.id));
+      choose.append(make('strong','',athlete.name), make('small','',pending ? 'Первое упражнение готово · ожидает второе' : 'Следующая пара · упражнение 1'));
+      const count = storage.sessions.filter(s => s.athleteId === athlete.id).length;
+      choose.append(make('small','',`${count} пар в истории${isSelected ? ' · выбран' : ''}`));
+      const controls = make('div','athlete-controls');
+      controls.append(action('Переименовать', 'small-button', () => {
+        const value = window.prompt('Новое имя спортсмена', athlete.name);
+        if (value === null) return;
+        if (!value.trim() || value.trim().length > 50) return toast('Имя должно содержать от 1 до 50 символов');
+        athlete.name = value.trim(); persist(); renderAthletes();
+      }));
+      const remove = action('Удалить', 'small-button danger-outline', () => {
+        if (storage.athletes.length === 1) return toast('Нельзя удалить единственный профиль');
+        const sessions = storage.sessions.filter(s => s.athleteId === athlete.id);
+        if (sessions.length && !window.confirm(`Удалить «${athlete.name}» и ВСЕ ${sessions.length} пар(ы) этого спортсмена? Сделайте резервную копию.`)) return;
+        if (!window.confirm(`Подтвердите удаление профиля «${athlete.name}»${sessions.length ? ' вместе с историей' : ''}. Отменить нельзя.`)) return;
+        storage.athletes = storage.athletes.filter(a => a.id !== athlete.id);
+        storage.sessions = storage.sessions.filter(s => s.athleteId !== athlete.id);
+        if (isSelected) { storage.selectedAthleteId = storage.athletes[0].id; activeId = pendingFor(storage.selectedAthleteId)?.id || null; }
+        if (viewingId && !findSession(viewingId)) viewingId = null;
+        persist(); renderAthletes();
+      });
+      controls.append(remove); card.append(choose,controls); list.append(card);
+    }
+  }
+  $('athleteForm').addEventListener('submit', event => {
+    event.preventDefault();
+    const input = $('athleteNameInput'); const name = input.value.trim();
+    if (!name || name.length > 50) return toast('Имя должно содержать от 1 до 50 символов');
+    if (storage.athletes.length >= M.MAX_ATHLETES) return toast('Достигнут предел профилей');
+    const athlete = M.createAthlete(name); storage.athletes.push(athlete);
+    input.value=''; persist(); switchAthlete(athlete.id);
+  });
+  $('historyChangeAthlete').addEventListener('click', () => show('athletes'));
+  $('settingsManageAthletes').addEventListener('click', () => show('athletes'));
   function renderSettings() {
     $('targetInput').value=storage.target;
     $('settingsNotice').textContent=''; updatePressExplanation();
@@ -340,11 +403,11 @@
     setTimeout(()=>URL.revokeObjectURL(url),1500);
   }
   function backupName(ext) {return `interval-lab-${new Date().toISOString().slice(0,10)}.${ext}`;}
-  $('exportBtn').addEventListener('click',()=>download(backupName('json'),'application/json',JSON.stringify({version:1,target:storage.target,sessions:storage.sessions},null,2)));
+  $('exportBtn').addEventListener('click',()=>download(backupName('json'),'application/json',JSON.stringify(M.validateStore(storage),null,2)));
   function csvCell(v) {let s=String(v??'');if(/^[=+@-]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"';}
   $('csvBtn').addEventListener('click',()=>{
-    const rows=[['session_id','date','exercise','interval_number','interval_ms','interval_sec','total_ms']];
-    for(const s of sortedSessions()) s.exercises.forEach((e,i)=>e.intervals.forEach((ms,j)=>rows.push([s.id,s.createdAt,i+1,j+1,ms,(ms/1000).toFixed(3),M.sum(e.intervals)])));
+    const rows=[['athlete_id','athlete_name','session_id','date','exercise','interval_number','interval_ms','interval_sec','total_ms']];
+    for(const s of sortedSessions()) s.exercises.forEach((e,i)=>e.intervals.forEach((ms,j)=>rows.push([s.athleteId,athleteName(s.athleteId),s.id,s.createdAt,i+1,j+1,ms,(ms/1000).toFixed(3),M.sum(e.intervals)])));
     download(backupName('csv'),'text/csv;charset=utf-8','\ufeff'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n'));
   });
   $('importInput').addEventListener('change',async event=>{
@@ -352,8 +415,9 @@
     if(file.size>5*1024*1024)return toast('Слишком большой файл (максимум 5 МБ)');
     try{
       const imported=JSON.parse(await file.text());
-      const merged=M.mergeStores({version:1,target:storage.target,sessions:storage.sessions},imported);
-      storage.sessions=merged.data.sessions;persist();toast(`Импорт завершён: добавлено ${merged.added} сеансов`);
+      const merged=M.mergeStores(storage,imported);
+      Object.assign(storage,merged.data); activeId=pendingFor(storage.selectedAthleteId)?.id || null;
+      persist();toast(`Импорт: ${merged.added} новых пар, ${merged.athletesAdded} спортсменов`);
     }catch(error){toast('Импорт отклонён: '+(error.message||'некорректный JSON'));}
   });
   $('clearBtn').addEventListener('click',()=>{
@@ -362,13 +426,13 @@
     storage.sessions=[];activeId=null;viewingId=null;baselineId=null;persist();show('settings');toast('История удалена');
   });
   window.addEventListener('storage',event=>{
-    if(event.key!==M.STORAGE_KEY || run)return;
-    try {const incoming=M.validateStore(JSON.parse(event.newValue));Object.assign(storage,incoming);activeId=sortedSessions().find(s=>s.exercises.length===1)?.id||null;
-      if(currentView==='history')renderHistory();if(currentView==='capture')renderCapture();if(currentView==='review'&&viewingId)renderReview();}
+    if(event.key!==M.STORAGE_KEY || run || finishing)return;
+    try {const incoming=M.validateStore(JSON.parse(event.newValue));Object.assign(storage,incoming);activeId=pendingFor(storage.selectedAthleteId)?.id||null;
+      if(currentView==='history')renderHistory();if(currentView==='capture')renderCapture();if(currentView==='review'&&viewingId)renderReview();if(currentView==='athletes')renderAthletes();}
     catch(error){/* Another tab has transient/invalid data; do not overwrite. */}
   });
   load();
-  activeId=sortedSessions().find(s=>s.exercises.length===1)?.id||null;
+  activeId=pendingFor(storage.selectedAthleteId)?.id||null;
   renderCapture();
   if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('./sw.js').catch(()=>{});
 })();

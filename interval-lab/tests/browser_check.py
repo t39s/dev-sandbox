@@ -4,7 +4,7 @@ from playwright.sync_api import sync_playwright
 import subprocess, time, re
 
 ROOT = Path(__file__).resolve().parents[1]
-SHOTS = Path('/mnt/data/interval-lab_1.1.0/qa-shots')
+SHOTS = Path('/mnt/data/interval-lab_1.2.0/qa-shots')
 SHOTS.mkdir(parents=True, exist_ok=True)
 PORT = 18765
 server = subprocess.Popen(['python3', '-m', 'http.server', str(PORT), '--bind', '127.0.0.1'],cwd=ROOT,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
