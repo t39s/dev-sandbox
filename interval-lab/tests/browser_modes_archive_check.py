@@ -51,7 +51,7 @@ with sync_playwright() as p:
     assert not page.locator('#chartPanel').is_visible()
     assert not page.locator('#tablePanel').is_visible()
     state=page.evaluate('JSON.parse(localStorage.getItem("interval-lab:data:v1"))')
-    assert state['version']==3 and state['sessions'][0]['exercises'][0]['totalMs']==1300
+    assert state['version']==4 and state['sessions'][0]['exercises'][0]['totalMs']==1300
     assert state['sessions'][0]['exercises'][0]['mode']=='stopwatch'
     page.locator('#reviewActions').get_by_role('button',name='История').click()
     page.locator('#archiveDate').fill('2026-10-18')

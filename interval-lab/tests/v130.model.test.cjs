@@ -33,7 +33,7 @@ test('old version2 records migrate preserving intervals, athletes and pending pa
  const e=M.createExercise([1245,1536],t0,t1);delete e.mode;delete e.totalMs;s.exercises=[e];
  const old={version:2,target:2,athletes:[M.defaultAthlete(),athlete],selectedAthleteId:athlete.id,sessions:[s]};
  const migrated=M.validateStore(old);
- assert.equal(migrated.version,3);assert.equal(migrated.mode,M.MODE_INTERVALS);
+ assert.equal(migrated.version,4);assert.equal(migrated.mode,M.MODE_INTERVALS);
  assert.equal(migrated.sessions[0].exercises.length,1);
  assert.deepEqual(migrated.sessions[0].exercises[0].intervals,[1245,1536]);
  assert.equal(migrated.sessions[0].exercises[0].totalMs,2781);

@@ -11,7 +11,7 @@ class Node {
     this.classList={toggle:(c,b)=>b?this._classes.add(c):this._classes.delete(c),add:c=>this._classes.add(c),remove:c=>this._classes.delete(c),contains:c=>this._classes.has(c)}; }
   set className(s){this._classes=new Set(String(s).split(' ').filter(Boolean));}get className(){return [...this._classes].join(' ');}
   append(...children){this.children.push(...children);}replaceChildren(...children){this.children=children;}
-  addEventListener(type,fn){(this.events[type]??=[]).push(fn);}dispatch(type,props={}){for(const fn of this.events[type]??[])fn({preventDefault(){},...props});}
+  addEventListener(type,fn){(this.events[type]??=[]).push(fn);}dispatch(type,props={}){for(const fn of this.events[type]??[])fn({preventDefault(){},stopPropagation(){},...props});}
   setAttribute(k,v){this.attributes[k]=v;}
 }
 function harness(store=new Map()) {
@@ -33,7 +33,7 @@ function harness(store=new Map()) {
      timers.delete(due[0]);due[1].fn();
    }
  };
- return {get,tap,advance,nav,store};
+ return {get,tap,advance,nav,store,window};
 }
 test('app runs 11 taps per exercise, persists two full exercises, reopens history',()=>{
  const h=harness();assert.equal(h.get('pressText').textContent,'1-е из 11 нажатий');
@@ -152,7 +152,7 @@ test('v1 application data migrates in-place without losing pending pair',()=>{
   const h=harness(store);
   assert.equal(h.get('phaseLabel').textContent,'СПОРТСМЕН 1 · ПОПЫТКА 02 / 02 · С ОТСЕЧКАМИ');
   const migrated=JSON.parse(store.get(model.STORAGE_KEY));
-  assert.equal(migrated.version,3);assert.equal(migrated.sessions[0].id,legacy.id);
+  assert.equal(migrated.version,4);assert.equal(migrated.sessions[0].id,legacy.id);
   assert.deepEqual(migrated.sessions[0].exercises[0].intervals,[1100,1200]);
 });
 
@@ -214,4 +214,63 @@ test('manual historical result assigned to selected athlete, survives reload, ex
   reloaded.get('historyBtn').dispatch('click');
   assert.equal(reloaded.get('historyList').children.length,1); // empty state
   assert.equal(reloaded.get('historyList').children[0].textContent,'У этого спортсмена пока нет результатов.');
+});
+
+// 1.4.0: an early finish is a retained, non-scored attempt and does not consume a slot.
+test('early finish saves only partial intervals and allows the same scored slot to be retried',()=>{
+ const h=harness();h.get('settingsBtn').dispatch('click');h.get('targetInput').value='2';h.get('settingsForm').dispatch('submit');h.nav[0].dispatch('click');
+ assert.equal(h.get('earlyFinishBtn').classList.contains('hidden'),true);
+ h.tap(0);assert.equal(h.get('earlyFinishBtn').classList.contains('hidden'),false);
+ h.tap(1400);h.get('earlyFinishBtn').dispatch('pointerdown');h.get('earlyFinishBtn').dispatch('click');
+ let data=JSON.parse(h.store.get(model.STORAGE_KEY));
+ assert.equal(data.sessions.length,0);assert.equal(data.incomplete.length,1);
+ assert.equal(data.incomplete[0].status,'incomplete');assert.equal(data.incomplete[0].intervals.length,1);
+ assert.equal(data.incomplete[0].elapsedMs,1400);assert.equal(h.get('historyList').children.length,1);
+ h.nav[0].dispatch('click');assert.equal(h.get('phaseLabel').textContent.includes('ПОПЫТКА 01'),true);
+ h.tap(1200);h.tap(1200);h.tap(1200);h.advance(700);
+ data=JSON.parse(h.store.get(model.STORAGE_KEY));assert.equal(data.sessions.length,1);
+ assert.equal(data.sessions[0].exercises.length,1);assert.equal(data.incomplete.length,1);
+ assert.equal(model.bestTotal(data.sessions[0]),null);
+ // Early-finish a second attempt: first scored attempt remains intact and awaiting another second.
+ h.get('reviewActions').children.find(x=>x.textContent?.includes('Запустить упражнение 2')).dispatch('click');
+ h.tap(1200);h.get('earlyFinishBtn').dispatch('click');
+ data=JSON.parse(h.store.get(model.STORAGE_KEY));assert.equal(data.sessions.length,1);
+ assert.equal(data.sessions[0].exercises.length,1);assert.equal(data.sessions[0].status,'pending');
+ assert.equal(data.incomplete.length,2);
+ const reload=harness(h.store);assert.equal(reload.get('phaseLabel').textContent.includes('ПОПЫТКА 02'),true);
+});
+test('declining second attempt closes a one-attempt scored series and can start a new series',()=>{
+ const h=harness();h.get('settingsBtn').dispatch('click');h.get('targetInput').value='1';h.get('settingsForm').dispatch('submit');h.nav[0].dispatch('click');
+ h.tap(0);h.tap(1450);h.advance(700);
+ assert.equal(h.get('reviewTitle').textContent,'Первое упражнение');
+ const finish=h.get('reviewActions').children.find(x=>x.textContent?.includes('Завершить серию без второй'));assert.ok(finish);finish.dispatch('click');
+ let data=JSON.parse(h.store.get(model.STORAGE_KEY));assert.equal(data.sessions[0].status,'closed');
+ assert.equal(model.bestTotal(data.sessions[0]),1450);assert.equal(h.get('reviewTitle').textContent,'Серия завершена');
+ assert.ok(h.get('reviewActions').children.find(x=>x.textContent==='Новая пара'));
+ const reloaded=harness(h.store);assert.equal(reloaded.get('phaseLabel').textContent.includes('ПОПЫТКА 01'),true);
+ reloaded.get('historyBtn').dispatch('click');assert.equal(reloaded.get('historyList').children.length,1);
+});
+test('decline and deletion demand confirmation and remove only chosen records',()=>{
+ const h=harness();h.get('settingsBtn').dispatch('click');h.get('targetInput').value='1';h.get('settingsForm').dispatch('submit');h.nav[0].dispatch('click');
+ h.tap(0);h.tap(1500);h.advance(700);
+ const skip=h.get('reviewActions').children.find(x=>x.textContent?.includes('Завершить серию без второй'));
+ h.window.confirm=()=>false;skip.dispatch('click');
+ assert.equal(JSON.parse(h.store.get(model.STORAGE_KEY)).sessions[0].status,'pending');
+ h.window.confirm=()=>true;skip.dispatch('click');
+ h.get('reviewActions').children.find(x=>x.textContent==='История').dispatch('click');
+ h.get('archiveDate').value='2026-10-18';h.get('archiveSeconds').value='8,000';h.get('archiveForm').dispatch('submit');
+ h.nav[0].dispatch('click');h.tap(0);h.get('earlyFinishBtn').dispatch('click');
+ let data=JSON.parse(h.store.get(model.STORAGE_KEY));assert.equal(data.sessions.length,1);assert.equal(data.archived.length,1);assert.equal(data.incomplete.length,1);
+ const findDelete=(label)=> {
+   for(const card of h.get('historyList').children){for(const c of card.children){if(c.textContent?.includes(label))return c;}}
+   throw new Error('Delete control missing: '+label);
+ };
+ h.window.confirm=()=>false;findDelete('Удалить запись').dispatch('click');
+ assert.equal(JSON.parse(h.store.get(model.STORAGE_KEY)).sessions.length,1);
+ h.window.confirm=()=>true;findDelete('Удалить запись').dispatch('click');
+ data=JSON.parse(h.store.get(model.STORAGE_KEY));assert.equal(data.sessions.length,0);assert.equal(data.archived.length,1);assert.equal(data.incomplete.length,1);
+ findDelete('Удалить архивную запись').dispatch('click');data=JSON.parse(h.store.get(model.STORAGE_KEY));
+ assert.equal(data.archived.length,0);assert.equal(data.incomplete.length,1);
+ findDelete('Удалить неполную попытку').dispatch('click');data=JSON.parse(h.store.get(model.STORAGE_KEY));
+ assert.equal(data.incomplete.length,0);assert.equal(h.get('historyList').children.length,1);
 });

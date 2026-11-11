@@ -42,7 +42,7 @@ test('v1 migration retains exact measurements and pairs under default athlete',(
   const legacy = M.createSession(2,t0); delete legacy.athleteId;
   legacy.exercises.push(M.createExercise([1101,1144],t0,t1));
   const migrated = M.validateStore({version:1,target:10,sessions:[legacy]});
-  assert.equal(migrated.version,3);
+  assert.equal(migrated.version,4);
   assert.equal(migrated.athletes.length,1);
   assert.equal(migrated.sessions[0].athleteId,M.DEFAULT_ATHLETE_ID);
   assert.deepEqual(migrated.sessions[0].exercises[0].intervals,[1101,1144]);

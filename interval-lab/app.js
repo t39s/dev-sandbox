@@ -2,7 +2,7 @@
   'use strict';
   const M = window.IntervalModel;
   const $ = id => document.getElementById(id);
-  const storage = { version: 3, target: 10, mode: M.MODE_INTERVALS, athletes: [M.defaultAthlete()], selectedAthleteId: M.DEFAULT_ATHLETE_ID, sessions: [], archived: [] };
+  const storage = { version: 4, target: 10, mode: M.MODE_INTERVALS, athletes: [M.defaultAthlete()], selectedAthleteId: M.DEFAULT_ATHLETE_ID, sessions: [], archived: [], incomplete: [] };
   let activeId = null, viewingId = null, baselineId = null;
   let currentView = 'capture', run = null, frameId = null, wakeLock = null;
   const MIN_TAP_GAP_MS = 1000;
@@ -30,7 +30,7 @@
     try {
       const raw = localStorage.getItem(M.STORAGE_KEY);
       if (raw) { const parsed = JSON.parse(raw); Object.assign(storage, M.validateStore(parsed));
-        if (parsed.version < 3) save(); // v1/v2 → v3, preserving all original intervals
+        if (parsed.version < 4) save(); // v1/v2/v3 → v4, preserving original measurements
       }
     } catch (error) { toast('Не удалось прочитать историю. Старые данные не перезаписаны.');
       // Never overwrite unreadable storage automatically.
@@ -40,8 +40,8 @@
   function persist() { if (!storage.readOnly) save(); else toast('Хранилище недоступно: экспортируйте результат вручную.'); }
   function selectedAthlete() { return storage.athletes.find(a => a.id === storage.selectedAthleteId) || storage.athletes[0]; }
   function athleteName(id) { return storage.athletes.find(a => a.id === id)?.name || 'Неизвестный спортсмен'; }
-  function pendingFor(id) { return sortedSessions().find(s => s.athleteId === id && s.exercises.length === 1) || null; }
-  function activeSession() { return storage.sessions.find(s => s.id === activeId && s.athleteId === storage.selectedAthleteId) || null; }
+  function pendingFor(id) { return sortedSessions().find(s => s.athleteId === id && s.status === 'pending' && s.exercises.length === 1) || null; }
+  function activeSession() { return storage.sessions.find(s => s.id === activeId && s.athleteId === storage.selectedAthleteId && s.status === 'pending') || null; }
   function switchAthlete(id) {
     if (run || finishing) return toast('Переключение доступно только между упражнениями');
     if (!storage.athletes.some(a => a.id === id)) return;
@@ -84,6 +84,7 @@
     const done = measured ? measured.intervals.length : 0;
     html.capture.classList.toggle('running', !!measured);
     html.capture.classList.toggle('mode-stopwatch', stopwatch);
+    $('earlyFinishBtn').classList.toggle('hidden', !run || stopwatch);
     $('athleteBtn').textContent = selectedAthlete().name + ' ▾';
     $('modeBtn').setAttribute('title', stopwatch ? 'Старт–Стоп · сменить режим' : 'С отсечками · сменить режим');
     $('modeBtn').setAttribute('aria-label', stopwatch ? 'Сменить режим Старт–Стоп' : 'Сменить режим с отсечками');
@@ -136,6 +137,7 @@
     if (finishing) return;
     const now = performance.now();
     if (!run) {
+      clearTimeout(toastTimer); $('toast').classList.remove('show'); // Never cover the early-finish control during timing.
       let session = activeSession();
       if (!session || session.exercises.length !== 1) session = null;
       const target = session ? session.target : storage.target;
@@ -171,6 +173,7 @@
     let session = finishing.sessionId ? findSession(finishing.sessionId) : null;
     if (!session) { session = M.createSession(finishing.sessionTarget, finishing.startedAt, finishing.athleteId); storage.sessions.push(session); }
     if (session.exercises.length < 2) session.exercises.push(exercise);
+    if (session.exercises.length === 2) session.status = 'closed';
     activeId = session.exercises.length === 1 ? session.id : null;
     viewingId = session.id; baselineId = null;
     persist();
@@ -181,6 +184,28 @@
       toast('Упражнение сохранено');
     }, FINAL_DISPLAY_MS);
   }
+  function finishIncomplete() {
+    if (!run || run.mode !== M.MODE_INTERVALS) return;
+    if (!window.confirm('Завершить попытку досрочно? Она сохранится как неполная и не будет учитываться в зачёте.')) return;
+    const current = run;
+    const elapsed = performance.now() - current.start;
+    run = null;
+    cancelAnimationFrame(frameId);
+    releaseWakeLock();
+    clearTimeout(flashTimer);
+    html.capture.classList.remove('tap-flash');
+    if (storage.incomplete.length >= M.MAX_INCOMPLETE) {
+      renderCapture(); return toast('Достигнут предел неполных попыток. Экспортируйте историю.');
+    }
+    storage.incomplete.push(M.createIncomplete(current.athleteId, current.sessionTarget,
+      current.intervals, elapsed, current.startedAt, new Date().toISOString()));
+    persist();
+    show('history');
+    toast('Неполная попытка сохранена — без зачёта. Повторите попытку при необходимости.');
+  }
+  // This button is a sibling of the timing surface. Its press must never count as an interval.
+  $('earlyFinishBtn').addEventListener('pointerdown', event => event.stopPropagation());
+  $('earlyFinishBtn').addEventListener('click', event => { event.stopPropagation(); finishIncomplete(); });
   html.tapZone.addEventListener('pointerdown', event => {
     if (!event.isPrimary || event.button !== 0) return;
     event.preventDefault(); recordTap();
@@ -219,25 +244,28 @@
     const session = findSession(viewingId) || sortedSessions()[0];
     if (!session) return show('history');
     viewingId = session.id;
-    const ex = session.exercises, complete = ex.length === 2;
-    $('reviewTitle').textContent = complete ? 'Сравнение упражнений' : 'Первое упражнение';
-    $('reviewSub').textContent = `${athleteName(session.athleteId)} · ${dateLabel(session.createdAt)} · ${complete ? 'пара завершена' : 'ожидает второе упражнение'}`;
+    const ex = session.exercises, complete = session.status === 'closed', two = ex.length === 2;
+    $('reviewTitle').textContent = two ? 'Сравнение упражнений' : complete ? 'Серия завершена' : 'Первое упражнение';
+    $('reviewSub').textContent = `${athleteName(session.athleteId)} · ${dateLabel(session.createdAt)} · ${two ? 'две попытки' : complete ? '1 зачётная попытка · отказ от второй' : 'ожидает вторую попытку'}`;
     const summary = clear($('reviewSummary'));
     const metrics = make('div', 'metrics');
     metrics.append(metric('Попытка 1 · всего', sec(M.exerciseTotal(ex[0])), modeLabel(ex[0].mode), true));
-    if (complete) {
+    if (two) {
       metrics.append(metric('Попытка 2 · всего', sec(M.exerciseTotal(ex[1])), modeLabel(ex[1].mode), true));
       const best = M.bestTotal(session);
       metrics.append(metric('ЛУЧШИЙ РЕЗУЛЬТАТ ПАРЫ', sec(best), `Попытка ${M.exerciseTotal(ex[0]) <= M.exerciseTotal(ex[1]) ? 1 : 2} · меньше — лучше`, true));
       const rest = Math.max(0, Date.parse(ex[1].startedAt) - Date.parse(ex[0].endedAt));
       metrics.append(metric('Пауза между попытками', sec(rest), 'Не входит во время упражнений'));
-    } else {
+    } else if (!complete) {
       metrics.append(metric('Вторая попытка', '—', 'Ожидает выполнения'));
       if (ex[0].mode === M.MODE_INTERVALS) {
         const a = M.stats(ex[0].intervals);
         metrics.append(metric('Быстрый интервал', sec(a.min), `Медленный ${sec(a.max)}`));
         metrics.append(metric('Разброс (CV)', `${a.cv.toFixed(1)}%`, 'Вариативность интервалов'));
       }
+    }
+    if (complete && !two) {
+      metrics.append(metric('ЛУЧШЕЕ ВРЕМЯ СЕРИИ',sec(M.bestTotal(session)),'Одна зачётная попытка · отказ от второй',true));
     }
     summary.append(metrics);
     const actions = clear($('reviewActions'));
@@ -249,9 +277,18 @@
         storage.selectedAthleteId = session.athleteId; activeId = session.id; persist(); show('capture');
       }));
     }
-    actions.append(action('Новая пара', complete ? 'primary-button' : 'secondary-button', () => {
-      storage.selectedAthleteId = session.athleteId; activeId = null; persist(); show('capture');
-    }));
+    if (!complete) {
+      actions.append(action('Завершить серию без второй попытки', 'danger-button', () => {
+        if (!window.confirm('Отказаться от второй попытки? Серия завершится с результатом первой попытки и будет учитываться в сравнении лучших времён.')) return;
+        session.status = 'closed';
+        if (activeId === session.id) activeId = null;
+        persist(); renderReview(); toast('Серия завершена с одной попыткой');
+      }));
+    } else {
+      actions.append(action('Новая пара', 'primary-button', () => {
+        storage.selectedAthleteId = session.athleteId; activeId = null; persist(); show('capture');
+      }));
+    }
     actions.append(action('Сменить спортсмена', 'secondary-button', () => show('athletes')));
     actions.append(action('История', 'secondary-button', () => show('history')));
     if (restFrame) cancelAnimationFrame(restFrame);
@@ -332,7 +369,7 @@
     target.append(svg, legend);
   }
   function historicalBestRecords(athleteId) {
-    const measured = storage.sessions.filter(s => s.athleteId === athleteId && s.exercises.length === 2).map(s=>({
+    const measured = storage.sessions.filter(s => s.athleteId === athleteId && M.bestTotal(s) !== null).map(s=>({
       id:s.id, timestamp:Date.parse(s.createdAt), date:new Date(s.createdAt).toLocaleDateString('ru-RU'),
       bestMs:M.bestTotal(s), label:'Измерение · '+dateLabel(s.createdAt)
     }));
@@ -344,8 +381,8 @@
   }
   function renderBaseline(session) {
     const wrap=clear($('baselineWrap'));
-    if(session.exercises.length<2){
-      wrap.append(make('p','muted small','Сравнение лучших результатов доступно после второй попытки. Незавершённые пары не участвуют в долгосрочной аналитике.'));
+    if(M.bestTotal(session) === null){
+      wrap.append(make('p','muted small','Сравнение доступно после завершения серии. Можно выполнить вторую попытку или отказаться от неё.'));
       return;
     }
     const records=historicalBestRecords(session.athleteId);
@@ -361,37 +398,69 @@
     const g=make('div','compare-grid');
     const old=make('div','compare-item');old.append(make('small','','Ранее · лучший результат'),make('strong','',sec(reference.bestMs)));
     const newer=make('div','compare-item');newer.append(make('small','','Разница (сейчас − ранее)'),make('strong',diff>0?'positive':diff<0?'negative':'',signed(diff)));
-    g.append(old,newer);wrap.append(make('p','muted small','Сравнивается лучшее общее время из двух попыток с выбранным предыдущим результатом. Архивные записи также участвуют.'),select,g);
+    g.append(old,newer);wrap.append(make('p','muted small','Сравнивается лучшее общее время завершённой серии (одна или две попытки) с выбранным предыдущим результатом. Архивные записи также участвуют.'),select,g);
     const plot=make('div');const plotted=[...previous,{id:session.id,timestamp:Date.parse(session.createdAt),bestMs:M.bestTotal(session)}].sort((a,b)=>a.timestamp-b.timestamp);
-    drawChart(plot,[{name:'Лучшее время пары / архива',values:plotted.map(x=>x.bestMs/1000),color:'#66e3c4'}]);wrap.append(plot);
+    drawChart(plot,[{name:'Лучшее время серии / архива',values:plotted.map(x=>x.bestMs/1000),color:'#66e3c4'}]);wrap.append(plot);
     wrap.append(make('p','muted small','Точки графика упорядочены по дате (включая архив). Меньшее время — лучший результат.'));
   }
+  function deleteHistoryRecord(type, id) {
+    if (storage.readOnly) return toast('Хранилище недоступно: удаление заблокировано');
+    const labels = { session:'автоматическую запись серии', archive:'ручную архивную запись', incomplete:'неполную попытку' };
+    if (!window.confirm(`Удалить ${labels[type]} выбранного спортсмена? Действие нельзя отменить.`)) return;
+    try {
+      const next = M.deleteRecord(storage, storage.selectedAthleteId, type, id);
+      // Persist the deletion before updating the UI so a failed write cannot be reported as success.
+      localStorage.setItem(M.STORAGE_KEY, JSON.stringify(next));
+      Object.assign(storage, next);
+      if (type === 'session' && activeId === id) activeId = null;
+      if (type === 'session' && viewingId === id) viewingId = null;
+      if (baselineId === id) baselineId = null;
+      renderHistory(); toast('Запись удалена');
+    } catch (error) { toast('Не удалось удалить запись: ' + error.message); }
+  }
   function renderHistory() {
-    const list=clear($('historyList'));
-    $('historyAthlete').textContent=selectedAthlete().name;
-    const records=[...sortedSessions().filter(s=>s.athleteId===storage.selectedAthleteId).map(s=>({type:'session',s,time:Date.parse(s.createdAt)})),
-      ...storage.archived.filter(a=>a.athleteId===storage.selectedAthleteId).map(a=>({type:'archive',a,time:Date.parse(a.date+'T12:00:00Z')}))]
-      .sort((a,b)=>b.time-a.time);
-    if(!records.length)list.append(make('div','empty-state','У этого спортсмена пока нет результатов.'));
-    for(const r of records){
-      if(r.type==='session'){
-        const s=r.s,card=action('','history-card',()=>{viewingId=s.id;baselineId=null;show('review');});
-        const head=make('div','history-head');head.append(make('strong','',dateLabel(s.createdAt)),make('span','pill',`${s.exercises.length}/2 попытки`));
-        const details=make('p','muted',s.exercises.map((e,i)=>`Попытка ${i+1} · ${modeLabel(e.mode)}`).join(' · '));
-        const stat=make('div','history-stats');
-        s.exercises.forEach((e,i)=>{const x=make('div');x.append(document.createTextNode(`Попытка ${i+1}: `),make('span','',sec(M.exerciseTotal(e))));stat.append(x);});
+    const list = clear($('historyList'));
+    $('historyAthlete').textContent = selectedAthlete().name;
+    const records = [
+      ...sortedSessions().filter(s => s.athleteId === storage.selectedAthleteId).map(s => ({type:'session',s,time:Date.parse(s.createdAt)})),
+      ...storage.incomplete.filter(x => x.athleteId === storage.selectedAthleteId).map(x => ({type:'incomplete',x,time:Date.parse(x.startedAt)})),
+      ...storage.archived.filter(a => a.athleteId === storage.selectedAthleteId).map(a => ({type:'archive',a,time:Date.parse(a.date+'T12:00:00Z')}))
+    ].sort((a,b) => b.time-a.time);
+    if (!records.length) list.append(make('div','empty-state','У этого спортсмена пока нет результатов.'));
+    for (const r of records) {
+      if (r.type === 'session') {
+        const s = r.s, finalized = M.bestTotal(s) !== null;
+        const wrap = make('div','history-entry');
+        const card = action('','history-card',() => {viewingId=s.id;baselineId=null;show('review');});
+        const head = make('div','history-head');
+        head.append(make('strong','',dateLabel(s.createdAt)),make('span','pill',
+          finalized ? `Завершено · ${s.exercises.length === 1 ? '1 попытка' : '2 попытки'}` : 'Ожидает вторую попытку'));
+        const details = make('p','muted',s.exercises.map((e,i) => `Попытка ${i+1} · ${modeLabel(e.mode)}`).join(' · '));
+        const stat = make('div','history-stats');
+        s.exercises.forEach((e,i) => {const x = make('div');x.append(document.createTextNode(`Попытка ${i+1}: `),make('span','',sec(M.exerciseTotal(e))));stat.append(x);});
         card.append(head,details,stat);
-        if(s.exercises.length===2){const best=make('p','muted');best.append(document.createTextNode('Лучшее из двух: '),make('strong','',sec(M.bestTotal(s))));card.append(best);}
-        else card.append(make('p','muted small','Ожидает вторую попытку — не участвует в рейтинге лучших результатов.'));
+        if (finalized) {const best=make('p','muted');best.append(document.createTextNode('Лучшее время серии: '),make('strong','',sec(M.bestTotal(s))));card.append(best);}
+        else card.append(make('p','muted small','Незавершённая серия · ещё не участвует в сравнении.'));
+        wrap.append(card,action('Удалить запись', 'small-button danger-outline',()=>deleteHistoryRecord('session',s.id)));
+        list.append(wrap);
+      } else if (r.type === 'incomplete') {
+        const x = r.x, card = make('div','archive-entry incomplete-entry');
+        const header=make('div','archive-title');header.append(make('strong','',dateLabel(x.startedAt)),make('span','pill','Неполная попытка'));
+        card.append(header,make('div','archive-time',sec(x.elapsedMs)),
+          make('p','muted small',`${x.intervals.length} из ${x.target} интервалов · не участвует в сравнении лучших времён`));
+        if (x.intervals.length) {
+          const details=make('details','incomplete-details');const summary=make('summary','','Показать отсечки');
+          const ol=make('ol');x.intervals.forEach((ms,i)=>ol.append(make('li','',`Интервал ${i+1}: ${sec(ms)}`)));
+          details.append(summary,ol);card.append(details);
+        }
+        card.append(action('Удалить неполную попытку','small-button danger-outline',()=>deleteHistoryRecord('incomplete',x.id)));
         list.append(card);
       } else {
         const a=r.a,card=make('div','archive-entry');
         const header=make('div','archive-title');header.append(make('strong','',a.date.split('-').reverse().join('.')),make('span','pill','Внесено вручную'));
         card.append(header,make('div','archive-time',sec(a.bestMs)),make('p','muted small','Лучшее общее время · без детализации попыток'));
-        card.append(action('Удалить архивную запись','small-button danger-outline',()=>{
-          if(!window.confirm(`Удалить архивную запись от ${a.date} (${sec(a.bestMs)})?`))return;
-          storage.archived=storage.archived.filter(x=>x.id!==a.id);persist();renderHistory();
-        }));list.append(card);
+        card.append(action('Удалить архивную запись','small-button danger-outline',()=>deleteHistoryRecord('archive',a.id)));
+        list.append(card);
       }
     }
     const date=$('archiveDate');if(!date.value){const d=new Date();date.value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
@@ -418,7 +487,8 @@
       choose.append(make('strong','',athlete.name), make('small','',pending ? 'Первое упражнение готово · ожидает второе' : 'Следующая пара · упражнение 1'));
       const count = storage.sessions.filter(s => s.athleteId === athlete.id).length;
       const archiveCount = storage.archived.filter(a => a.athleteId === athlete.id).length;
-      choose.append(make('small','',`${count} пар · ${archiveCount} архивных записей${isSelected ? ' · выбран' : ''}`));
+      const incompleteCount = storage.incomplete.filter(a => a.athleteId === athlete.id).length;
+      choose.append(make('small','',`${count} серий · ${archiveCount} архивных · ${incompleteCount} неполных${isSelected ? ' · выбран' : ''}`));
       const controls = make('div','athlete-controls');
       controls.append(action('Переименовать', 'small-button', () => {
         const value = window.prompt('Новое имя спортсмена', athlete.name);
@@ -430,11 +500,13 @@
         if (storage.athletes.length === 1) return toast('Нельзя удалить единственный профиль');
         const sessions = storage.sessions.filter(s => s.athleteId === athlete.id);
         const archived = storage.archived.filter(a => a.athleteId === athlete.id);
-        if ((sessions.length || archived.length) && !window.confirm(`Удалить «${athlete.name}»: ${sessions.length} пар и ${archived.length} архивных записей? Сделайте резервную копию.`)) return;
+        const incomplete = storage.incomplete.filter(a => a.athleteId === athlete.id);
+        if ((sessions.length || archived.length || incomplete.length) && !window.confirm(`Удалить «${athlete.name}»: ${sessions.length} серий, ${archived.length} архивных и ${incomplete.length} неполных попыток? Сделайте резервную копию.`)) return;
         if (!window.confirm(`Подтвердите удаление профиля «${athlete.name}» вместе с его результатами. Отменить нельзя.`)) return;
         storage.athletes = storage.athletes.filter(a => a.id !== athlete.id);
         storage.sessions = storage.sessions.filter(s => s.athleteId !== athlete.id);
         storage.archived = storage.archived.filter(a => a.athleteId !== athlete.id);
+        storage.incomplete = storage.incomplete.filter(a => a.athleteId !== athlete.id);
         if (isSelected) { storage.selectedAthleteId = storage.athletes[0].id; activeId = pendingFor(storage.selectedAthleteId)?.id || null; }
         if (viewingId && !findSession(viewingId)) viewingId = null;
         persist(); renderAthletes();
@@ -478,13 +550,18 @@
   $('exportBtn').addEventListener('click',()=>download(backupName('json'),'application/json',JSON.stringify(M.validateStore(storage),null,2)));
   function csvCell(v) {let s=String(v??'');if(/^[=+@-]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"';}
   $('csvBtn').addEventListener('click',()=>{
-    const rows=[['athlete_id','athlete_name','record_id','date','record_type','exercise','mode','interval_number','interval_ms','total_ms','best_of_two_ms']];
+    const rows=[['athlete_id','athlete_name','record_id','date','record_type','exercise','mode','interval_number','interval_ms','total_ms','best_ms','status']];
     for(const s of sortedSessions())s.exercises.forEach((e,i)=>{
       const base=[s.athleteId,athleteName(s.athleteId),s.id,s.createdAt,'measured',i+1,e.mode];
-      if(e.mode===M.MODE_INTERVALS)e.intervals.forEach((ms,j)=>rows.push([...base,j+1,ms,M.exerciseTotal(e),M.bestTotal(s)??'']));
-      else rows.push([...base,'','',M.exerciseTotal(e),M.bestTotal(s)??'']);
+      if(e.mode===M.MODE_INTERVALS)e.intervals.forEach((ms,j)=>rows.push([...base,j+1,ms,M.exerciseTotal(e),M.bestTotal(s)??'',s.status]));
+      else rows.push([...base,'','',M.exerciseTotal(e),M.bestTotal(s)??'',s.status]);
     });
-    for(const a of storage.archived)rows.push([a.athleteId,athleteName(a.athleteId),a.id,a.date,'manual_archive','','','','','',a.bestMs]);
+    for(const a of storage.archived)rows.push([a.athleteId,athleteName(a.athleteId),a.id,a.date,'manual_archive','','','','','',a.bestMs,'archive']);
+    for(const x of storage.incomplete){
+      const base=[x.athleteId,athleteName(x.athleteId),x.id,x.startedAt,'incomplete','','intervals'];
+      if(x.intervals.length)x.intervals.forEach((ms,i)=>rows.push([...base,i+1,ms,x.elapsedMs,'','incomplete']));
+      else rows.push([...base,'','',x.elapsedMs,'','incomplete']);
+    }
     download(backupName('csv'),'text/csv;charset=utf-8','\ufeff'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n'));
   });
   $('importInput').addEventListener('change',async event=>{
@@ -494,13 +571,13 @@
       const imported=JSON.parse(await file.text());
       const merged=M.mergeStores(storage,imported);
       Object.assign(storage,merged.data); activeId=pendingFor(storage.selectedAthleteId)?.id || null;
-      persist();toast(`Импорт: ${merged.added} новых пар, ${merged.archivedAdded} архивных записей, ${merged.athletesAdded} спортсменов`);
+      persist();toast(`Импорт: ${merged.added} серий, ${merged.archivedAdded} архивных, ${merged.incompleteAdded} неполных, ${merged.athletesAdded} спортсменов`);
     }catch(error){toast('Импорт отклонён: '+(error.message||'некорректный JSON'));}
   });
   $('clearBtn').addEventListener('click',()=>{
     if(!window.confirm('Удалить ВСЕ измерения на этом устройстве? Отменить нельзя. Сначала экспортируйте JSON.'))return;
     if(!window.confirm('Подтвердите безвозвратное удаление истории.'))return;
-    storage.sessions=[];storage.archived=[];activeId=null;viewingId=null;baselineId=null;persist();show('settings');toast('История удалена');
+    storage.sessions=[];storage.archived=[];storage.incomplete=[];activeId=null;viewingId=null;baselineId=null;persist();show('settings');toast('История удалена');
   });
   window.addEventListener('storage',event=>{
     if(event.key!==M.STORAGE_KEY || run || finishing)return;
