@@ -1,3 +1,4 @@
+import json
 """Chromium smoke test: two athletes alternate exercises, history remains isolated."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
@@ -28,7 +29,9 @@ with sync_playwright() as p:
     }""")
     page.add_style_tag(content=(ROOT/'styles.css').read_text())
     page.add_script_tag(content=(ROOT/'model.js').read_text())
+    page.evaluate("(cfg) => { window.fetch = async () => ({ok: true, status: 200, json: async () => cfg}); }", json.loads((ROOT/'config.json').read_text(encoding='utf-8')))
     page.add_script_tag(content=(ROOT/'app.js').read_text())
+    page.wait_for_function("document.getElementById('tapZone').disabled === false")
     assert page.locator('#athleteBtn').inner_text()=='Спортсмен 1 ▾'
     page.locator('#athleteBtn').click()
     page.screenshot(path=str(SHOTS/'profiles-first.png'))

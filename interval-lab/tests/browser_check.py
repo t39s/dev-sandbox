@@ -1,10 +1,11 @@
+import json
 """Real Chromium end-to-end checks; monotonic timestamps are deterministic, UI timers real."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 import subprocess, time, re
 
 ROOT = Path(__file__).resolve().parents[1]
-SHOTS = Path('/mnt/data/interval-lab_1.4.1/qa-shots')
+SHOTS = Path('/mnt/data/interval-lab_1.4.2/qa-shots')
 SHOTS.mkdir(parents=True, exist_ok=True)
 PORT = 18765
 server = subprocess.Popen(['python3', '-m', 'http.server', str(PORT), '--bind', '127.0.0.1'],cwd=ROOT,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
@@ -40,7 +41,9 @@ try:
               }});
             }""")
             page.add_script_tag(content=(ROOT/'model.js').read_text())
+            page.evaluate("(cfg) => { window.fetch = async () => ({ok: true, status: 200, json: async () => cfg}); }", json.loads((ROOT/'config.json').read_text(encoding='utf-8')))
             page.add_script_tag(content=(ROOT/'app.js').read_text())
+            page.wait_for_function("document.getElementById('tapZone').disabled === false")
         print('Browser test mode:',mode)
         def tick_tap(ms):
             page.evaluate('(ms) => window.__clock += ms', ms)

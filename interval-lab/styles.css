@@ -71,3 +71,6 @@
 @media(max-height:620px){.capture-view.running:not(.mode-stopwatch) .capture-content{padding-bottom:max(78px,calc(env(safe-area-inset-bottom) + 78px))}.early-finish{bottom:max(7px,env(safe-area-inset-bottom));min-height:43px}}
 
 /* v1.4.1: streamlined capture area. */
+
+/* v1.4.2: loading/error screen stays legible when measurement is disabled. */
+.tap-zone:disabled{opacity:1;cursor:default}

@@ -1,3 +1,4 @@
+import json
 """Chromium end-to-end: early finish, decline second, delete individual records, and narrow phone UI."""
 from pathlib import Path
 import re
@@ -23,7 +24,9 @@ with sync_playwright() as p:
     page.add_style_tag(content=(ROOT/'styles.css').read_text(encoding='utf-8'))
     page.evaluate('''() => {let store=new Map();window.__fakeStore=store;Object.defineProperty(window,'localStorage',{configurable:true,value:{getItem:k=>store.get(k)??null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)}})}''')
     page.add_script_tag(content=(ROOT/'model.js').read_text(encoding='utf-8'))
+    page.evaluate("(cfg) => { window.fetch = async () => ({ok: true, status: 200, json: async () => cfg}); }", json.loads((ROOT/'config.json').read_text(encoding='utf-8')))
     page.add_script_tag(content=(ROOT/'app.js').read_text(encoding='utf-8'))
+    page.wait_for_function("document.getElementById('tapZone').disabled === false")
     def snapshot():return page.evaluate('JSON.parse(localStorage.getItem("interval-lab:data:v1"))')
     def tap(ms):
         return page.evaluate('''(ms)=>{window.__clock+=ms;let e=document.getElementById('tapZone');e.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,isPrimary:true,button:0}));return document.getElementById('intervalDigit').textContent}''',ms)

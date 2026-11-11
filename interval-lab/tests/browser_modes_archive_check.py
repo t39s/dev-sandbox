@@ -1,3 +1,4 @@
+import json
 """Playwright Chromium: separate start-stop screen, archive form and mixed history."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
@@ -25,7 +26,9 @@ with sync_playwright() as p:
       }});
     }""")
     page.add_script_tag(content=(ROOT/'model.js').read_text(encoding='utf-8'))
+    page.evaluate("(cfg) => { window.fetch = async () => ({ok: true, status: 200, json: async () => cfg}); }", json.loads((ROOT/'config.json').read_text(encoding='utf-8')))
     page.add_script_tag(content=(ROOT/'app.js').read_text(encoding='utf-8'))
+    page.wait_for_function("document.getElementById('tapZone').disabled === false")
     page.locator('#modeBtn').click()
     page.locator('#selectStopwatch').click()
     assert page.locator('#capture').evaluate("el=>el.classList.contains('mode-stopwatch')")
