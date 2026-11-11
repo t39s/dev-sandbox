@@ -1,6 +1,9 @@
-Interval Lab 1.4.1
+Interval Lab 1.4.2
 Release date: 2026-11-11
-Changes: numeric zero at rest; removed press counter and last-interval panel from timing screen.
-Timing, analytics, history and storage schema v4: unchanged.
-PWA cache: interval-lab-shell-v6.
-Source consistency checked; browser test execution not confirmed in this environment.
+Changes: config.json / minTapGapMs; validated async config loading; fail-closed measurement startup.
+Allowed minTapGapMs: integer 0..3600000, default file value 1000.
+Semantics: next accepted touch must occur strictly later than configured milliseconds since previous accepted touch.
+Both intervals and stopwatch use the same setting, frozen for each attempt.
+Offline shell: cache v7, includes config.json. Local use requires HTTP server.
+Storage schema: 4, key interval-lab:data:v1; no migration.
+Regression checks updated; physical smartphone timing and GitHub Pages availability unverified.

@@ -107,7 +107,7 @@
           <label for="targetInput">Число интервалов (только режим с отсечками)</label>
           <div class="input-row"><input id="targetInput" type="number" inputmode="numeric" min="1" max="200" step="1" required><button type="submit" class="primary-button">Сохранить</button></div>
           <p id="pressExplanation" class="help-text"></p>
-          <p class="help-text">Первое нажатие запускает отсчёт и показывает 0. Каждое следующее увеличивает крупную цифру на 1. При завершении последнего интервала измерение заканчивается автоматически. Принятое касание подтверждается контрастной вспышкой фона на 150 мс. Повторные касания с паузой не более 1 секунды игнорируются.</p>
+          <p class="help-text">Первое нажатие запускает отсчёт и показывает 0. Каждое следующее увеличивает крупную цифру на 1. При завершении последнего интервала измерение заканчивается автоматически. Принятое касание подтверждается контрастной вспышкой фона на 150 мс. Повторные касания с паузой не более значения minTapGapMs из файла config.json игнорируются.</p>
           <p id="settingsNotice" class="inline-note" role="status"></p>
         </form>
         <article class="panel"><div class="panel-heading"><h2>Данные</h2></div>
