@@ -1,3 +1,4 @@
 {
-  "minTapGapMs": 500
+  "minTapGapMs": 500,
+  "intervalCount": 10
 }

@@ -11,7 +11,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" type="image/svg+xml" href="./icon.svg">
   <link rel="stylesheet" href="./styles.css">
-  <title>Interval Lab 1.4.2 — измерение времени</title>
+  <title>Interval Lab 1.4.3 — измерение времени</title>
 </head>
 <body>
   <div id="app">
@@ -103,13 +103,11 @@
       <div class="page-body"><div class="section-overline">НАСТРОЙКИ ИЗМЕРЕНИЯ</div><h1>Настройки</h1>
         <button id="settingsManageAthletes" class="secondary-button full" type="button">Управление спортсменами →</button>
         <button id="settingsModeBtn" class="secondary-button full" type="button">Выбрать режим измерения →</button>
-        <form id="settingsForm" class="panel settings-form">
-          <label for="targetInput">Число интервалов (только режим с отсечками)</label>
-          <div class="input-row"><input id="targetInput" type="number" inputmode="numeric" min="1" max="200" step="1" required><button type="submit" class="primary-button">Сохранить</button></div>
-          <p id="pressExplanation" class="help-text"></p>
-          <p class="help-text">Первое нажатие запускает отсчёт и показывает 0. Каждое следующее увеличивает крупную цифру на 1. При завершении последнего интервала измерение заканчивается автоматически. Принятое касание подтверждается контрастной вспышкой фона на 150 мс. Повторные касания с паузой не более значения minTapGapMs из файла config.json игнорируются.</p>
-          <p id="settingsNotice" class="inline-note" role="status"></p>
-        </form>
+        <article class="panel">
+          <div class="panel-heading"><h2>Параметры измерения</h2><span class="panel-tag">config.json</span></div>
+          <p class="muted small">Число интервалов (<code>intervalCount</code>) и блокировка повторных нажатий (<code>minTapGapMs</code>) задаются в файле <code>config.json</code>. Для применения изменений перезагрузите приложение. В уже начатой серии число интервалов остаётся прежним.</p>
+          <p class="help-text">Первое нажатие запускает отсчёт и показывает 0. Каждое следующее увеличивает цифру на 1. Последняя отсечка завершает попытку. Каждое принятое касание подтверждается вспышкой на 150 мс.</p>
+        </article>
         <article class="panel"><div class="panel-heading"><h2>Данные</h2></div>
           <p class="muted small">Профили и результаты хранятся в localStorage браузера. Они не передаются на сервер и не синхронизируются между устройствами. Сохраните резервную копию перед очисткой браузера.</p>
           <div class="button-grid"><button id="exportBtn" type="button" class="secondary-button">Скачать JSON</button><button id="csvBtn" type="button" class="secondary-button">Скачать CSV</button></div>

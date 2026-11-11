@@ -7,6 +7,7 @@
   let currentView = 'capture', run = null, frameId = null, wakeLock = null;
   const MAX_CONFIGURED_TAP_GAP_MS = 60000;
   let minTapGapMs = null;
+  let intervalCount = null;
   let configurationState = 'loading';
   const TAP_FLASH_MS = 150;
   const FINAL_DISPLAY_MS = 650;
@@ -19,22 +20,34 @@
     instruction: $('tapInstruction'), progress: $('progressTrack'), count: $('intervalText')
   };
 
-  function parseTapGap(config) {
+  function parseConfiguration(config) {
     if (!config || typeof config !== 'object' || Array.isArray(config) ||
         !Number.isSafeInteger(config.minTapGapMs) ||
         config.minTapGapMs < 0 || config.minTapGapMs > MAX_CONFIGURED_TAP_GAP_MS) {
       throw new Error('config.json: minTapGapMs должен быть целым числом от 0 до 60000 мс');
     }
-    return config.minTapGapMs;
+    if (!M.validTarget(config.intervalCount)) {
+      throw new Error('config.json: intervalCount должен быть целым числом от 1 до 200');
+    }
+    return { minTapGapMs: config.minTapGapMs, intervalCount: config.intervalCount };
   }
   async function loadConfiguration() {
     try {
       const response = await fetch('./config.json', {cache: 'no-cache'});
       if (!response.ok) throw new Error('config.json: HTTP ' + response.status);
-      minTapGapMs = parseTapGap(await response.json());
+      const configuration = parseConfiguration(await response.json());
+      minTapGapMs = configuration.minTapGapMs;
+      intervalCount = configuration.intervalCount;
       configurationState = 'ready';
+      // Keep the legacy storage schema valid without using it as a settings source.
+      // Any pending two-exercise session retains its own target.
+      if (storage.target !== intervalCount) {
+        storage.target = intervalCount;
+        persist();
+      }
     } catch (error) {
       minTapGapMs = null;
+      intervalCount = null;
       configurationState = 'error';
       console.error('Interval Lab: конфигурация не загружена; измерение заблокировано.', error);
     }
@@ -91,12 +104,11 @@
     if (view === 'capture') renderCapture();
     if (view === 'review') renderReview();
     if (view === 'history') renderHistory();
-    if (view === 'settings') renderSettings();
     if (view === 'athletes') renderAthletes();
     if (view === 'modes') renderModes();
     window.scrollTo(0, 0);
   }
-  function currentTarget() { return activeSession()?.exercises.length === 1 ? activeSession().target : storage.target; }
+  function currentTarget() { return activeSession()?.exercises.length === 1 ? activeSession().target : (intervalCount ?? storage.target); }
   function capturePhase() { return activeSession()?.exercises.length === 1 ? 2 : 1; }
   function renderCapture() {
     const measured = run || finishing;
@@ -166,7 +178,7 @@
       clearTimeout(toastTimer); $('toast').classList.remove('show'); // Never cover the early-finish control during timing.
       let session = activeSession();
       if (!session || session.exercises.length !== 1) session = null;
-      const target = session ? session.target : storage.target;
+      const target = session ? session.target : intervalCount;
       const phase = session ? 2 : 1;
       run = { start: now, last: now, minTapGapMs, target: storage.mode === M.MODE_STOPWATCH ? 1 : target, sessionTarget: target, mode: storage.mode, phase, intervals: [], startedAt: new Date().toISOString(), sessionId: session?.id || null, athleteId: storage.selectedAthleteId };
       flashAcceptedTap();
@@ -550,23 +562,6 @@
   });
   $('historyChangeAthlete').addEventListener('click', () => show('athletes'));
   $('settingsManageAthletes').addEventListener('click', () => show('athletes'));
-  function renderSettings() {
-    $('targetInput').value=storage.target;
-    $('settingsNotice').textContent=''; updatePressExplanation();
-  }
-  function updatePressExplanation() {
-    const n=Number($('targetInput').value);
-    $('pressExplanation').textContent=M.validTarget(n) ? `${n} интервалов = ${M.requiredPresses(n)} нажатий (1 стартовое + ${n} отсечек).` : 'Допустимо от 1 до 200 интервалов.';
-  }
-  $('targetInput').addEventListener('input',updatePressExplanation);
-  $('settingsForm').addEventListener('submit', event => {
-    event.preventDefault(); const n=Number($('targetInput').value);
-    if (!M.validTarget(n)) return toast('Введите целое число от 1 до 200');
-    storage.target = n; persist();
-    const pending = activeSession();
-    $('settingsNotice').textContent = pending?.exercises.length === 1 ? `Настройка сохранена для новой пары. Если в текущей паре выбран режим с отсечками, в нём будет ${pending.target} интервалов.` : 'Настройка сохранена.';
-    toast('Настройка сохранена');
-  });
   function download(name,mime,data) {
     const blob = new Blob([data],{type:mime}); const url=URL.createObjectURL(blob);
     const a=make('a'); a.href=url; a.download=name; document.body.append(a);a.click();a.remove();
@@ -596,7 +591,10 @@
     try{
       const imported=JSON.parse(await file.text());
       const merged=M.mergeStores(storage,imported);
-      Object.assign(storage,merged.data); activeId=pendingFor(storage.selectedAthleteId)?.id || null;
+      Object.assign(storage,merged.data);
+      // Imported legacy target is compatibility metadata, not the active configuration.
+      if (configurationState === 'ready') storage.target = intervalCount;
+      activeId=pendingFor(storage.selectedAthleteId)?.id || null;
       persist();toast(`Импорт: ${merged.added} серий, ${merged.archivedAdded} архивных, ${merged.incompleteAdded} неполных, ${merged.athletesAdded} спортсменов`);
     }catch(error){toast('Импорт отклонён: '+(error.message||'некорректный JSON'));}
   });
@@ -607,7 +605,9 @@
   });
   window.addEventListener('storage',event=>{
     if(event.key!==M.STORAGE_KEY || run || finishing)return;
-    try {const incoming=M.validateStore(JSON.parse(event.newValue));Object.assign(storage,incoming);activeId=pendingFor(storage.selectedAthleteId)?.id||null;
+    try {const incoming=M.validateStore(JSON.parse(event.newValue));Object.assign(storage,incoming);
+      if (configurationState === 'ready') storage.target = intervalCount;
+      activeId=pendingFor(storage.selectedAthleteId)?.id||null;
       if(currentView==='history')renderHistory();if(currentView==='capture')renderCapture();if(currentView==='review'&&viewingId)renderReview();if(currentView==='athletes')renderAthletes();if(currentView==='modes')renderModes();}
     catch(error){/* Another tab has transient/invalid data; do not overwrite. */}
   });

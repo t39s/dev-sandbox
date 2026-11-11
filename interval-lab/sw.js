@@ -1,5 +1,5 @@
 /* Offline shell. User measurements are never transmitted or stored in Cache Storage. */
-const CACHE_NAME = 'interval-lab-shell-v7';
+const CACHE_NAME = 'interval-lab-shell-v8';
 const SHELL = ['./', './index.html', './model.js', './app.js', './styles.css', './config.json', './manifest.webmanifest', './icon.svg'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
