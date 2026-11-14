@@ -562,10 +562,30 @@
   });
   $('historyChangeAthlete').addEventListener('click', () => show('athletes'));
   $('settingsManageAthletes').addEventListener('click', () => show('athletes'));
-  function download(name,mime,data) {
-    const blob = new Blob([data],{type:mime}); const url=URL.createObjectURL(blob);
-    const a=make('a'); a.href=url; a.download=name; document.body.append(a);a.click();a.remove();
-    setTimeout(()=>URL.revokeObjectURL(url),1500);
+  async function download(name,mime,data) {
+    // Prefer the native file share/save sheet on compatible mobile browsers.
+    // A cancelled share is intentional; other failures fall back to download.
+    if (typeof File === 'function' && typeof navigator.share === 'function' && typeof navigator.canShare === 'function') {
+      try {
+        const file = new File([data],name,{type:mime});
+        const shareData = {files:[file]};
+        if (navigator.canShare(shareData)) {
+          try { await navigator.share(shareData); return; }
+          catch (error) { if (error?.name === 'AbortError') return; }
+        }
+      } catch (error) { /* Fall through to conventional download. */ }
+    }
+    const blob = new Blob([data],{type:mime});
+    const url = URL.createObjectURL(blob);
+    const a = make('a');
+    a.href = url;
+    a.download = name;
+    document.body.append(a);
+    try { a.click(); }
+    finally {
+      a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),60000);
+    }
   }
   function backupName(ext) {return `interval-lab-${new Date().toISOString().slice(0,10)}.${ext}`;}
   $('exportBtn').addEventListener('click',()=>download(backupName('json'),'application/json',JSON.stringify(M.validateStore(storage),null,2)));
