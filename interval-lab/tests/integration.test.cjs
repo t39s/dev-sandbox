@@ -342,8 +342,10 @@ test('invalid intervalCount cannot be rescued by legacy stored target',async()=>
  assert.equal(JSON.parse(store.get(model.STORAGE_KEY)).target,8);
  h.tap(9000);assert.equal(JSON.parse(store.get(model.STORAGE_KEY)).sessions.length,0);
 });
-test('settings UI has no editable interval count',()=>{
+test('published Interval Lab entry only opens the migration gateway',()=>{
  const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
  assert.doesNotMatch(html,/id="targetInput"|id="settingsForm"|id="pressExplanation"|id="settingsNotice"/);
- assert.match(html,/intervalCount/);
+ assert.match(html,/<main id="migration">/);
+ assert.match(html,/src="\.\/migration-gateway\.js"/);
+ assert.doesNotMatch(html,/src="\.\/app\.js"/);
 });
