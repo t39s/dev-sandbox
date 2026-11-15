@@ -1,127 +1,14 @@
 <!doctype html>
-<html lang="ru">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-  <meta name="theme-color" content="#08111b">
-  <meta name="description" content="Два режима измерения, независимые серии спортсменов, неполные попытки и архив результатов.">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Интервалы">
-  <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="icon" type="image/svg+xml" href="./icon.svg">
-  <link rel="stylesheet" href="./styles.css">
-  <title>Interval Lab 1.4.3 — измерение времени</title>
-</head>
-<body>
-  <div id="app">
-    <section id="capture" class="capture-view" aria-label="Секундомер">
-      <div class="capture-toolbar" id="captureToolbar">
-        <button type="button" class="athlete-switch" id="athleteBtn" aria-label="Выбрать спортсмена">Спортсмен 1 ▾</button>
-        <div class="toolbar-actions">
-          <button type="button" class="icon-button" id="modeBtn" aria-label="Выбрать режим" title="Режим измерения"><span aria-hidden="true">◷</span></button>
-          <button type="button" class="icon-button" id="historyBtn" aria-label="История" title="История"><span aria-hidden="true">▤</span></button>
-          <button type="button" class="icon-button" id="settingsBtn" aria-label="Настройки" title="Настройки"><span aria-hidden="true">⚙</span></button>
-        </div>
-      </div>
-      <button type="button" id="tapZone" class="tap-zone" aria-describedby="tapInstruction">
-        <div class="capture-content">
-          <div class="micro-label" id="phaseLabel">УПРАЖНЕНИЕ 01 / 02</div>
-          <div class="dial"><div class="dial-inner">
-            <div class="dial-kicker" id="stateLabel">ГОТОВ К ИЗМЕРЕНИЮ</div>
-            <div class="interval-digit" id="intervalDigit" aria-label="Завершено интервалов" aria-live="polite" aria-atomic="true">0</div>
-            <div class="big-time" id="timeDisplay" aria-label="Общее время">00:00.00</div>
-            <div class="tap-instruction" id="tapInstruction">КОСНИТЕСЬ ДЛЯ СТАРТА</div>
-          </div></div>
-          <div class="progress-area" id="intervalProgressArea">
-            <div class="progress-count"><span id="intervalText">0 / 10 интервалов</span></div>
-            <div class="progress-track" id="progressTrack" aria-label="Прогресс интервалов"></div>
-          </div>
-        </div>
-      </button>
-      <button type="button" id="earlyFinishBtn" class="early-finish hidden" aria-label="Завершить попытку досрочно">Завершить досрочно</button>
-      <div class="capture-foot" id="captureFoot"><span class="status-dot"></span><span>Данные остаются на этом устройстве</span></div>
-    </section>
-
-    <section id="review" class="page hidden" aria-label="Результаты">
-      <header class="page-header"><button class="back-button" type="button" data-go="capture">← Секундомер</button><span class="eyebrow">INTERVAL LAB</span></header>
-      <div class="page-body">
-        <div class="section-overline">АНАЛИЗ УПРАЖНЕНИЯ</div>
-        <h1 id="reviewTitle">Результаты</h1>
-        <p id="reviewSub" class="muted"></p>
-        <div id="reviewSummary"></div>
-        <div id="reviewActions" class="action-stack"></div>
-        <article class="panel" id="chartPanel"><div class="panel-heading"><h2>Динамика интервалов</h2><span class="panel-tag">секунды / интервал</span></div><div id="chartWrap"></div></article>
-        <article class="panel" id="tablePanel"><div class="panel-heading"><h2>Детализация интервалов</h2><span class="panel-tag">все интервалы</span></div><div id="intervalTable" class="table-wrap"></div></article>
-        <article class="panel" id="baselinePanel"><div class="panel-heading"><h2>Сравнение с историей</h2></div><div id="baselineWrap"></div></article>
-      </div>
-    </section>
-
-    <section id="history" class="page hidden" aria-label="История">
-      <header class="page-header"><button class="back-button" type="button" data-go="capture">← Секундомер</button><span class="eyebrow">АРХИВ ИЗМЕРЕНИЙ</span></header>
-      <div class="page-body"><div class="section-overline">НА ЭТОМ УСТРОЙСТВЕ</div><h1>История</h1>
-        <p class="muted">История выбранного спортсмена: <strong id="historyAthlete"></strong>. Итог серии — лучшее время одной или двух зачётных попыток. Неполные попытки исключены из сравнения.</p>
-        <button id="historyChangeAthlete" type="button" class="secondary-button">Сменить спортсмена</button>
-        <form id="archiveForm" class="panel settings-form">
-          <div class="panel-heading"><h2>Добавить архивный результат</h2><span class="panel-tag">ВРУЧНУЮ</span></div>
-          <p class="muted small">Для выбранного спортсмена. Укажите дату и лучшее общее время; отдельные попытки не требуются.</p>
-          <label for="archiveDate">Дата упражнения</label>
-          <input id="archiveDate" type="date" required>
-          <label for="archiveSeconds">Лучшее время, секунд</label>
-          <input id="archiveSeconds" type="text" inputmode="decimal" placeholder="Например, 12,345" required maxlength="20">
-          <button class="primary-button full" type="submit">Сохранить в архив</button>
-        </form>
-        <div id="historyList" class="history-list"></div>
-        <button type="button" class="secondary-button full" data-go="settings">Экспорт и импорт истории →</button>
-      </div>
-    </section>
-
-    <section id="modes" class="page hidden" aria-label="Выбор режима">
-      <header class="page-header"><button class="back-button" type="button" data-go="capture">← Секундомер</button><span class="eyebrow">РЕЖИМ ИЗМЕРЕНИЯ</span></header>
-      <div class="page-body"><div class="section-overline">ВЫБЕРИТЕ ПЕРЕД СТАРТОМ</div><h1>Два режима</h1>
-        <p class="muted">Режим можно менять между попытками одного спортсмена. Сравнение определяется только общим временем.</p>
-        <button id="selectIntervals" class="mode-choice" type="button"><strong>С отсечками</strong><span>Первое касание — старт; далее отсечки. Крупная цифра 0, 1, 2…</span><small id="modeIntervalsState"></small></button>
-        <button id="selectStopwatch" class="mode-choice" type="button"><strong>Старт–Стоп</strong><span>Отдельный экран с крупным временем. Первое касание — старт, второе — стоп.</span><small id="modeStopwatchState"></small></button>
-      </div>
-    </section>
-
-    <section id="athletes" class="page hidden" aria-label="Спортсмены">
-      <header class="page-header"><button class="back-button" type="button" data-go="capture">← Секундомер</button><span class="eyebrow">ПРОФИЛИ СПОРТСМЕНОВ</span></header>
-      <div class="page-body"><div class="section-overline">ОДНО УСТРОЙСТВО · НЕЗАВИСИМЫЕ ПАРЫ</div><h1>Спортсмены</h1>
-        <p class="muted">Выберите спортсмена перед упражнением. Его незавершённая пара сохранится, даже если другой спортсмен выполнит свою попытку.</p>
-        <p id="athleteCount" class="muted small"></p><div id="athleteList" class="athlete-list"></div>
-        <form id="athleteForm" class="panel settings-form">
-          <label for="athleteNameInput">Добавить спортсмена</label>
-          <div class="input-row athlete-input-row"><input id="athleteNameInput" type="text" maxlength="50" autocomplete="off" placeholder="Имя спортсмена" required><button type="submit" class="primary-button">Добавить и выбрать</button></div>
-        </form>
-        <p class="muted small">Удаление спортсмена удаляет и его историю. Для резервного копирования используйте экспорт JSON в настройках.</p>
-      </div>
-    </section>
-
-    <section id="settings" class="page hidden" aria-label="Настройки">
-      <header class="page-header"><button class="back-button" type="button" data-go="capture">← Секундомер</button><span class="eyebrow">ПАРАМЕТРЫ</span></header>
-      <div class="page-body"><div class="section-overline">НАСТРОЙКИ ИЗМЕРЕНИЯ</div><h1>Настройки</h1>
-        <button id="settingsManageAthletes" class="secondary-button full" type="button">Управление спортсменами →</button>
-        <button id="settingsModeBtn" class="secondary-button full" type="button">Выбрать режим измерения →</button>
-        <article class="panel">
-          <div class="panel-heading"><h2>Параметры измерения</h2><span class="panel-tag">config.json</span></div>
-          <p class="muted small">Число интервалов (<code>intervalCount</code>) и блокировка повторных нажатий (<code>minTapGapMs</code>) задаются в файле <code>config.json</code>. Для применения изменений перезагрузите приложение. В уже начатой серии число интервалов остаётся прежним.</p>
-          <p class="help-text">Первое нажатие запускает отсчёт и показывает 0. Каждое следующее увеличивает цифру на 1. Последняя отсечка завершает попытку. Каждое принятое касание подтверждается вспышкой на 150 мс.</p>
-        </article>
-        <article class="panel"><div class="panel-heading"><h2>Данные</h2></div>
-          <p class="muted small">Профили и результаты хранятся в localStorage браузера. Они не передаются на сервер и не синхронизируются между устройствами. Сохраните резервную копию перед очисткой браузера.</p>
-          <div class="button-grid"><button id="exportBtn" type="button" class="secondary-button">Скачать JSON</button><button id="csvBtn" type="button" class="secondary-button">Скачать CSV</button></div>
-          <label class="secondary-button file-label" for="importInput">Импортировать JSON</label><input type="file" id="importInput" accept="application/json,.json" hidden>
-          <button type="button" id="clearBtn" class="danger-button">Удалить измерения всех спортсменов</button>
-        </article>
-        <article class="panel"><div class="panel-heading"><h2>О точности</h2></div>
-          <p class="muted small">Отсечки измеряются монотонными часами браузера (<code>performance.now()</code>). Дисплей показывает сотые доли секунды, история сохраняет миллисекунды. Это не сертифицированный измерительный прибор. Держите приложение на переднем плане и не блокируйте телефон во время упражнения. Приложение пытается удерживать экран активным там, где браузер поддерживает Wake Lock.</p>
-        </article>
-      </div>
-    </section>
-  </div>
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="./model.js"></script>
-  <script src="./app.js" defer></script>
-</body>
-</html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#08111b"><title>Interval Lab — переход в sidesteps</title>
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<style>
+:root{color-scheme:dark}*{box-sizing:border-box}body{font:17px/1.5 system-ui,sans-serif;background:#08111b;color:#edf4fa;margin:0}
+main{max-width:560px;margin:0 auto;padding:24px 18px 48px}h1{font-size:1.65rem;line-height:1.2}h2{font-size:1.12rem}
+p,.note{color:#bacbd8}section{border:1px solid #45586a;border-radius:15px;padding:18px;margin:16px 0;background:#112234}
+button,.button{display:block;width:100%;border:0;border-radius:12px;background:#b2e2cc;color:#102c24;font-weight:750;font-size:1.05rem;padding:15px 12px;text-align:center;text-decoration:none;cursor:pointer}
+button:disabled{opacity:.5}label.profile{display:block;border:1px solid #556b7e;border-radius:12px;padding:12px;margin:10px 0;cursor:pointer}
+label.profile:has(input:checked){border-color:#a9e7d1;background:#203d40}input[type=radio]{accent-color:#a9e7d1}
+small{color:#b6c5cf;display:block}.error{color:#ffb8b8}.note{font-size:.9rem}
+</style></head><body><main id="migration"><h1>Переход в sidesteps</h1><p>Проверяем сохранённую историю…</p></main>
+<script src="./model.js"></script><script src="./migration-gateway.js" defer></script></body></html>
