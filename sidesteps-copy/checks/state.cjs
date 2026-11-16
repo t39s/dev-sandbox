@@ -4,8 +4,8 @@ const { join } = require('node:path');
 const { test } = require('node:test');
 const vm = require('node:vm');
 
-const source = readFileSync(join(__dirname, '../iteration-02/app.js'), 'utf8');
-function browser(initial = {}, pathname = '/sidesteps-copy/iteration-01/') {
+const source = readFileSync(join(__dirname, '../iteration-03/app.js'), 'utf8');
+function browser(initial = {}, pathname = '/sidesteps-copy/iteration-03/') {
   const clock = initial.clock || {value: 1700000000000, elapsed: 0};
   const storage = initial.storage || new Map();
   const events = {};
@@ -94,8 +94,68 @@ test('График короткого замера имеет пять разн�
   state.fields['#mode'].value = 'stop';
   state.click('workout');
   state.click('measure');
-  state.advance(123);
+  state.advance(512);
   state.click('measure');
   const labels = [...state.app.innerHTML.matchAll(/text-anchor="end" font-size="15">([^<]+)/g)].map((match) => match[1]);
   assert.deepEqual(labels, ['0', '0,25', '0,5', '0,75', '1']);
+});
+
+test('500 мс между принятыми отсечками, отклонения не сбрасывают отсчёт', () => {
+  const state = browser();
+  state.click('workout');
+  state.click('measure');
+  assert.equal(state.value('flashUntil'), 180);
+  state.advance(499);
+  state.click('measure');
+  assert.equal(state.value('splits.length'), 0);
+  assert.equal(state.value('flashUntil'), 180);
+  state.advance(1);
+  state.click('measure');
+  assert.equal(state.value('splits[0]'), 500);
+  assert.equal(state.value('flashUntil'), 680);
+  state.advance(499);
+  state.click('measure');
+  assert.equal(state.value('splits.length'), 1);
+  assert.equal(state.value('flashUntil'), 680);
+  state.advance(1);
+  state.click('measure');
+  assert.equal(state.value('splits[1]'), 1000);
+});
+
+test('Старт–Стоп игнорирует раннюю остановку', () => {
+  const state = browser();
+  state.fields['#count'].value = '1';
+  state.fields['#mode'].value = 'stop';
+  state.click('workout');
+  state.click('measure');
+  state.advance(499);
+  state.click('measure');
+  assert.match(state.app.innerHTML, /КОСНИСЬ ДЛЯ СТОПА/);
+  state.advance(1);
+  state.click('measure');
+  assert.match(state.app.innerHTML, /Тренировка завершена/);
+  assert.equal(state.value('history[0].attempts[0].total'), 500);
+});
+
+test('С седьмой тренировки раскрываются все предыдущие, график истории не обрезается', () => {
+  const state = browser();
+  state.fields['#count'].value = '1';
+  state.fields['#mode'].value = 'stop';
+  for (let i = 1; i <= 12; i++) {
+    state.click('workout');
+    state.click('measure');
+    state.advance(600 + i);
+    state.click('measure');
+    assert.match(state.app.innerHTML, new RegExp('график последних ' + Math.min(i, 5) + ' завершённых'));
+    state.click('home');
+    assert.match(state.app.innerHTML, new RegExp('график последних ' + i + ' завершённых'));
+    assert.equal([...state.app.innerHTML.matchAll(/class="previous"/g)].length, Math.min(i - 1, 5));
+    assert.equal(state.app.innerHTML.includes('Все тренировки'), i >= 7);
+  }
+  assert.match(state.app.innerHTML, /Все тренировки \(12\)/);
+  state.click('history-toggle');
+  assert.match(state.app.innerHTML, /aria-expanded="true">5 тренировок/);
+  assert.equal([...state.app.innerHTML.matchAll(/class="previous"/g)].length, 11);
+  state.click('history-toggle');
+  assert.match(state.app.innerHTML, /aria-expanded="false">Все тренировки \(12\)/);
 });
