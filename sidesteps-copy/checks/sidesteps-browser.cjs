@@ -11,7 +11,7 @@ test('пользовательские сценарии в мобильном vi
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  const base = process.env.SIDESTEPS_TEST_URL || 'http://127.0.0.1:8792/sidesteps-copy/iteration-01/';
+  const base = process.env.SIDESTEPS_TEST_URL || 'http://127.0.0.1:8792/sidesteps-copy/iteration-02/';
   const button = (name) => page.getByRole('button', {name, exact: true});
   const click = (name) => button(name).click();
   const visible = (text) => page.getByText(text, {exact: true}).first().waitFor();
