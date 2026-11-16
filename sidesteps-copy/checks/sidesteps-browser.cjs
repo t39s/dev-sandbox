@@ -11,9 +11,10 @@ test('пользовательские сценарии в мобильном vi
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  const base = process.env.SIDESTEPS_TEST_URL || 'http://127.0.0.1:8792/sidesteps-copy/iteration-02/';
+  const base = process.env.SIDESTEPS_TEST_URL || 'http://127.0.0.1:8792/sidesteps-copy/iteration-03/';
   const button = (name) => page.getByRole('button', {name, exact: true});
   const click = (name) => button(name).click();
+  const lap = async () => { await page.waitForTimeout(520); await click('Отсечка или стоп'); };
   const visible = (text) => page.getByText(text, {exact: true}).first().waitFor();
   const openExercise = () => page.getByRole('tab', {name: 'Новое упражнение'}).click();
   const startStopForm = async () => {
@@ -33,16 +34,16 @@ test('пользовательские сценарии в мобильном vi
   await click('Начать тренировку');
   await visible('Попытка 1 из 2');
   await click('Начать измерение');
-  for (let i = 0; i < 19; i++) await click('Отсечка или стоп');
+  for (let i = 0; i < 19; i++) await lap();
   await visible('19 / 20 интервалов');
-  await click('Отсечка или стоп');
+  await lap();
   await visible('Отдых');
   await page.reload();
   await visible('Отдых');
   await click('Начать раньше');
   await visible('Попытка 2 из 2');
   await click('Начать измерение');
-  for (let i = 0; i < 20; i++) await click('Отсечка или стоп');
+  for (let i = 0; i < 20; i++) await lap();
   await visible('Тренировка завершена');
   await page.getByText('Подробнее', {exact: true}).click();
   await page.getByText('Время каждого интервала (20)', {exact: true}).first().click();
@@ -59,6 +60,8 @@ test('пользовательские сценарии в мобильном vi
   await visible('КОСНИСЬ ДЛЯ СТАРТА');
   await click('Начать измерение');
   await click('Отсечка или стоп');
+  await visible('КОСНИСЬ ДЛЯ СТОПА');
+  await lap();
   await visible('Тренировка завершена');
   await visible('★ Новый рекорд!');
   await click('На главную');
