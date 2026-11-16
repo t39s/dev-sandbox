@@ -4,7 +4,7 @@ const { join } = require('node:path');
 const { test } = require('node:test');
 const vm = require('node:vm');
 
-const source = readFileSync(join(__dirname, '../iteration-01/app.js'), 'utf8');
+const source = readFileSync(join(__dirname, '../iteration-02/app.js'), 'utf8');
 function browser(initial = {}, pathname = '/sidesteps-copy/iteration-01/') {
   const clock = initial.clock || {value: 1700000000000, elapsed: 0};
   const storage = initial.storage || new Map();
@@ -86,4 +86,16 @@ test('Версии изолируют историю на одном origin', ()
   first.click('sound');
   assert.equal(first.reload().value('sound'), false);
   assert.equal(browser(first.session, '/sidesteps-copy/iteration-02/').value('sound'), true);
+});
+
+test('График короткого замера имеет пять разных отметок', () => {
+  const state = browser();
+  state.fields['#count'].value = '1';
+  state.fields['#mode'].value = 'stop';
+  state.click('workout');
+  state.click('measure');
+  state.advance(123);
+  state.click('measure');
+  const labels = [...state.app.innerHTML.matchAll(/text-anchor="end" font-size="15">([^<]+)/g)].map((match) => match[1]);
+  assert.deepEqual(labels, ['0', '0,25', '0,5', '0,75', '1']);
 });
