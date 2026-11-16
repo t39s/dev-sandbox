@@ -1,0 +1,85 @@
+.ssui {
+  color-scheme: dark;
+  --ssui-bg: #091727;
+  --ssui-panel: #14273c;
+  --ssui-field: #0d2135;
+  --ssui-border: #365069;
+  --ssui-text: #f1f5f9;
+  --ssui-muted: #b6c6d7;
+  --ssui-action: #5dcced;
+  --ssui-confirm: #8be2b5;
+  --ssui-feedback: #ffd166;
+  --ssui-on-accent: #071622;
+  --ssui-board-glow: #1a3f57;
+  --ssui-radius: 1rem;
+  --ssui-gap: 0.875rem;
+  --ssui-tap: 2.875rem;
+  --ssui-max-width: 46rem;
+  --ssui-plot-height: 8rem;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-block: max(1.125rem, env(safe-area-inset-top)) max(1.125rem, env(safe-area-inset-bottom));
+  padding-inline: max(1rem, env(safe-area-inset-left)) max(1rem, env(safe-area-inset-right));
+  background: var(--ssui-bg);
+  color: var(--ssui-text);
+  font: 1rem/1.4 system-ui, sans-serif;
+}
+.ssui *, .ssui { box-sizing: border-box; }
+.ssui [hidden] { display: none !important; }
+.ssui :focus-visible { outline: 2px solid var(--ssui-action); outline-offset: 3px; }
+.ssui-header, .ssui-main { max-width: var(--ssui-max-width); margin-inline: auto; min-width: 0; }
+.ssui-header { display: flex; align-items: center; justify-content: space-between; gap: var(--ssui-gap); margin-bottom: var(--ssui-gap); }
+.ssui-title { margin: 0; font-size: clamp(1.2rem, 4vw, 1.7rem); line-height: 1.15; overflow-wrap: anywhere; }
+.ssui-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.ssui-main, .ssui-panel, .ssui-tab-panel { display: grid; gap: var(--ssui-gap); min-width: 0; }
+.ssui-panel, .ssui-card { background: var(--ssui-panel); border: 1px solid var(--ssui-border); border-radius: var(--ssui-radius); min-width: 0; padding: clamp(0.875rem, 3vw, 1.5rem); }
+.ssui-panel-title, .ssui-card-title, .ssui-chart-title { margin: 0; font-size: 1.05rem; font-weight: 750; overflow-wrap: anywhere; }
+.ssui-muted { margin: 0; color: var(--ssui-muted); }
+.ssui-button, .ssui-select, .ssui-tab, .ssui-board { font: inherit; color: inherit; border: 1px solid var(--ssui-border); min-height: var(--ssui-tap); border-radius: calc(var(--ssui-radius) * 0.7); }
+.ssui-button, .ssui-tab, .ssui-board { cursor: pointer; }
+.ssui-button, .ssui-tab { padding: 0.55rem 0.8rem; background: var(--ssui-field); font-weight: 700; overflow-wrap: anywhere; }
+.ssui-button[data-variant="primary"], .ssui-tab[aria-selected="true"] { background: var(--ssui-action); color: var(--ssui-on-accent); border-color: transparent; }
+.ssui-button[data-variant="confirm"] { background: var(--ssui-confirm); color: var(--ssui-on-accent); border-color: transparent; }
+.ssui button:disabled, .ssui select:disabled { opacity: 0.55; cursor: default; }
+.ssui-field { display: grid; gap: 0.45rem; min-width: 0; }
+.ssui-label { color: var(--ssui-muted); font-weight: 650; }
+.ssui-select { background: var(--ssui-field); width: 100%; padding: 0.5rem 0.7rem; }
+.ssui-tab-list { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 0.5rem; margin-bottom: var(--ssui-gap); }
+.ssui-tab[aria-selected="true"] { text-decoration: underline; text-underline-offset: 0.2em; }
+.ssui-board {
+  width: 100%;
+  min-height: clamp(12rem, 52vw, 23rem);
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.4rem;
+  padding: 0.9rem;
+  text-align: center;
+  background: radial-gradient(ellipse at 50% 38%, var(--ssui-board-glow), var(--ssui-field) 74%);
+  border: 2px solid var(--ssui-action);
+  border-radius: calc(var(--ssui-radius) * 1.5);
+  overflow-wrap: anywhere;
+}
+.ssui-board-value { font-size: clamp(2rem, 14vw, 5.75rem); font-weight: 850; line-height: 1; font-variant-numeric: tabular-nums; }
+.ssui-board-label, .ssui-board-detail { color: var(--ssui-muted); }
+.ssui-board-label { font-weight: 750; }
+.ssui-board[data-feedback="accepted"] { background: var(--ssui-feedback); color: var(--ssui-on-accent); }
+.ssui-board[data-feedback="accepted"] :is(.ssui-board-label, .ssui-board-detail) { color: inherit; }
+.ssui-card { display: grid; gap: 0.35rem; background: var(--ssui-field); }
+.ssui-card-value { margin: 0; font-size: 1.65rem; font-weight: 750; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.ssui-disclosure { color: var(--ssui-muted); }
+.ssui-disclosure > summary { color: var(--ssui-text); cursor: pointer; padding-block: 0.7rem; min-height: var(--ssui-tap); }
+.ssui-disclosure-content { overflow-wrap: anywhere; }
+.ssui-chart { min-width: 0; margin: 0; display: grid; gap: 0.5rem; }
+.ssui-chart-frame { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.45rem; min-width: 0; }
+.ssui-chart-scale { margin-top: 1.1rem; height: var(--ssui-plot-height); display: flex; flex-direction: column; justify-content: space-between; font-size: 0.72rem; line-height: 1; color: var(--ssui-muted); text-align: end; font-variant-numeric: tabular-nums; }
+.ssui-chart-scroll { overflow-x: auto; min-width: 0; }
+.ssui-chart-bars { position: relative; isolation: isolate; list-style: none; margin: 0; padding: 1.1rem 0 0; width: max-content; min-width: 100%; display: flex; }
+.ssui-chart-point { position: relative; flex: 1 0 4.25rem; min-width: 0; align-content: start; text-align: center; font-size: 0.75rem; }
+.ssui-chart-track { height: var(--ssui-plot-height); display: flex; justify-content: center; align-items: end; border-bottom: 1px solid var(--ssui-border); background: repeating-linear-gradient(to top, transparent 0 calc(25% - 1px), var(--ssui-border) calc(25% - 1px) 25%); }
+.ssui-chart-column { height: var(--ssui-bar-height); width: 55%; background: var(--ssui-action); border-radius: 0.25rem 0.25rem 0 0; }
+.ssui-chart-column[data-highlighted="true"] { background: var(--ssui-feedback); }
+.ssui-chart-value { position: absolute; z-index: 2; inset-inline: 0; top: calc(var(--ssui-bar-remainder) * var(--ssui-plot-height)); transform: translateY(-100%); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ssui-chart-caption { display: block; padding: 0.25rem; color: var(--ssui-muted); overflow-wrap: anywhere; }
+.ssui-chart-has-reference::after { content: ""; position: absolute; z-index: 1; top: calc(1.1rem + var(--ssui-reference-remainder) * var(--ssui-plot-height)); inset-inline: 0; border-top: 1px dashed var(--ssui-feedback); pointer-events: none; }
+.ssui-chart-reference { margin: 0; color: var(--ssui-feedback); font-size: 0.8rem; }
